@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Layout, Menu, Button, theme, Input, Badge, Avatar, Space, Popover, Typography, Drawer, Grid, Modal } from 'antd';
+import { Layout, Menu, Button, theme, Input, Badge, Avatar, Space, Popover, Typography, Drawer, Grid, Modal, Dropdown, Divider } from 'antd';
 import { 
   MenuFoldOutlined, 
   MenuUnfoldOutlined, 
@@ -12,7 +12,10 @@ import {
   PlusOutlined,
   SunOutlined,
   MoonOutlined,
-  LinkOutlined
+  LinkOutlined,
+  UserOutlined,
+  KeyOutlined,
+  IdcardOutlined,
 } from '@ant-design/icons';
 import {
   LayoutDashboard, Trophy, Users, Activity, BarChart3, Settings, HelpCircle,
@@ -276,11 +279,125 @@ const MainLayout = ({ children }) => {
             />
             {!isMobile && <Button type="text" icon={<SettingOutlined style={{ fontSize: 20 }} />} />}
             {!isMobile && <Button type="text" icon={<QuestionCircleOutlined style={{ fontSize: 20 }} />} />}
-            <Avatar 
-              src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" 
-              style={{ cursor: 'pointer', border: `2px solid ${token.colorBorder}` }} 
-              onClick={() => navigate(ROUTES.PROFILE)}
-            />
+            <Dropdown
+              placement="bottomRight"
+              arrow={{ pointAtCenter: true }}
+              trigger={['click']}
+              dropdownRender={() => (
+                <div style={{
+                  background: token.colorBgContainer,
+                  borderRadius: 12,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                  border: `1px solid ${token.colorBorderSecondary}`,
+                  minWidth: 240,
+                  overflow: 'hidden',
+                }}>
+                  {/* User info header */}
+                  <div style={{ padding: '16px 20px', background: 'linear-gradient(135deg, #0072ff15, #00e5ff15)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <Avatar
+                        size={44}
+                        style={{
+                          background: 'linear-gradient(135deg, #0072ff, #00e5ff)',
+                          fontSize: 18,
+                          fontWeight: 700,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {(currentUser.fullName || currentUser.email || 'U').charAt(0).toUpperCase()}
+                      </Avatar>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: token.colorText, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {currentUser.fullName || 'Người dùng'}
+                        </div>
+                        <div style={{ fontSize: 12, color: token.colorTextSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {currentUser.email}
+                        </div>
+                        <div style={{ marginTop: 4 }}>
+                          <span style={{
+                            fontSize: 11, fontWeight: 600, padding: '1px 8px', borderRadius: 20,
+                            background: currentUser.status === 'APPROVED' ? '#e6f9f0' : '#fff7e6',
+                            color: currentUser.status === 'APPROVED' ? '#10b981' : '#f59e0b',
+                          }}>
+                            {currentUser.role || 'STUDENT'} · {currentUser.status === 'APPROVED' ? 'Đã duyệt' : 'Chờ duyệt'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu items */}
+                  <div style={{ padding: '8px 0' }}>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px', cursor: 'pointer', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = token.colorFillTertiary}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      onClick={() => navigate(ROUTES.PROFILE)}
+                    >
+                      <IdcardOutlined style={{ color: '#0072ff', fontSize: 16 }} />
+                      <span style={{ fontSize: 14, color: token.colorText }}>Hồ sơ cá nhân</span>
+                    </div>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px', cursor: 'pointer', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = token.colorFillTertiary}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      onClick={() => setSocialLinkModalOpen(true)}
+                    >
+                      <LinkOutlined style={{ color: '#0072ff', fontSize: 16 }} />
+                      <span style={{ fontSize: 14, color: token.colorText }}>Liên kết mạng xã hội</span>
+                    </div>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px', cursor: 'pointer', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = token.colorFillTertiary}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      onClick={() => navigate(ROUTES.CHANGE_PASSWORD)}
+                    >
+                      <KeyOutlined style={{ color: '#f59e0b', fontSize: 16 }} />
+                      <span style={{ fontSize: 14, color: token.colorText }}>Đổi mật khẩu</span>
+                    </div>
+                  </div>
+
+                  <div style={{ margin: '0 12px', borderTop: `1px solid ${token.colorBorderSecondary}` }} />
+
+                  <div style={{ padding: '8px 0 8px' }}>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px', cursor: 'pointer', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#fff1f0'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                      onClick={async () => {
+                        try {
+                          const refreshToken = localStorage.getItem('refreshToken');
+                          if (refreshToken) await import('axios').then(m => m.default.post('/api/v1/auth/logout', { refreshToken }));
+                        } catch {}
+                        finally {
+                          localStorage.removeItem('accessToken');
+                          localStorage.removeItem('refreshToken');
+                          localStorage.removeItem('userInfo');
+                          navigate(ROUTES.LOGIN);
+                        }
+                      }}
+                    >
+                      <LogoutOutlined style={{ color: '#ef4444', fontSize: 16 }} />
+                      <span style={{ fontSize: 14, color: '#ef4444', fontWeight: 500 }}>Đăng xuất</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            >
+              <Avatar
+                style={{
+                  cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #0072ff, #00e5ff)',
+                  fontSize: 16,
+                  fontWeight: 700,
+                  border: `2px solid ${token.colorBorder}`,
+                  flexShrink: 0,
+                  userSelect: 'none',
+                }}
+              >
+                {(currentUser.fullName || currentUser.email || 'U').charAt(0).toUpperCase()}
+              </Avatar>
+            </Dropdown>
           </Space>
         </Header>
         

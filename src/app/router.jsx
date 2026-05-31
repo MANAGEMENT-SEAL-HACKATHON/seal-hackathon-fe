@@ -192,7 +192,7 @@ const AppRouter = () => {
         <Route path={ROUTES.STUDENT_TEAM} element={<StudentTeamPage />} />
         <Route path={ROUTES.STUDENT_INVITATIONS} element={<StudentInvitationsPage />} />
         <Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
-        <Route path={ROUTES.PROFILE} element={<OnboardingPage />} />
+        <Route path={ROUTES.PROFILE} element={<OnboardingPage isProfile={true} />} />
         <Route path={ROUTES.HACKATHONS} element={<HackathonListPage />} />
         <Route path={ROUTES.HACKATHON_CREATE} element={<CreateHackathonPage />} />
         <Route path={ROUTES.HACKATHON_SETUP} element={<HackathonSetupPage />} />

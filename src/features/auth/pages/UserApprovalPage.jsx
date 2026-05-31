@@ -24,45 +24,64 @@ const CHAPTERS = {
 
 const StudentCardImage = ({ userId }) => {
   const [loading, setLoading] = useState(false);
-  const [hasCard, setHasCard] = useState(false);
-  const [cloudinaryFailed, setCloudinaryFailed] = useState(false);
-
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'drrd1a7jd';
-  const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/student-cards/student-card-${userId}`;
-  const fallbackUrl = `/api/v1/users/${userId}/student-card`;
+  const [displayUrl, setDisplayUrl] = useState(null);
 
   useEffect(() => {
     let active = true;
-    const loadDetail = async () => {
+    const loadCard = async () => {
       setLoading(true);
       try {
         const detail = await userService.getUserDetail(userId);
+        if (!detail?.studentCardImagePath) {
+          if (active) setDisplayUrl('');
+          return;
+        }
+
+        const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'drrd1a7jd';
+        const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/student-cards/student-card-${userId}`;
+        const fallbackUrl = `/api/v1/users/${userId}/student-card`;
+
+        // Try Cloudinary first
+        try {
+          const res = await fetch(cloudinaryUrl, { method: 'HEAD' });
+          if (res.ok && active) {
+            setDisplayUrl(cloudinaryUrl);
+            return;
+          }
+        } catch (e) {
+          console.warn('Cloudinary HEAD check failed', e);
+        }
+
+        // Fetch fallback with auth
         if (active) {
-          const path = detail?.studentCardImagePath;
-          setHasCard(Boolean(path));
-          // If path is already a Cloudinary URL, reset failure state
-          if (path?.startsWith('http')) {
-            setCloudinaryFailed(false);
+          const token = localStorage.getItem('accessToken');
+          const res = await fetch(fallbackUrl, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (res.ok && active) {
+            const blob = await res.blob();
+            const localUrl = URL.createObjectURL(blob);
+            setDisplayUrl(localUrl);
           }
         }
       } catch (err) {
-        console.error('Failed to load student card path:', err);
+        console.error('Failed to load student card:', err);
       } finally {
         if (active) setLoading(false);
       }
     };
-    loadDetail();
+
+    loadCard();
     return () => { active = false; };
   }, [userId]);
 
   if (loading) return <Spin size="small" />;
-  if (!hasCard) return <Text type="secondary">Chưa upload</Text>;
-
-  // Use fallback BE endpoint if Cloudinary failed
-  const displayUrl = cloudinaryFailed ? fallbackUrl : cloudinaryUrl;
+  if (!displayUrl) return <Text type="secondary">Chưa upload</Text>;
 
   return (
-    <a href={cloudinaryFailed ? fallbackUrl : cloudinaryUrl} target="_blank" rel="noreferrer">
+    <a href={displayUrl} onClick={(e) => { e.preventDefault(); window.open(displayUrl, '_blank'); }} target="_blank" rel="noreferrer">
       <img
         src={displayUrl}
         alt="Thẻ sinh viên"
@@ -77,9 +96,6 @@ const StudentCardImage = ({ userId }) => {
         }}
         onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1.0)'; }}
-        onError={() => {
-          if (!cloudinaryFailed) setCloudinaryFailed(true);
-        }}
       />
     </a>
   );

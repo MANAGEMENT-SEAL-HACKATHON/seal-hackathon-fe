@@ -54,7 +54,7 @@ const generateSHA1 = async (string) => {
 // ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
-const OnboardingPage = () => {
+const OnboardingPage = ({ isProfile = false }) => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
 
@@ -66,6 +66,50 @@ const OnboardingPage = () => {
   const [fileList, setFileList] = useState([]);
   const [userInfo, setUserInfo] = useState(getUserInfo);
   const [checkingStatus, setCheckingStatus] = useState(true);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [cardUrl, setCardUrl] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    const loadCardImage = async () => {
+      if (!userInfo?.id && !userInfo?.userId) return;
+      const userId = userInfo.id || userInfo.userId;
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'drrd1a7jd';
+      const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/student-cards/student-card-${userId}`;
+      const fallbackUrl = `/api/v1/users/${userId}/student-card`;
+
+      // Try Cloudinary first
+      try {
+        const res = await fetch(cloudinaryUrl, { method: 'HEAD' });
+        if (res.ok && active) {
+          setCardUrl(cloudinaryUrl);
+          return;
+        }
+      } catch (e) {
+        console.warn('Cloudinary HEAD check failed, using fallback', e);
+      }
+
+      // Fetch fallback with auth token
+      try {
+        const token = localStorage.getItem('accessToken');
+        const res = await fetch(fallbackUrl, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok && active) {
+          const blob = await res.blob();
+          const localUrl = URL.createObjectURL(blob);
+          setCardUrl(localUrl);
+        }
+      } catch (err) {
+        console.error('Failed to load authenticated student card:', err);
+      }
+    };
+
+    loadCardImage();
+    return () => { active = false; };
+  }, [userInfo]);
 
   // Sync state on load using real API response to avoid local storage inconsistencies
   useEffect(() => {
@@ -74,7 +118,7 @@ const OnboardingPage = () => {
       try {
         const freshUser = await userService.getMe();
         if (!active) return;
-        
+
         // Sync local storage userInfo with fresh info
         const stored = getUserInfo() || {};
         const merged = { ...stored, ...freshUser };
@@ -82,17 +126,17 @@ const OnboardingPage = () => {
         window.dispatchEvent(new Event('userInfoUpdated'));
         setUserInfo(merged);
 
-        if (freshUser.status === 'APPROVED') {
+        const isApproved = freshUser.status === 'APPROVED';
+        const hasCompletedProfile = Boolean(freshUser.fullName && freshUser.phone);
+        const hasUploadedCard = Boolean(freshUser.studentCardImagePath);
+
+        if (isApproved && !isProfile) {
           navigate(ROUTES.DASHBOARD, { replace: true });
           return;
         }
 
-        // Determine step using fresh database fields
-        const hasCompletedProfile = Boolean(freshUser.fullName && freshUser.phone);
-        const hasUploadedCard = Boolean(freshUser.studentCardImagePath);
-
-        if (hasCompletedProfile && hasUploadedCard) {
-          setCurrentStep(2);
+        if (isApproved || (hasCompletedProfile && hasUploadedCard)) {
+          setIsCompleted(true);
         } else if (hasCompletedProfile) {
           setCurrentStep(1);
         } else {
@@ -107,7 +151,7 @@ const OnboardingPage = () => {
 
     fetchFreshStatus();
     return () => { active = false; };
-  }, [navigate]);
+  }, [navigate, isProfile]);
 
   // -------------------------------------------------------------------------
   // Step 1 – Profile
@@ -419,6 +463,105 @@ const OnboardingPage = () => {
     />
   );
 
+  const renderCompletedProfile = () => {
+    const chapterObj = CHAPTERS.find(c => c.id === userInfo.chapterId);
+    const chapterName = chapterObj ? chapterObj.name : 'Không rõ';
+
+    const handleViewCard = (e) => {
+      e.preventDefault();
+      if (cardUrl) {
+        window.open(cardUrl, '_blank');
+      }
+    };
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {userInfo.status === 'APPROVED' ? (
+          <div style={{
+            background: '#e6f9f0', border: '1px solid #34d399', borderRadius: 16,
+            padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12
+          }}>
+            <CheckCircleOutlined style={{ color: '#10b981', fontSize: 20 }} />
+            <div>
+              <div style={{ fontWeight: 600, color: '#064e3b', fontSize: 15 }}>Hồ sơ đã phê duyệt</div>
+              <div style={{ color: '#047857', fontSize: 13, marginTop: 2 }}>Tài khoản của bạn đã được xác minh thành công. Sẵn sàng tham gia Hackathon!</div>
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            background: '#eff6ff', border: '1px solid #60a5fa', borderRadius: 16,
+            padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12
+          }}>
+            <ClockCircleOutlined style={{ color: '#3b82f6', fontSize: 20 }} />
+            <div>
+              <div style={{ fontWeight: 600, color: '#1e3a8a', fontSize: 15 }}>Hồ sơ đang chờ duyệt</div>
+              <div style={{ color: '#2563eb', fontSize: 13, marginTop: 2 }}>Thông tin và thẻ sinh viên đã được gửi lên hệ thống. Vui lòng chờ Coordinator phê duyệt.</div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+          {/* Left: Fields */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Họ và tên</div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: '#1f2937' }}>{userInfo.fullName || '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Email</div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: '#1f2937' }}>{userInfo.email || '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Số điện thoại</div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: '#1f2937' }}>{userInfo.phone || '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Đối tượng</div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: '#1f2937' }}>
+                {userInfo.userType === 'INTERNAL' ? 'Sinh viên FPT (Nội bộ)' : 'Sinh viên trường khác (Bên ngoài)'}
+              </div>
+            </div>
+            {userInfo.userType === 'INTERNAL' ? (
+              <>
+                <div>
+                  <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Mã sinh viên</div>
+                  <div style={{ fontSize: 15, fontWeight: 500, color: '#1f2937' }}>{userInfo.studentCode || '—'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Chapter (Cơ sở)</div>
+                  <div style={{ fontSize: 15, fontWeight: 500, color: '#1f2937' }}>{chapterName}</div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Đơn vị / Trường học</div>
+                <div style={{ fontSize: 15, fontWeight: 500, color: '#1f2937' }}>{userInfo.institution || '—'}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Student Card */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Thẻ sinh viên đã nộp</div>
+            {cardUrl ? (
+              <a href={cardUrl} onClick={handleViewCard} target="_blank" rel="noreferrer" style={{ display: 'block', borderRadius: 16, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                <img
+                  src={cardUrl}
+                  alt="Thẻ sinh viên"
+                  style={{ width: '100%', height: 'auto', display: 'block', maxHeight: 200, objectFit: 'cover' }}
+                />
+              </a>
+            ) : (
+              <div style={{ color: '#9ca3af', fontSize: 13, fontStyle: 'italic' }}>Chưa có hình ảnh thẻ sinh viên</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+
   // -------------------------------------------------------------------------
   // Main render
   // -------------------------------------------------------------------------
@@ -433,6 +576,26 @@ const OnboardingPage = () => {
     );
   }
 
+  if (isCompleted) {
+    return (
+      <div style={pageStyle}>
+        <div style={cardContainerStyle}>
+          {/* Gradient top bar */}
+          <div style={gradientBarStyle} />
+
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <h1 style={titleStyle}>Hồ sơ cá nhân</h1>
+            <p style={{ color: '#4b5563', fontSize: 14, margin: 0 }}>
+              Thông tin tài khoản đã đăng ký thành công
+            </p>
+          </div>
+
+          {renderCompletedProfile()}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={pageStyle}>
       <div style={cardContainerStyle}>
@@ -441,6 +604,7 @@ const OnboardingPage = () => {
 
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <h1 style={titleStyle}>Hoàn thiện hồ sơ</h1>
+
           <p style={{ color: '#4b5563', fontSize: 14, margin: 0 }}>
             Bước cuối cùng trước khi tham gia Hackathon
           </p>
