@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Form, Input, Select, Button, Upload, message, Steps, Result, Spin, Tag, Modal
+  Form, Input, Select, Button, Upload, message, Steps, Result, Spin, Tag, Modal, theme
 } from 'antd';
 import {
   UserOutlined, IdcardOutlined, BankOutlined, PhoneOutlined,
@@ -56,6 +56,7 @@ const generateSHA1 = async (string) => {
 const OnboardingPage = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const { token } = theme.useToken();
 
   const [currentStep, setCurrentStep] = useState(0); // 0 = profile, 1 = student card, 2 = waiting
   const [userType, setUserType] = useState('INTERNAL');
@@ -253,6 +254,13 @@ const OnboardingPage = () => {
   // -------------------------------------------------------------------------
   // Render helpers
   // -------------------------------------------------------------------------
+  const dynamicInputStyle = {
+    ...inputStyle,
+    backgroundColor: token.colorFillAlter,
+    borderColor: token.colorBorder,
+    color: token.colorText,
+  };
+
   const renderProfileStep = () => (
     <Form
       form={form}
@@ -274,25 +282,25 @@ const OnboardingPage = () => {
           value={userInfo?.email || ''}
           readOnly
           prefix={<UserOutlined style={iconStyle} />}
-          style={inputStyle}
+          style={dynamicInputStyle}
           className="custom-ob-input"
         />
       </Form.Item>
 
       <Form.Item
-        label={<Label>HỌ VÀ TÊN</Label>}
+        label={<Label token={token}>HỌ VÀ TÊN</Label>}
         name="fullName"
         rules={[{ required: true, message: 'Vui lòng nhập họ tên!' }]}
       >
         <Input
           prefix={<UserOutlined style={iconStyle} />}
           placeholder="Nguyễn Văn A"
-          style={inputStyle}
+          style={dynamicInputStyle}
           className="custom-ob-input"
         />
       </Form.Item>
 
-      <Form.Item label={<Label>ĐỐI TƯỢNG</Label>} name="userType">
+      <Form.Item label={<Label token={token}>ĐỐI TƯỢNG</Label>} name="userType">
         <Select
           onChange={(val) => setUserType(val)}
           className="custom-ob-select"
@@ -306,7 +314,7 @@ const OnboardingPage = () => {
       {userType === 'INTERNAL' && (
         <>
           <Form.Item
-            label={<Label>CƠ SỞ (CHAPTER)</Label>}
+            label={<Label token={token}>CƠ SỞ (CHAPTER)</Label>}
             name="chapterId"
             rules={[{ required: true, message: 'Vui lòng chọn cơ sở!' }]}
           >
@@ -318,14 +326,14 @@ const OnboardingPage = () => {
           </Form.Item>
 
           <Form.Item
-            label={<Label>MÃ SINH VIÊN</Label>}
+            label={<Label token={token}>MÃ SINH VIÊN</Label>}
             name="studentCode"
             rules={[{ required: true, message: 'Vui lòng nhập mã sinh viên!' }]}
           >
             <Input
               prefix={<IdcardOutlined style={iconStyle} />}
               placeholder="VD: SE123456"
-              style={inputStyle}
+              style={dynamicInputStyle}
               className="custom-ob-input"
             />
           </Form.Item>
@@ -334,24 +342,24 @@ const OnboardingPage = () => {
 
       {userType === 'EXTERNAL' && (
         <Form.Item
-          label={<Label>TÊN TRƯỜNG / TỔ CHỨC</Label>}
+          label={<Label token={token}>TÊN TRƯỜNG / TỔ CHỨC</Label>}
           name="institution"
           rules={[{ required: true, message: 'Vui lòng nhập tên trường!' }]}
         >
           <Input
             prefix={<BankOutlined style={iconStyle} />}
             placeholder="Đại học Bách Khoa..."
-            style={inputStyle}
+            style={dynamicInputStyle}
             className="custom-ob-input"
           />
         </Form.Item>
       )}
 
-      <Form.Item label={<Label>SỐ ĐIỆN THOẠI (TÙY CHỌN)</Label>} name="phone">
+      <Form.Item label={<Label token={token}>SỐ ĐIỆN THOẠI (TÙY CHỌN)</Label>} name="phone">
         <Input
           prefix={<PhoneOutlined style={iconStyle} />}
           placeholder="0912345678"
-          style={inputStyle}
+          style={dynamicInputStyle}
           className="custom-ob-input"
         />
       </Form.Item>
@@ -372,7 +380,7 @@ const OnboardingPage = () => {
 
   const renderCardStep = () => (
     <div>
-      <p style={{ color: '#4b5563', marginBottom: 16, lineHeight: 1.6 }}>
+      <p style={{ color: token.colorTextSecondary, marginBottom: 16, lineHeight: 1.6 }}>
         Vui lòng tải lên <strong>ảnh thẻ sinh viên</strong> của bạn.
         Ảnh rõ nét, không bị che khuất để Coordinator có thể kiểm tra.
       </p>
@@ -448,7 +456,7 @@ const OnboardingPage = () => {
       icon={<ClockCircleOutlined style={{ color: '#0072ff', fontSize: 56 }} />}
       title="Hồ sơ đã được gửi!"
       subTitle={
-        <span style={{ color: '#4b5563' }}>
+        <span style={{ color: token.colorTextSecondary }}>
           Coordinator đang xem xét hồ sơ của bạn. Khi được duyệt, tài khoản của bạn sẽ
           chuyển sang trạng thái Đã phê duyệt.
         </span>
@@ -470,34 +478,22 @@ const OnboardingPage = () => {
         status="success"
         icon={<CheckCircleOutlined style={{ color: '#13c2c2', fontSize: 48 }} />}
         title="Hồ sơ hợp lệ & Đã duyệt"
-        subTitle="Hồ sơ của bạn đã được kiểm duyệt. Các thông tin hiện tại không thể chỉnh sửa để đảm bảo tính minh bạch."
+        subTitle={<span style={{ color: token.colorTextSecondary }}>Hồ sơ của bạn đã được kiểm duyệt. Các thông tin hiện tại không thể chỉnh sửa để đảm bảo tính minh bạch.</span>}
         style={{ padding: '0 0 24px 0' }}
       />
-      <div style={{ background: '#f9fafb', padding: 20, borderRadius: 16, border: '1px solid #e5e7eb' }}>
-        <p style={{ margin: '0 0 8px', color: '#4b5563' }}><strong>Họ và tên:</strong> {userInfo.fullName}</p>
-        <p style={{ margin: '0 0 8px', color: '#4b5563' }}><strong>Email:</strong> {userInfo.email}</p>
+      <div style={{ background: token.colorFillAlter, padding: 20, borderRadius: 16, border: `1px solid ${token.colorBorder}` }}>
+        <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Họ và tên:</strong> {userInfo.fullName}</p>
+        <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Email:</strong> {userInfo.email}</p>
         {userInfo.phone && (
-          <p style={{ margin: '0 0 8px', color: '#4b5563' }}><strong>Số điện thoại:</strong> {userInfo.phone}</p>
+          <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Số điện thoại:</strong> {userInfo.phone}</p>
         )}
-        <p style={{ margin: '0 0 8px', color: '#4b5563' }}>
+        <p style={{ margin: '0 0 8px', color: token.colorText }}>
           <strong>Tổ chức:</strong> {userInfo.userType === 'INTERNAL' ? 'Sinh viên FPT' : (userInfo.institution || 'Sinh viên trường')}
         </p>
         {userInfo.studentCode && (
-          <p style={{ margin: '0 0 8px', color: '#4b5563' }}><strong>Mã sinh viên:</strong> {userInfo.studentCode}</p>
+          <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Mã sinh viên:</strong> {userInfo.studentCode}</p>
         )}
         
-        <div style={{ marginTop: 16 }}>
-          <strong style={{ color: '#4b5563', display: 'block', marginBottom: 8 }}>Thẻ sinh viên:</strong>
-          {(userInfo.studentCardUrl || userInfo.studentCardImagePath) ? (
-            <img 
-              src={userInfo.studentCardUrl || userInfo.studentCardImagePath} 
-              alt="Thẻ sinh viên" 
-              style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, border: '1px solid #d9d9d9', objectFit: 'contain' }} 
-            />
-          ) : (
-            <span style={{ color: '#9ca3af' }}>Đã tải lên</span>
-          )}
-        </div>
       </div>
       <div style={{ marginTop: 24, textAlign: 'center' }}>
         <Button type="primary" onClick={() => navigate(ROUTES.DASHBOARD)} style={{ borderRadius: 12, backgroundColor: '#13c2c2', borderColor: '#13c2c2', height: 44, padding: '0 24px' }}>
@@ -512,9 +508,9 @@ const OnboardingPage = () => {
   // -------------------------------------------------------------------------
   if (checkingStatus) {
     return (
-      <div style={{ ...pageStyle, minHeight: '80vh', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ ...pageStyle, minHeight: '80vh', display: 'flex', flexDirection: 'column', gap: 16, backgroundColor: token.colorBgLayout }}>
         <Spin size="large" />
-        <span style={{ color: '#4b5563', fontSize: '14px', fontWeight: 500 }}>
+        <span style={{ color: token.colorTextSecondary, fontSize: '14px', fontWeight: 500 }}>
           Đang tải thông tin hồ sơ...
         </span>
       </div>
@@ -522,14 +518,14 @@ const OnboardingPage = () => {
   }
 
   return (
-    <div style={pageStyle}>
-      <div style={cardContainerStyle}>
+    <div style={{ ...pageStyle, backgroundColor: token.colorBgLayout }}>
+      <div style={{ ...cardContainerStyle, backgroundColor: token.colorBgContainer, borderColor: token.colorBorderSecondary, boxShadow: token.boxShadow }}>
         {/* Gradient top bar */}
         <div style={gradientBarStyle} />
 
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <h1 style={titleStyle}>Hoàn thiện hồ sơ</h1>
-          <p style={{ color: '#4b5563', fontSize: 14, margin: 0 }}>
+          <p style={{ color: token.colorTextSecondary, fontSize: 14, margin: 0 }}>
             Bước cuối cùng trước khi tham gia Hackathon
           </p>
         </div>
@@ -556,7 +552,7 @@ const OnboardingPage = () => {
               onClick={handleLogout}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: '#9ca3af', fontSize: 12,
+                color: token.colorTextQuaternary, fontSize: 12,
               }}
             >
               Đăng xuất
@@ -567,17 +563,17 @@ const OnboardingPage = () => {
 
       <style>{`
         .custom-ob-input { overflow: hidden !important; }
-        .custom-ob-input input::placeholder { color: #9ca3af !important; }
+        .custom-ob-input input::placeholder { color: ${token.colorTextQuaternary} !important; }
         .custom-ob-input input, .custom-ob-input .ant-input-password {
-          background-color: transparent !important; color: #111827 !important; border-radius: 16px !important;
+          background-color: transparent !important; color: ${token.colorText} !important; border-radius: 16px !important;
         }
         .custom-ob-input:hover, .custom-ob-input:focus-within {
           border-color: #0072ff !important;
           box-shadow: 0 0 0 2px rgba(0,114,255,0.1) !important;
         }
         .custom-ob-select .ant-select-selector {
-          background-color: #f9fafb !important; border: 1px solid #e5e7eb !important;
-          color: #111827 !important; height: 48px !important; border-radius: 16px !important;
+          background-color: ${token.colorFillAlter} !important; border: 1px solid ${token.colorBorder} !important;
+          color: ${token.colorText} !important; height: 48px !important; border-radius: 16px !important;
           align-items: center !important;
         }
         .custom-ob-select:hover .ant-select-selector,
@@ -586,6 +582,7 @@ const OnboardingPage = () => {
           box-shadow: 0 0 0 2px rgba(0,114,255,0.1) !important;
         }
         .ant-upload-select { border-radius: 12px !important; }
+        .ant-upload-list-item { border-color: ${token.colorBorder} !important; }
       `}</style>
     </div>
   );
@@ -594,8 +591,8 @@ const OnboardingPage = () => {
 // ---------------------------------------------------------------------------
 // Sub-components & styles
 // ---------------------------------------------------------------------------
-const Label = ({ children }) => (
-  <span style={{ color: '#4b5563', fontSize: 12, fontWeight: 600, letterSpacing: '0.5px' }}>
+const Label = ({ children, token }) => (
+  <span style={{ color: token?.colorTextSecondary || '#4b5563', fontSize: 12, fontWeight: 600, letterSpacing: '0.5px' }}>
     {children}
   </span>
 );
