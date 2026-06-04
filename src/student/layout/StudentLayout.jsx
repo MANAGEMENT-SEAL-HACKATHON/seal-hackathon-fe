@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Layout, Menu, Button, Avatar, Badge, Drawer, Grid, Space, theme, Typography, Tag } from 'antd';
 import {
   BellOutlined,
@@ -35,7 +35,15 @@ const StudentLayout = ({ children }) => {
   const isMobile = !screens.md;
   const { token } = theme.useToken();
   const { darkMode, toggleDarkMode, notifications = [] } = useAppContext();
-  const currentUser = getStoredUser();
+  const [currentUser, setCurrentUser] = useState(getStoredUser());
+
+  useEffect(() => {
+    const handleUserInfoUpdated = () => {
+      setCurrentUser(getStoredUser());
+    };
+    window.addEventListener('userInfoUpdated', handleUserInfoUpdated);
+    return () => window.removeEventListener('userInfoUpdated', handleUserInfoUpdated);
+  }, []);
 
   const unreadCount = notifications.filter((item) => !item.is_read).length;
 
@@ -50,6 +58,7 @@ const StudentLayout = ({ children }) => {
         key: ROUTES.STUDENT_TEAM,
         icon: <UsersRound size={18} />,
         label: 'Quản lý đội',
+        disabled: currentUser.status !== 'APPROVED',
       },
 
       {
@@ -64,7 +73,7 @@ const StudentLayout = ({ children }) => {
         label: 'Hồ sơ',
       },
     ],
-    []
+    [currentUser.status]
   );
 
   const handleMenuClick = ({ key }) => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { notification } from 'antd';
+import { notification, Modal } from 'antd';
 import { userService } from '../../../features/auth/services/userService';
 
 const getStoredUser = () => {
@@ -33,7 +33,25 @@ export const useStudentDashboard = () => {
     }
 
     try {
+      const storedUser = getStoredUser();
       const nextUser = normalizeProfile(await userService.getMe());
+      
+      // Force token refresh if status changed to APPROVED
+      if (storedUser.status && storedUser.status !== 'APPROVED' && nextUser.status === 'APPROVED') {
+        Modal.success({
+          title: '🎉 Hồ sơ đã được phê duyệt!',
+          content: 'Tài khoản của bạn vừa được cấp quyền chính thức. Vui lòng đăng nhập lại để hệ thống cập nhật chứng chỉ bảo mật (Token) mới nhất cho bạn.',
+          okText: 'Đăng nhập lại ngay',
+          onOk: () => {
+            localStorage.clear();
+            window.location.href = '/login';
+          },
+          keyboard: false,
+          maskClosable: false,
+        });
+        return null;
+      }
+
       localStorage.setItem('userInfo', JSON.stringify(nextUser));
       setUser(nextUser);
       window.dispatchEvent(new Event('userInfoUpdated'));

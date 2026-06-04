@@ -12,6 +12,8 @@ import { useStudentInvitations } from '../../invitations/hooks/useStudentInvitat
 import StudentInvitationsPage from '../../invitations/pages/StudentInvitationsPage';
 import StudentTeamOnboarding from '../components/StudentTeamOnboarding';
 import StudentTeamDashboard from '../components/StudentTeamDashboard';
+import { Navigate } from 'react-router-dom';
+import { ROUTES } from '../../../../shared/constants/routes';
 
 const { Text, Title } = Typography;
 
@@ -20,6 +22,13 @@ const StudentTeamPage = () => {
   const screens = Grid.useBreakpoint();
   const [forceShowMenu, setForceShowMenu] = useState(true);
   const [isInvitationsDrawerOpen, setIsInvitationsDrawerOpen] = useState(false);
+  
+  // Strict security check: prevent manual URL access
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+  if (userInfo.status !== 'APPROVED') {
+    return <Navigate to={ROUTES.DASHBOARD} replace />;
+  }
+
   const {
     hackathonId,
     setHackathonId,

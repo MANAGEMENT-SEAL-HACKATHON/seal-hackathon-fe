@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Form, Input, Select, Button, Upload, message, Steps, Result, Spin, Tag
+  Form, Input, Select, Button, Upload, message, Steps, Result, Spin, Tag, Modal
 } from 'antd';
 import {
   UserOutlined, IdcardOutlined, BankOutlined, PhoneOutlined,
@@ -11,7 +11,6 @@ import { userService } from '../services/userService';
 import { ROUTES } from '../../../shared/constants/routes';
 
 const { Option } = Select;
-const { Step } = Steps;
 
 const CHAPTERS = [
   { id: 1, name: 'FPT Hà Nội' },
@@ -77,26 +76,55 @@ const OnboardingPage = () => {
         
         // Sync local storage userInfo with fresh info
         const stored = getUserInfo() || {};
+        
+        // Detect transition to APPROVED
+        if (stored.status && stored.status !== 'APPROVED' && freshUser.status === 'APPROVED') {
+          Modal.success({
+            title: '🎉 Hồ sơ đã được phê duyệt!',
+            content: 'Tài khoản của bạn vừa được cấp quyền chính thức. Vui lòng đăng nhập lại.',
+            okText: 'Đăng nhập lại ngay',
+            onOk: () => {
+              localStorage.clear();
+              window.location.href = '/login';
+            },
+            keyboard: false,
+            maskClosable: false,
+          });
+          return;
+        }
+
         const merged = { ...stored, ...freshUser };
         localStorage.setItem('userInfo', JSON.stringify(merged));
         window.dispatchEvent(new Event('userInfoUpdated'));
         setUserInfo(merged);
 
+        // Populate form with existing data
+        form.setFieldsValue({
+          fullName: merged.fullName,
+          userType: merged.userType || 'INTERNAL',
+          chapterId: merged.chapterId || 1,
+          studentCode: merged.studentCode,
+          institution: merged.institution,
+          phone: merged.phone,
+        });
+        if (merged.userType) setUserType(merged.userType);
+
         if (freshUser.status === 'APPROVED') {
-          navigate(ROUTES.DASHBOARD, { replace: true });
-          return;
-        }
-
-        // Determine step using fresh database fields
-        const hasCompletedProfile = Boolean(freshUser.fullName && freshUser.phone);
-        const hasUploadedCard = Boolean(freshUser.studentCardImagePath);
-
-        if (hasCompletedProfile && hasUploadedCard) {
-          setCurrentStep(2);
-        } else if (hasCompletedProfile) {
-          setCurrentStep(1);
+          setCurrentStep(3);
         } else {
-          setCurrentStep(0);
+          // Determine step using fresh database fields
+          const hasCompletedProfile = Boolean(freshUser.fullName && (freshUser.studentCode || freshUser.institution));
+          const hasUploadedCard = Boolean(freshUser.studentCardImagePath || freshUser.studentCardUrl || freshUser.studentCardUploaded);
+          
+          setHasCard(hasUploadedCard);
+
+          if (hasCompletedProfile && hasUploadedCard) {
+            setCurrentStep(2);
+          } else if (hasCompletedProfile) {
+            setCurrentStep(1);
+          } else {
+            setCurrentStep(0);
+          }
         }
       } catch (err) {
         console.error('Failed to sync onboarding status:', err);
@@ -230,7 +258,14 @@ const OnboardingPage = () => {
       form={form}
       layout="vertical"
       onFinish={handleProfileSubmit}
-      initialValues={{ userType: 'INTERNAL', chapterId: 1 }}
+      initialValues={{
+        fullName: userInfo.fullName,
+        userType: userInfo.userType || 'INTERNAL',
+        chapterId: userInfo.chapterId || 1,
+        studentCode: userInfo.studentCode,
+        institution: userInfo.institution,
+        phone: userInfo.phone,
+      }}
       requiredMark={false}
     >
       {/* Email – read-only */}
@@ -385,15 +420,25 @@ const OnboardingPage = () => {
         >
           ← Quay lại
         </Button>
-        <Button
-          type="primary"
-          style={{ flex: 2, ...primaryBtnStyle }}
-          onClick={handleCardUpload}
-          loading={cardLoading}
-          disabled={fileList.length === 0}
-        >
-          Tải lên & nộp hồ sơ
-        </Button>
+        {fileList.length > 0 ? (
+          <Button
+            type="primary"
+            style={{ flex: 2, ...primaryBtnStyle }}
+            onClick={handleCardUpload}
+            loading={cardLoading}
+          >
+            Tải lên & nộp hồ sơ
+          </Button>
+        ) : (
+          <Button
+            type="primary"
+            style={{ flex: 2, ...primaryBtnStyle }}
+            onClick={() => setCurrentStep(2)}
+            disabled={!hasCard}
+          >
+            Nộp hồ sơ (Dùng ảnh cũ)
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -410,13 +455,56 @@ const OnboardingPage = () => {
       }
       extra={[
         <Button key="dashboard" type="primary" onClick={() => navigate(ROUTES.DASHBOARD)} style={{ borderRadius: 12, backgroundColor: '#0072ff', borderColor: '#0072ff' }}>
-          Quay lại Trang chủ
+          Về Trang chủ
         </Button>,
-        <Button key="logout" onClick={handleLogout} style={{ borderRadius: 12 }}>
-          Đăng xuất
+        <Button key="edit" onClick={() => setCurrentStep(0)} style={{ borderRadius: 12 }}>
+          Chỉnh sửa hồ sơ
         </Button>,
       ]}
     />
+  );
+
+  const renderApprovedStep = () => (
+    <div style={{ textAlign: 'left', marginTop: 16 }}>
+      <Result
+        status="success"
+        icon={<CheckCircleOutlined style={{ color: '#13c2c2', fontSize: 48 }} />}
+        title="Hồ sơ hợp lệ & Đã duyệt"
+        subTitle="Hồ sơ của bạn đã được kiểm duyệt. Các thông tin hiện tại không thể chỉnh sửa để đảm bảo tính minh bạch."
+        style={{ padding: '0 0 24px 0' }}
+      />
+      <div style={{ background: '#f9fafb', padding: 20, borderRadius: 16, border: '1px solid #e5e7eb' }}>
+        <p style={{ margin: '0 0 8px', color: '#4b5563' }}><strong>Họ và tên:</strong> {userInfo.fullName}</p>
+        <p style={{ margin: '0 0 8px', color: '#4b5563' }}><strong>Email:</strong> {userInfo.email}</p>
+        {userInfo.phone && (
+          <p style={{ margin: '0 0 8px', color: '#4b5563' }}><strong>Số điện thoại:</strong> {userInfo.phone}</p>
+        )}
+        <p style={{ margin: '0 0 8px', color: '#4b5563' }}>
+          <strong>Tổ chức:</strong> {userInfo.userType === 'INTERNAL' ? 'Sinh viên FPT' : (userInfo.institution || 'Sinh viên trường')}
+        </p>
+        {userInfo.studentCode && (
+          <p style={{ margin: '0 0 8px', color: '#4b5563' }}><strong>Mã sinh viên:</strong> {userInfo.studentCode}</p>
+        )}
+        
+        <div style={{ marginTop: 16 }}>
+          <strong style={{ color: '#4b5563', display: 'block', marginBottom: 8 }}>Thẻ sinh viên:</strong>
+          {(userInfo.studentCardUrl || userInfo.studentCardImagePath) ? (
+            <img 
+              src={userInfo.studentCardUrl || userInfo.studentCardImagePath} 
+              alt="Thẻ sinh viên" 
+              style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, border: '1px solid #d9d9d9', objectFit: 'contain' }} 
+            />
+          ) : (
+            <span style={{ color: '#9ca3af' }}>Đã tải lên</span>
+          )}
+        </div>
+      </div>
+      <div style={{ marginTop: 24, textAlign: 'center' }}>
+        <Button type="primary" onClick={() => navigate(ROUTES.DASHBOARD)} style={{ borderRadius: 12, backgroundColor: '#13c2c2', borderColor: '#13c2c2', height: 44, padding: '0 24px' }}>
+          Vào trang chủ thi đấu
+        </Button>
+      </div>
+    </div>
   );
 
   // -------------------------------------------------------------------------
@@ -447,19 +535,20 @@ const OnboardingPage = () => {
         </div>
 
         <Steps
-          current={currentStep}
+          current={currentStep > 2 ? 2 : currentStep}
           size="small"
           style={{ marginBottom: 28 }}
           items={[
             { title: 'Thông tin', icon: <UserOutlined /> },
             { title: 'Thẻ SV', icon: <IdcardOutlined /> },
-            { title: 'Chờ duyệt', icon: <ClockCircleOutlined /> },
+            { title: 'Trạng thái', icon: currentStep > 2 ? <CheckCircleOutlined /> : <ClockCircleOutlined /> },
           ]}
         />
 
         {currentStep === 0 && renderProfileStep()}
         {currentStep === 1 && renderCardStep()}
         {currentStep === 2 && renderWaitingStep()}
+        {currentStep === 3 && renderApprovedStep()}
 
         {currentStep < 2 && (
           <div style={{ textAlign: 'center', marginTop: 16 }}>
