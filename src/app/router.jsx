@@ -27,6 +27,8 @@ import StudentTeamPage from '../student/features/team/pages/StudentTeamPage';
 import JudgeDashboardPage from '../features/judging/pages/JudgeDashboardPage';
 import LiveScoringPage from '../features/judging/pages/LiveScoringPage';
 import JudgeCriteriaViewPage from '../features/judging/pages/JudgeCriteriaViewPage';
+import RoundRankingPage from '../features/round-ranking/pages/RoundRankingPage';
+import RoundRankingPreviewPage from '../features/round-ranking/pages/RoundRankingPreviewPage';
 
 const TrackWrapper = () => {
   const { hackathonId } = useParams();
@@ -202,6 +204,13 @@ const AppRouter = () => {
         <Route path={ROUTES.HACKATHON_CREATE} element={<CreateHackathonPage />} />
         <Route path={ROUTES.HACKATHON_SETUP} element={<HackathonSetupPage />} />
         <Route path={ROUTES.GLOBAL_TEAMS} element={<CoordinatorTeamPage />} />
+        <Route path={ROUTES.ROUND_RANKING} element={
+          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+            <div style={{ padding: 24 }}>
+              <RoundRankingPage />
+            </div>
+          </ProtectedRoute>
+        } />
         <Route path={ROUTES.USER_APPROVAL} element={
           <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
             <UserApprovalPage />
@@ -234,6 +243,13 @@ const AppRouter = () => {
         {/* Explicit routes for tracks and rounds */}
         <Route path={ROUTES.TRACKS} element={<TrackWrapper />} />
         <Route path={ROUTES.ROUNDS} element={<RoundWrapper />} />
+        <Route path={ROUTES.ROUND_RANKING_PREVIEW} element={
+          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+            <div style={{ padding: 24 }}>
+              <RoundRankingPreviewPage />
+            </div>
+          </ProtectedRoute>
+        } />
         <Route path={ROUTES.CRITERIA} element={<CriteriaWrapper />} />
         <Route path={ROUTES.REVIEW_VALIDATE} element={<ReviewWrapper />} />
       </Route>

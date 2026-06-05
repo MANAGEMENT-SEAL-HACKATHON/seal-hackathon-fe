@@ -17,7 +17,7 @@ import {
 import {
   LayoutDashboard, Trophy, Users, Activity, BarChart3, Settings, HelpCircle,
   Mail, CalendarClock, AlertTriangle, CheckCheck, UserCheck, UserPlus, User,
-  ClipboardCheck, History, FileText
+  FileText
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../constants/routes';
@@ -39,7 +39,6 @@ const MainLayout = ({ children }) => {
   const isMobile = !screens.md;
   
   // Lấy dữ liệu global từ AppContext
-  const match = location.pathname.match(/\/hackathons\/(\d+)/);
   const { notifications, markAsRead, darkMode, toggleDarkMode } = useAppContext();
 
   const [currentUser, setCurrentUser] = useState(() => {
@@ -82,7 +81,7 @@ const MainLayout = ({ children }) => {
       try {
         const info = JSON.parse(localStorage.getItem('userInfo') || '{}');
         setCurrentUser(info);
-      } catch (e) {
+      } catch {
         // no-op
       }
     };
@@ -93,7 +92,7 @@ const MainLayout = ({ children }) => {
   // PHÂN LUỒNG MENU DỰA VÀO ROLE
   const userRole = currentUser?.role;
   const isCoordinatorOrAdmin = userRole === 'COORDINATOR' || userRole === 'ADMIN';
-  let menuItems = [];
+  let menuItems;
 
   if (userRole === 'COORDINATOR' || userRole === 'ADMIN') {
     menuItems = [
@@ -101,6 +100,7 @@ const MainLayout = ({ children }) => {
       { key: ROUTES.PROFILE, icon: <User size={18} />, label: 'Trang cá nhân' },
       { key: ROUTES.HACKATHONS, icon: <Trophy size={18} />, label: 'Cấu hình Sự kiện' },
       { key: ROUTES.GLOBAL_TEAMS, icon: <Users size={18} />, label: 'Quản lý Đội thi' },
+      { key: ROUTES.ROUND_RANKING, icon: <BarChart3 size={18} />, label: 'BXH sơ loại' },
       { key: ROUTES.USER_APPROVAL, icon: <UserCheck size={18} />, label: 'Duyệt tài khoản' },
       { key: ROUTES.TEMP_JUDGES, icon: <UserPlus size={18} />, label: 'Giám khảo khách' },
       { key: 'monitor', icon: <Activity size={18} />, label: 'Giám sát Real-time' },
