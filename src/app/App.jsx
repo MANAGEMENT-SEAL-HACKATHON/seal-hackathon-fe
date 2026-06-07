@@ -7,7 +7,19 @@ import dayjs from 'dayjs';
 import { AppProvider, useAppContext } from './AppContext';
 import AppRouter from './router';
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'react-hot-toast';
+
 dayjs.locale('vi');
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const AppContent = () => {
   const { darkMode } = useAppContext();
@@ -51,9 +63,12 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+      <Toaster position="top-right" reverseOrder={false} />
+    </QueryClientProvider>
   );
 };
 

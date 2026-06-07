@@ -27,6 +27,11 @@ import StudentTeamPage from '../student/features/team/pages/StudentTeamPage';
 import JudgeDashboardPage from '../features/judging/pages/JudgeDashboardPage';
 import LiveScoringPage from '../features/judging/pages/LiveScoringPage';
 import JudgeCriteriaViewPage from '../features/judging/pages/JudgeCriteriaViewPage';
+import MentorSupportPage from '../features/mentor/pages/MentorSupportPage';
+import MentorRoundsPage from '../features/mentor/pages/MentorRoundsPage';
+import StudentSubmissionPage from '../student/features/submission/pages/StudentSubmissionPage';
+import LateSubmissionReviewPage from '../features/coordinator/pages/LateSubmissionReviewPage';
+import PresentationQueuePage from '../features/presentation/pages/PresentationQueuePage';
 
 const TrackWrapper = () => {
   const { hackathonId } = useParams();
@@ -236,6 +241,31 @@ const AppRouter = () => {
         <Route path={ROUTES.ROUNDS} element={<RoundWrapper />} />
         <Route path={ROUTES.CRITERIA} element={<CriteriaWrapper />} />
         <Route path={ROUTES.REVIEW_VALIDATE} element={<ReviewWrapper />} />
+
+        {/* Person B Routes */}
+        <Route path={ROUTES.MENTOR_ROUNDS} element={
+          <ProtectedRoute allowedRoles={['MENTOR', 'COORDINATOR', 'ADMIN']}>
+            <MentorRoundsPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.MENTOR_SUPPORT} element={
+          <ProtectedRoute allowedRoles={['MENTOR', 'COORDINATOR', 'ADMIN']}>
+            <MentorSupportPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.STUDENT_SUBMIT} element={
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <StudentSubmissionPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.COORDINATOR_LATE_SUBMISSIONS} element={
+          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+            <LateSubmissionReviewPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.PRESENTATION_QUEUE} element={
+          <PresentationQueuePage />
+        } />
       </Route>
 
       {/* Fallback */}
