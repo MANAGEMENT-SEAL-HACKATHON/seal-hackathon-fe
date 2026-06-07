@@ -60,6 +60,12 @@ const StudentLayout = ({ children }) => {
         label: 'Quản lý đội',
         disabled: currentUser.status !== 'APPROVED',
       },
+      {
+        key: ROUTES.STUDENT_SUBMIT,
+        icon: <FileCheck2 size={18} />,
+        label: 'Nộp bài thi',
+        disabled: currentUser.status !== 'APPROVED',
+      },
 
       {
         key: 'student-schedule',
@@ -84,6 +90,7 @@ const StudentLayout = ({ children }) => {
     if (
       key === ROUTES.DASHBOARD ||
       key === ROUTES.STUDENT_TEAM ||
+      key === ROUTES.STUDENT_SUBMIT ||
       key === ROUTES.PROFILE
     ) {
       navigate(key);
