@@ -27,6 +27,7 @@ import StudentTeamPage from '../student/features/team/pages/StudentTeamPage';
 import JudgeDashboardPage from '../features/judging/pages/JudgeDashboardPage';
 import LiveScoringPage from '../features/judging/pages/LiveScoringPage';
 import JudgeCriteriaViewPage from '../features/judging/pages/JudgeCriteriaViewPage';
+import RoundRankingPreviewPage from '../features/round-ranking/pages/RoundRankingPreviewPage';
 import MentorSupportPage from '../features/mentor/pages/MentorSupportPage';
 import MentorRoundsPage from '../features/mentor/pages/MentorRoundsPage';
 import StudentSubmissionPage from '../student/features/submission/pages/StudentSubmissionPage';
@@ -245,6 +246,13 @@ const AppRouter = () => {
         {/* Explicit routes for tracks and rounds */}
         <Route path={ROUTES.TRACKS} element={<TrackWrapper />} />
         <Route path={ROUTES.ROUNDS} element={<RoundWrapper />} />
+        <Route path={ROUTES.ROUND_RANKING_PREVIEW} element={
+          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+            <div style={{ padding: 24 }}>
+              <RoundRankingPreviewPage />
+            </div>
+          </ProtectedRoute>
+        } />
         <Route path={ROUTES.CRITERIA} element={<CriteriaWrapper />} />
         <Route path={ROUTES.REVIEW_VALIDATE} element={<ReviewWrapper />} />
 
