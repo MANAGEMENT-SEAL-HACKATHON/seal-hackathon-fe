@@ -1,16 +1,81 @@
 import axiosClient from '../shared/api/axiosClient';
 
+const mapSubmissionStatusToFe = (beStatus?: string): 'ON_TIME' | 'LATE_PENDING' | 'REJECTED' | 'NONE' => {
+  if (!beStatus) return 'NONE';
+  if (['SUBMITTED', 'LATE', 'ACCEPTED', 'LATE_APPROVED'].includes(beStatus)) {
+    return 'ON_TIME';
+  }
+  if (beStatus === 'LATE_PENDING') return 'LATE_PENDING';
+  if (beStatus === 'REJECTED') return 'REJECTED';
+  return 'NONE';
+};
+
+/** Lấy roundId từ API student/mentor — không dùng endpoint coordinator. */
+const resolveActiveRoundId = async (): Promise<number | null> => {
+  try {
+    const deadline = await axiosClient.get<any, { roundId?: number }>(
+      '/api/v1/me/rounds/current/deadline'
+    );
+    if (deadline?.roundId) return Number(deadline.roundId);
+  } catch {
+    // fall through
+  }
+
+  try {
+    const rounds = await axiosClient.get<any, any[]>('/api/v1/me/mentor/rounds');
+    const list = Array.isArray(rounds) ? rounds : [];
+    const active = list.find((r) => r.status === 'ACTIVE') || list[0];
+    if (active?.roundId) return Number(active.roundId);
+  } catch {
+    // ignore
+  }
+
+  return null;
+};
+
+const mapAssignedTeamItem = (item: any) => ({
+  team_id: String(item.teamId ?? item.team_id),
+  team_name: item.teamName ?? item.team_name,
+  assigned_group: item.assignedGroup ?? item.assigned_group ?? `Nhóm ${item.groupNumber ?? 'A'}`,
+  status: item.status || 'ACTIVE',
+  group_number: item.groupNumber ?? item.group_number,
+  presentation_schedule: item.presentationSchedule ?? item.presentation_schedule,
+  location: item.location,
+});
+
+const mapPresentationQueue = (data: any): PresentationQueueResponse => {
+  const groups = (data?.groups || []).map((g: any) => ({
+    group_name: g.groupName ?? g.group_name,
+    teams: (g.teams || []).map((t: any) => ({
+      team_id: String(t.teamId ?? t.team_id),
+      team_name: t.teamName ?? t.team_name,
+      order: t.order ?? 0,
+      status: (t.status || 'WAITING') as QueueTeam['status'],
+      presentation_schedule: t.presentationSchedule ?? t.presentation_schedule,
+      location: t.location,
+      slot_start_at: t.slotStartAt ?? t.slot_start_at,
+      slot_end_at: t.slotEndAt ?? t.slot_end_at,
+    })),
+  }));
+
+  return {
+    groups,
+    room_stats: data?.roomStats ?? data?.room_stats,
+  };
+};
+
 // ==========================================
 // TYPES & INTERFACES
 // ==========================================
 
-// Screen 1: Mentor Support Screen
 export interface AssignedTeam {
   team_id: string;
   team_name: string;
   assigned_group: string;
   status: string;
   group_number?: string | number;
+  presentation_schedule?: string;
+  location?: string;
 }
 
 export interface AssignedTeamsResponse {
@@ -18,12 +83,10 @@ export interface AssignedTeamsResponse {
   teams: AssignedTeam[];
 }
 
-// Screen 2: Student Submission Screen
 export interface SubmissionRequest {
   repo_url: string;
   demo_url?: string;
   slide_url: string;
-  lateReason?: string;
 }
 
 export interface SubmissionResponse {
@@ -35,7 +98,7 @@ export interface SubmissionResponse {
 }
 
 export interface SubmissionStatusResponse {
-  status: 'ON_TIME' | 'LATE_PENDING' | 'REJECTED' | 'NONE'; // NONE if not submitted yet
+  status: 'ON_TIME' | 'LATE_PENDING' | 'REJECTED' | 'NONE';
   submitted_at?: string;
   repo_url?: string;
   demo_url?: string;
@@ -43,10 +106,10 @@ export interface SubmissionStatusResponse {
 }
 
 export interface DeadlineResponse {
-  deadline: string; // ISO8601 timestamp
+  deadline?: string;
+  round_id?: string;
 }
 
-// Screen 3: Coordinator — Review Late Submissions
 export interface LateSubmission {
   submission_id: string;
   team_id: string;
@@ -62,12 +125,13 @@ export interface RejectSubmissionRequest {
   reason: string;
 }
 
-// Screen 4: Presentation Queue Screen
 export interface QueueTeam {
   team_id: string;
   team_name: string;
   order: number;
-  status: 'WAITING' | 'PRESENTING' | 'DONE';
+  status: 'WAITING' | 'PRESENTING' | 'DONE' | 'ELIMINATED';
+  presentation_schedule?: string;
+  location?: string;
   slot_start_at?: string;
   slot_end_at?: string;
 }
@@ -79,326 +143,216 @@ export interface QueueGroup {
 
 export interface PresentationQueueResponse {
   groups: QueueGroup[];
+  room_stats?: { total?: number; done?: number; absent?: number };
 }
 
 // ==========================================
-// API IMPLEMENTATIONS
+// API IMPLEMENTATIONS — GĐ3 mapping
 // ==========================================
 
 export const personBApi = {
-  // MÀN HÌNH 1: Mentor Support Screen
-  // Backend endpoint: GET /api/v1/me/mentor-team-assignments (FR-M-06)
-  getAssignedTeams: async (mentorId?: string | number, roundId?: string | number): Promise<AssignedTeamsResponse> => {
-    try {
-      const url = roundId ? `/api/v1/me/mentor-team-assignments?roundId=${roundId}` : '/api/v1/me/mentor-team-assignments';
-      const data = await axiosClient.get<any, any[]>(url);
-      return {
-        round: 'Vòng thi hiện tại',
-        teams: (data || []).map((item: any) => ({
-          team_id: String(item.teamId),
-          team_name: item.teamName,
-          assigned_group: `Nhóm ${item.assignmentId || 'A'}`,
-          status: 'ACTIVE'
-        }))
-      };
-    } catch (err) {
-      console.error('Lỗi khi gọi API getAssignedTeams từ Backend:', err);
-      throw err;
+  /** GET /api/v1/me/mentor/rounds/{roundId}/assigned-teams */
+  getAssignedTeams: async (_mentorId?: string | number, roundId?: string | number): Promise<AssignedTeamsResponse> => {
+    if (!roundId) {
+      throw new Error('roundId là bắt buộc để lấy danh sách đội được phân công.');
     }
-  },
 
-  // Lấy toàn bộ vòng thi của Hackathon đang hoạt động từ database
-  getHackathonRounds: async (): Promise<any[]> => {
-    try {
-      const hackathonsData = await axiosClient.get<any, any>('/api/v1/hackathons/active');
-      let activeHackathon = null;
-      if (Array.isArray(hackathonsData)) {
-        activeHackathon = hackathonsData[0];
-      } else if (hackathonsData) {
-        const list = hackathonsData.content || hackathonsData.items || hackathonsData.data || [];
-        if (Array.isArray(list) && list.length > 0) {
-          activeHackathon = list[0];
-        } else if (typeof hackathonsData === 'object' && hackathonsData.id) {
-          activeHackathon = hackathonsData;
-        }
+    const data = await axiosClient.get<any, any>(
+      `/api/v1/me/mentor/rounds/${roundId}/assigned-teams`
+    );
+    let teams = (data?.teams || []).map(mapAssignedTeamItem);
+
+    // Fallback §7.1: mentor chỉ gán theo track (GĐ1) → lấy từ danh sách vòng
+    if (!teams.length) {
+      const rounds = await axiosClient.get<any, any[]>('/api/v1/me/mentor/rounds');
+      const current = (rounds || []).find((r) => String(r.roundId) === String(roundId));
+      if (current?.teams?.length) {
+        teams = current.teams.map((t: any) =>
+          mapAssignedTeamItem({
+            teamId: t.teamId,
+            teamName: t.teamName,
+            status: 'ACTIVE',
+            groupNumber: 1,
+          })
+        );
       }
-      if (!activeHackathon) {
-        return [];
-      }
-      const res = await axiosClient.get<any, any>(`/api/v1/hackathons/${activeHackathon.id}/rounds`);
-      const roundList = Array.isArray(res) ? res : (res?.content || res?.items || res?.data || []);
-      return roundList;
-    } catch (err) {
-      console.error('Lỗi khi lấy danh sách vòng thi từ Backend:', err);
-      throw err;
     }
-  },
 
-  // GET /api/mentor/rounds (FR-M-08)
-  getMentorRounds: async (): Promise<any[]> => {
-    try {
-      const data = await axiosClient.get<any, any[]>('/api/mentor/rounds');
-      return data || [];
-    } catch (err) {
-      console.warn('Lỗi khi gọi API getMentorRounds, sử dụng mock làm dự phòng:', err);
-      return [
-        {
-          round_id: '1',
-          round_name: 'Vòng Sơ loại - Round A',
-          status: 'ACTIVE',
-          description: 'Vòng đấu loại trực tiếp của dự án SEAL Hackathon. Hạn nộp bài đang diễn ra.',
-          team_count: 5,
-          teams: [
-            { team_id: '1', team_name: 'GD2-04 ACTIVE + bốc thăm Track 1' },
-            { team_id: '2', team_name: 'GD2-05 ACTIVE đã khóa + bốc thăm' },
-            { team_id: '3', team_name: 'GD2-06 ACTIVE' },
-            { team_id: '4', team_name: 'GD2-07 ACTIVE' },
-            { team_id: '5', team_name: 'GD2-08 ACTIVE' }
-          ]
-        },
-        {
-          round_id: '2',
-          round_name: 'Vòng Bán kết - Round B',
-          status: 'UPCOMING',
-          description: 'Vòng bán kết đánh giá dự án thực tế. Sắp diễn ra.',
-          team_count: 0,
-          teams: []
-        },
-        {
-          round_id: '3',
-          round_name: 'Vòng Chung kết - Round C',
-          status: 'ENDED',
-          description: 'Chung kết xếp hạng và thuyết trình trực tiếp trước hội đồng giám khảo.',
-          team_count: 0,
-          teams: []
-        }
-      ];
-    }
-  },
-
-  // MÀN HÌNH 2: Student Submission Screen
-  // Backend endpoint: GET /api/v1/submissions?teamId={teamId} (FR-U-20)
-  getStudentSubmission: async (studentId?: string | number): Promise<SubmissionStatusResponse> => {
-    try {
-      // 1. Lấy thông tin các team của user hiện tại
-      const teams = await axiosClient.get<any, any[]>('/api/v1/me/teams');
-      const myTeam = teams?.[0];
-      if (!myTeam) {
-        return { status: 'NONE' };
-      }
-
-      // 2. Lấy danh sách các bài nộp của team này
-      const submissions = await axiosClient.get<any, any[]>(`/api/v1/submissions?teamId=${myTeam.teamId}`);
-      const latestSub = submissions?.[submissions.length - 1];
-      if (!latestSub) {
-        return { status: 'NONE' };
-      }
-
-      // 3. Map status từ Backend sang Frontend
-      let statusMapping: 'ON_TIME' | 'LATE_PENDING' | 'REJECTED' | 'NONE' = 'NONE';
-      if (latestSub.status === 'SUBMITTED' || latestSub.status === 'ACCEPTED' || latestSub.status === 'LATE_APPROVED') {
-        statusMapping = 'ON_TIME';
-      } else if (latestSub.status === 'LATE_PENDING') {
-        statusMapping = 'LATE_PENDING';
-      } else if (latestSub.status === 'REJECTED') {
-        statusMapping = 'REJECTED';
-      }
-
-      return {
-        status: statusMapping,
-        submitted_at: latestSub.submittedAt,
-        repo_url: latestSub.repoUrl,
-        demo_url: latestSub.demoUrl,
-        slide_url: latestSub.slideUrl
-      };
-    } catch (err) {
-      console.error('Lỗi khi lấy thông tin bài nộp của học sinh từ Backend:', err);
-      throw err;
-    }
-  },
-
-  // Backend endpoint: POST /api/v1/submissions
-  submitStudentSubmission: async (
-    studentId: string | number, // kept for signature compatibility
-    data: SubmissionRequest
-  ): Promise<SubmissionResponse> => {
-    try {
-      const teams = await axiosClient.get<any, any[]>('/api/v1/me/teams');
-      const myTeam = teams?.[0];
-      if (!myTeam) {
-        throw new Error('Sinh viên không thuộc đội thi nào để thực hiện nộp bài.');
-      }
-
-      const payload = {
-        teamId: myTeam.teamId,
-        trackId: myTeam.trackId, // Vòng Sơ loại yêu cầu trackId thay vì roundId
-        repoUrl: data.repo_url,
-        demoUrl: data.demo_url || null,
-        slideUrl: data.slide_url,
-        lateReason: data.lateReason || null
-      };
-
-      const res = await axiosClient.post<any, any>('/api/v1/submissions', payload);
-
-      let statusMapping: 'ON_TIME' | 'LATE_PENDING' | 'REJECTED' = 'ON_TIME';
-      if (res.status === 'SUBMITTED' || res.status === 'ACCEPTED' || res.status === 'LATE_APPROVED') {
-        statusMapping = 'ON_TIME';
-      } else if (res.status === 'LATE_PENDING') {
-        statusMapping = 'LATE_PENDING';
-      } else if (res.status === 'REJECTED') {
-        statusMapping = 'REJECTED';
-      }
-
-      return {
-        status: statusMapping,
-        submitted_at: res.submittedAt,
-        repo_url: res.repoUrl,
-        demo_url: res.demoUrl,
-        slide_url: res.slideUrl
-      };
-    } catch (err) {
-      console.error('Lỗi khi nộp bài thi lên Backend:', err);
-      throw err;
-    }
-  },
-
-  // Backend: Lấy hạn chót từ thông tin Round của Hackathon đang diễn ra
-  getCurrentDeadline: async (): Promise<DeadlineResponse> => {
-    try {
-      const teams = await axiosClient.get<any, any[]>('/api/v1/me/teams');
-      const myTeam = teams?.[0];
-      if (myTeam) {
-        // Cố gắng lấy danh sách các round của hackathon (chỉ có coordinator mới truy cập được trực tiếp,
-        // đối với Student thì endpoint này sẽ trả về 403. Ta bắt lỗi và fallback sang Mock)
-        const rounds = await axiosClient.get<any, any[]>(`/api/v1/hackathons/${myTeam.hackathonId}/rounds`);
-        const activeRound = rounds.find((r: any) => r.isActive);
-        if (activeRound?.submissionDeadline) {
-          return { deadline: activeRound.submissionDeadline };
-        }
-      }
-    } catch (err) {
-      console.warn('Student không thể truy cập danh sách round (phân quyền hệ thống). Sử dụng thời gian mock làm fallback cho bộ đếm ngược.', err);
-    }
-    
-    // Fallback: 15 phút kể từ thời điểm hiện tại cho mục đích demo đếm ngược
     return {
-      deadline: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+      round: data?.roundName || data?.round_name || 'Vòng thi hiện tại',
+      teams,
     };
   },
 
-  // MÀN HÌNH 3: Coordinator — Review Late Submissions
-  // Backend endpoints: 
-  // 1. GET /api/v1/hackathons/active
-  // 2. GET /api/v1/hackathons/{id}/rounds
-  // 3. GET /api/v1/submissions?roundId={roundId}
-  getLateSubmissions: async (): Promise<LateSubmission[]> => {
+  /** GET /api/v1/me/mentor/rounds */
+  getMentorRounds: async (): Promise<any[]> => {
+    const data = await axiosClient.get<any, any[]>('/api/v1/me/mentor/rounds');
+    return data || [];
+  },
+
+  /** GET /api/v1/me/mentor-track-assignments */
+  getMentorTrackAssignments: async (): Promise<any[]> => {
+    const data = await axiosClient.get<any, any[]>('/api/v1/me/mentor-track-assignments');
+    return Array.isArray(data) ? data : [];
+  },
+
+  /** GET /api/v1/me/teams — bootstrap teamId + trackId */
+  getMyTeams: async (): Promise<any[]> => {
+    const data = await axiosClient.get<any, any[]>('/api/v1/me/teams');
+    return Array.isArray(data) ? data : [];
+  },
+
+  /** GET /api/v1/me/submission?teamId=&roundId= */
+  getStudentSubmission: async (_studentId?: string | number): Promise<SubmissionStatusResponse> => {
     try {
-      const hackathonsData = await axiosClient.get<any, any>('/api/v1/hackathons/active');
-      let activeHackathon = null;
-      if (Array.isArray(hackathonsData)) {
-        activeHackathon = hackathonsData[0];
-      } else if (hackathonsData) {
-        const list = hackathonsData.content || hackathonsData.items || hackathonsData.data || [];
-        if (Array.isArray(list) && list.length > 0) {
-          activeHackathon = list[0];
-        } else if (typeof hackathonsData === 'object' && hackathonsData.id) {
-          activeHackathon = hackathonsData;
-        }
-      }
-      if (!activeHackathon) {
-        return [];
-      }
-      
-      const roundsRes = await axiosClient.get<any, any>(`/api/v1/hackathons/${activeHackathon.id}/rounds`);
-      const rounds = Array.isArray(roundsRes) ? roundsRes : (roundsRes?.content || roundsRes?.items || roundsRes?.data || []);
-      const activeRound = rounds.find((r: any) => r.isActive);
-      if (!activeRound) {
-        return [];
-      }
+      const teams = await personBApi.getMyTeams();
+      const myTeam = teams?.[0];
+      if (!myTeam) return { status: 'NONE' };
 
-      const submissions = await axiosClient.get<any, any[]>(`/api/v1/submissions?roundId=${activeRound.id}`);
-      const lateSubmissions = submissions.filter((sub: any) => sub.status === 'LATE_PENDING');
-      
-      const enrichPromises = lateSubmissions.map(async (sub: any) => {
-        try {
-          const team = await axiosClient.get<any, any>(`/api/v1/teams/${sub.teamId}`);
-          return {
-            submission_id: String(sub.id),
-            team_id: String(sub.teamId),
-            team_name: team.name || `Đội ${sub.teamId}`,
-            repo_url: sub.repoUrl,
-            slide_url: sub.slideUrl,
-            demo_url: sub.demoUrl,
-            submitted_at: sub.submittedAt,
-            status: 'LATE_PENDING' as const
-          };
-        } catch {
-          return {
-            submission_id: String(sub.id),
-            team_id: String(sub.teamId),
-            team_name: `Đội ${sub.teamId}`,
-            repo_url: sub.repoUrl,
-            slide_url: sub.slideUrl,
-            demo_url: sub.demoUrl,
-            submitted_at: sub.submittedAt,
-            status: 'LATE_PENDING' as const
-          };
-        }
-      });
+      const teamId = myTeam.teamId ?? myTeam.id;
+      const roundId =
+        myTeam.activeRoundId ??
+        myTeam.roundId ??
+        myTeam.prelimRoundId ??
+        (await resolveActiveRoundId());
 
-      return await Promise.all(enrichPromises);
-    } catch (err) {
-      console.error('Lỗi lấy danh sách bài nộp muộn từ Backend:', err);
+      if (!roundId) return { status: 'NONE' };
+
+      const submission = await axiosClient.get<any, any>(
+        `/api/v1/me/submission?teamId=${teamId}&roundId=${roundId}`
+      );
+
+      if (!submission) return { status: 'NONE' };
+
+      return {
+        status: mapSubmissionStatusToFe(submission.status),
+        submitted_at: submission.submittedAt ?? submission.submitted_at,
+        repo_url: submission.repoUrl ?? submission.repo_url,
+        demo_url: submission.demoUrl ?? submission.demo_url,
+        slide_url: submission.slideUrl ?? submission.slide_url,
+      };
+    } catch (err: any) {
+      if (err?.status === 404) return { status: 'NONE' };
       throw err;
     }
   },
 
-  // Backend: PATCH /api/v1/submissions/{id}/review-late
-  approveLateSubmission: async (submissionId: string | number): Promise<any> => {
-    try {
-      return await axiosClient.patch(`/api/v1/submissions/${submissionId}/review-late`, {
-        decision: 'APPROVE',
-        note: 'Duyệt bài nộp muộn thông qua Dashboard điều phối viên'
-      });
-    } catch (err) {
-      console.error('Lỗi khi phê duyệt bài nộp muộn:', err);
-      throw err;
+  /** POST /api/v1/submissions — upsert, bắt buộc teamId + trackId */
+  submitStudentSubmission: async (
+    _studentId: string | number,
+    data: SubmissionRequest
+  ): Promise<SubmissionResponse> => {
+    const teams = await personBApi.getMyTeams();
+    const myTeam = teams?.[0];
+    if (!myTeam) {
+      throw new Error('Sinh viên không thuộc đội thi nào để thực hiện nộp bài.');
     }
-  },
 
-  // Backend: PATCH /api/v1/submissions/{id}/review-late
-  rejectLateSubmission: async (
-    submissionId: string | number,
-    data: RejectSubmissionRequest
-  ): Promise<any> => {
-    try {
-      return await axiosClient.patch(`/api/v1/submissions/${submissionId}/review-late`, {
-        decision: 'REJECT',
-        note: data.reason
-      });
-    } catch (err) {
-      console.error('Lỗi khi từ chối bài nộp muộn:', err);
-      throw err;
+    const teamId = myTeam.teamId ?? myTeam.id;
+    const trackId = myTeam.trackId ?? myTeam.track_id;
+    if (!trackId) {
+      throw new Error('Đội chưa được phân bảng đấu — hoàn tất bốc thăm trước khi nộp bài.');
     }
+
+    const payload = {
+      teamId: Number(teamId),
+      trackId: Number(trackId),
+      repoUrl: data.repo_url,
+      demoUrl: data.demo_url || null,
+      slideUrl: data.slide_url,
+    };
+
+    const res = await axiosClient.post<any, any>('/api/v1/submissions', payload);
+    const mapped = mapSubmissionStatusToFe(res.status);
+
+    return {
+      status: mapped === 'NONE' ? 'ON_TIME' : mapped,
+      submitted_at: res.submittedAt ?? res.submitted_at,
+      repo_url: res.repoUrl ?? res.repo_url,
+      demo_url: res.demoUrl ?? res.demo_url,
+      slide_url: res.slideUrl ?? res.slide_url,
+    };
   },
 
-  getTeamPresentationSlot: async (teamId: string | number): Promise<any> => {
-    try {
-      return await axiosClient.get(`/api/v1/me/mentor-team-assignments/${teamId}/presentation-slot`);
-    } catch (err) {
-      console.error(`Lỗi khi lấy slot thuyết trình cho team ${teamId}:`, err);
-      throw err;
+  /** GET /api/v1/me/rounds/current/deadline */
+  getCurrentDeadline: async (): Promise<DeadlineResponse> => {
+    const data = await axiosClient.get<any, { deadline?: string; roundId?: number }>(
+      '/api/v1/me/rounds/current/deadline'
+    );
+    return {
+      deadline: data.deadline,
+      round_id: data.roundId ? String(data.roundId) : undefined,
+    };
+  },
+
+  /** GET /api/v1/me/rounds/{roundId}/problem */
+  getRoundProblem: async (roundId: number | string) => {
+    return axiosClient.get(`/api/v1/me/rounds/${roundId}/problem`);
+  },
+
+  /** GET /api/v1/submissions?status=LATE_PENDING — Coordinator */
+  getLateSubmissions: async (roundId?: number | string): Promise<LateSubmission[]> => {
+    const rid = roundId ?? (await resolveActiveRoundId());
+    const query = rid
+      ? `?status=LATE_PENDING&roundId=${rid}`
+      : '?status=LATE_PENDING';
+
+    const submissions = await axiosClient.get<any, any[]>(`/api/v1/submissions${query}`);
+    const list = Array.isArray(submissions) ? submissions : [];
+
+    return list
+      .filter((sub) => sub.status === 'LATE_PENDING')
+      .map((sub) => ({
+        submission_id: String(sub.id),
+        team_id: String(sub.teamId ?? sub.team_id),
+        team_name: sub.teamName ?? sub.team_name ?? `Đội ${sub.teamId}`,
+        repo_url: sub.repoUrl ?? sub.repo_url,
+        slide_url: sub.slideUrl ?? sub.slide_url,
+        demo_url: sub.demoUrl ?? sub.demo_url,
+        submitted_at: sub.submittedAt ?? sub.submitted_at,
+        status: 'LATE_PENDING' as const,
+      }));
+  },
+
+  approveLateSubmission: async (submissionId: string | number) =>
+    axiosClient.patch(`/api/v1/submissions/${submissionId}/approve`, {}),
+
+  rejectLateSubmission: async (submissionId: string | number, data: RejectSubmissionRequest) =>
+    axiosClient.patch(`/api/v1/submissions/${submissionId}/reject`, { reason: data.reason }),
+
+  /** GET /api/v1/me/mentor/teams/{teamId}/presentation-slot */
+  getTeamPresentationSlot: async (teamId: string | number) =>
+    axiosClient.get(`/api/v1/me/mentor/teams/${teamId}/presentation-slot`),
+
+  /** GET /api/v1/presentation/queue?roundId= */
+  getPresentationQueue: async (roundId?: string | number): Promise<PresentationQueueResponse> => {
+    const rid = roundId ?? (await resolveActiveRoundId());
+    if (!rid) {
+      throw new Error('Không xác định được roundId cho hàng đợi thuyết trình.');
     }
+    const data = await axiosClient.get<any, any>(`/api/v1/presentation/queue?roundId=${rid}`);
+    return mapPresentationQueue(data);
   },
 
-  // MÀN HÌNH 4: Presentation Queue Screen
-  // TODO: [API MISSING] Các endpoint về hàng đợi thuyết trình chưa được Backend triển khai chính thức.
-  // Khi không ở chế độ dev mode, các hàm này sẽ gọi tới đường dẫn dự kiến /api/v1/...
-  getPresentationQueue: async (): Promise<PresentationQueueResponse> => {
-    return axiosClient.get('/api/v1/presentation/queue');
+  /** PATCH /api/v1/presentation/queue/next?roundId= */
+  triggerNextPresentation: async (roundId?: string | number, currentTeamId?: string | number) => {
+    const rid = roundId ?? (await resolveActiveRoundId());
+    if (!rid) {
+      throw new Error('Không xác định được roundId để chuyển team tiếp theo.');
+    }
+    const params = new URLSearchParams({ roundId: String(rid) });
+    const body = currentTeamId ? { currentTeamId: Number(currentTeamId) } : {};
+    return axiosClient.patch(`/api/v1/presentation/queue/next?${params.toString()}`, body);
   },
 
-  triggerNextPresentation: async (): Promise<any> => {
-    return axiosClient.patch('/api/v1/presentation/queue/next');
-  }
+  /** @deprecated Coordinator-only — mentor/student không dùng */
+  getHackathonRounds: async (): Promise<any[]> => {
+    const rounds = await personBApi.getMentorRounds();
+    return rounds.map((r) => ({
+      id: r.roundId,
+      name: r.roundName,
+      isActive: r.status === 'ACTIVE',
+      ...r,
+    }));
+  },
 };

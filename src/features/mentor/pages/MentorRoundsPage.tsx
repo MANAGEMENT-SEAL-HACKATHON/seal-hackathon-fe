@@ -210,7 +210,7 @@ const MentorRoundsPage: React.FC = () => {
                   </span>
 
                   <button
-                    onClick={() => navigate(`/mentor/support?roundId=${round.round_id}`)}
+                    onClick={() => navigate(`/mentor/support?roundId=${round.roundId ?? round.round_id}`)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Tag } from 'antd';
 import { personBApi, AssignedTeamsResponse } from '../../../api/personB.api';
@@ -59,59 +59,25 @@ interface TeamCardProps {
 }
 
 const TeamCard: React.FC<TeamCardProps> = ({ team, groupNumber, useMock }) => {
-  const [slot, setSlot] = useState<{ slotStartAt: string; slotEndAt: string; location: string } | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    const fetchSlot = async () => {
-      try {
-        setLoading(true);
-        if (useMock) {
-          const starts = new Date();
-          starts.setHours(9, 30 + (parseInt(team.team_id) % 5) * 15, 0);
-          const ends = new Date(starts.getTime() + 15 * 60000);
-          const mockSlot = {
-            slotStartAt: starts.toISOString(),
-            slotEndAt: ends.toISOString(),
-            location: `Online (Teams) - Phòng ${parseInt(team.team_id) % 3 + 1}`
-          };
-          if (active) {
-            setSlot(mockSlot);
-            setLoading(false);
-          }
-          return;
-        }
-
-        const data = await personBApi.getTeamPresentationSlot(team.team_id);
-        if (active) {
-          setSlot(data);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Error fetching presentation slot for team:', team.team_id, err);
-        if (active) setLoading(false);
-      }
-    };
-
-    fetchSlot();
-    return () => {
-      active = false;
-    };
-  }, [team.team_id, useMock]);
+  const scheduleText = team.presentation_schedule || team.presentationSchedule;
+  const locationText = team.location;
 
   const formatSlotTime = () => {
-    if (!slot) return '';
-    const date = new Date(slot.slotStartAt);
-    const endDate = new Date(slot.slotEndAt);
-    const startHours = String(date.getHours()).padStart(2, '0');
-    const startMins = String(date.getMinutes()).padStart(2, '0');
-    const endHours = String(endDate.getHours()).padStart(2, '0');
-    const endMins = String(endDate.getMinutes()).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    return `${startHours}:${startMins} - ${endHours}:${endMins} ngày ${day}/${month}`;
+    if (!scheduleText) return '';
+    if (useMock && scheduleText.includes('T')) {
+      const date = new Date(scheduleText);
+      if (!isNaN(date.getTime())) {
+        const startHours = String(date.getHours()).padStart(2, '0');
+        const startMins = String(date.getMinutes()).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        return `${startHours}:${startMins} ngày ${day}/${month}`;
+      }
+    }
+    return scheduleText;
   };
+
+  const hasSchedule = Boolean(scheduleText || locationText);
 
   return (
     <div className="team-card-item animate-fadeIn">
@@ -154,13 +120,8 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, groupNumber, useMock }) => {
           <span>🆔 ID: {team.team_id}</span>
         </div>
 
-        {/* Presentation slot info */}
-        {loading ? (
-          <div style={{ fontSize: '12px', color: '#9CA3AF', margin: '4px 0 6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', border: '2px solid #9CA3AF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            Đang tải lịch thuyết trình...
-          </div>
-        ) : slot ? (
+        {/* Lịch thuyết trình từ assigned-teams (§7 BE) */}
+        {hasSchedule ? (
           <div style={{
             background: '#F9FAFB',
             border: '1px dashed #E5E7EB',
@@ -170,16 +131,20 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, groupNumber, useMock }) => {
             fontSize: '12px',
             color: '#4B5563'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-              <span>📅</span>
-              <strong style={{ color: '#1F2937' }}>Lịch thuyết trình:</strong>
-              <span>{formatSlotTime()}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>📍</span>
-              <strong style={{ color: '#1F2937' }}>Địa điểm:</strong>
-              <span>{slot.location}</span>
-            </div>
+            {scheduleText && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                <span>📅</span>
+                <strong style={{ color: '#1F2937' }}>Lịch thuyết trình:</strong>
+                <span>{formatSlotTime()}</span>
+              </div>
+            )}
+            {locationText && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>📍</span>
+                <strong style={{ color: '#1F2937' }}>Địa điểm:</strong>
+                <span>{locationText}</span>
+              </div>
+            )}
           </div>
         ) : null}
 
@@ -200,55 +165,52 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, groupNumber, useMock }) => {
   );
 };
 
+const parseRoundIdParam = (value: string | null) => {
+  if (!value || value === 'undefined' || value === 'null') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
 const MentorSupportPage: React.FC = () => {
   const [useMock, setUseMock] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(true);
   const [searchParams] = useSearchParams();
-  const roundId = searchParams.get('roundId');
+  const roundIdFromUrl = parseRoundIdParam(searchParams.get('roundId'));
 
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
   const mentorId = userInfo.userId || userInfo.id || 'mentor-1';
 
-  // React Query Fetching Teams
-  const { data: teamsData, isLoading: isTeamsLoading, isFetching: isTeamsFetching, error: teamsError, refetch: refetchTeams } = useQuery<AssignedTeamsResponse>({
-    queryKey: ['assignedTeams', mentorId, roundId, useMock],
+  // Lấy vòng thi qua API mentor — không dùng endpoint coordinator
+  const { data: dbRounds, isLoading: isRoundsLoading, error: roundsError, refetch: refetchRounds } = useQuery<any[]>({
+    queryKey: ['mentorRounds', useMock],
     queryFn: async () => {
-      if (useMock) return mockAssignedTeams;
-      try {
-        const res = await personBApi.getAssignedTeams(mentorId, roundId || undefined);
-        setShowErrorAlert(false);
-        return res;
-      } catch (err: any) {
-        setShowErrorAlert(true);
-        throw err;
+      if (useMock) {
+        return [
+          { roundId: 1, roundName: 'Vòng Sơ loại - Round A', status: 'ACTIVE', description: 'Vòng đấu loại trực tiếp của dự án SEAL Hackathon. Hạn nộp bài đang diễn ra.' },
+          { roundId: 2, roundName: 'Vòng Bán kết - Round B', status: 'UPCOMING', description: 'Vòng bán kết đánh giá dự án thực tế. Sắp diễn ra.' },
+          { roundId: 3, roundName: 'Vòng Chung kết - Round C', status: 'UPCOMING', description: 'Chung kết xếp hạng và thuyết trình trực tiếp trước hội đồng giám khảo.' }
+        ];
       }
+      const res = await personBApi.getMentorRounds();
+      return res || [];
     },
     retry: false
   });
 
-  // React Query Fetching Hackathon Rounds from Database
-  const { data: dbRounds, isLoading: isRoundsLoading, error: roundsError, refetch: refetchRounds } = useQuery<any[]>({
-    queryKey: ['hackathonRounds', useMock],
+  const dbRoundsList = dbRounds && dbRounds.length > 0 ? dbRounds : [];
+  const activeRound = dbRoundsList.find((r: any) => r.status === 'ACTIVE' || r.isActive === true) || dbRoundsList[0];
+  const effectiveRoundId = roundIdFromUrl ?? activeRound?.roundId ?? activeRound?.id ?? null;
+
+  // React Query Fetching Teams — chỉ gọi khi đã có roundId hợp lệ
+  const { data: teamsData, isLoading: isTeamsLoading, isFetching: isTeamsFetching, error: teamsError, refetch: refetchTeams } = useQuery<AssignedTeamsResponse>({
+    queryKey: ['assignedTeams', mentorId, effectiveRoundId, useMock],
     queryFn: async () => {
-      if (useMock) {
-        return [
-          { id: '1', name: 'Vòng Sơ loại - Round A', isActive: true, description: 'Vòng đấu loại trực tiếp của dự án SEAL Hackathon. Hạn nộp bài đang diễn ra.' },
-          { id: '2', name: 'Vòng Bán kết - Round B', isActive: false, description: 'Vòng bán kết đánh giá dự án thực tế. Sắp diễn ra.' },
-          { id: '3', name: 'Vòng Chung kết - Round C', isActive: false, description: 'Chung kết xếp hạng và thuyết trình trực tiếp trước hội đồng giám khảo.' }
-        ];
-      }
-      try {
-        const res = await personBApi.getHackathonRounds();
-        return res || [];
-      } catch (err) {
-        console.warn('Lỗi khi lấy rounds từ DB, sử dụng mock để đảm bảo giao diện không crash:', err);
-        return [
-          { id: '1', name: 'Vòng Sơ loại - Round A', isActive: true, description: 'Vòng đấu loại trực tiếp của dự án SEAL Hackathon. Hạn nộp bài đang diễn ra.' },
-          { id: '2', name: 'Vòng Bán kết - Round B', isActive: false, description: 'Vòng bán kết đánh giá dự án thực tế. Sắp diễn ra.' },
-          { id: '3', name: 'Vòng Chung kết - Round C', isActive: false, description: 'Chung kết xếp hạng và thuyết trình trực tiếp trước hội đồng giám khảo.' }
-        ];
-      }
+      if (useMock) return mockAssignedTeams;
+      const res = await personBApi.getAssignedTeams(mentorId, effectiveRoundId!);
+      setShowErrorAlert(false);
+      return res;
     },
+    enabled: useMock || effectiveRoundId != null,
     retry: false
   });
 
@@ -261,17 +223,10 @@ const MentorSupportPage: React.FC = () => {
     refetchRounds();
   };
 
-  // Dynamically build rounds list from database rounds with a fallback if empty
-  const dbRoundsList = dbRounds && dbRounds.length > 0 ? dbRounds : [
-    { id: '1', name: 'Vòng Sơ loại - Round A', isActive: true, description: 'Vòng đấu loại trực tiếp của dự án SEAL Hackathon. Hạn nộp bài đang diễn ra.' },
-    { id: '2', name: 'Vòng Bán kết - Round B', isActive: false, description: 'Vòng bán kết đánh giá dự án thực tế. Sắp diễn ra.' },
-    { id: '3', name: 'Vòng Chung kết - Round C', isActive: false, description: 'Chung kết xếp hạng và thuyết trình trực tiếp trước hội đồng giám khảo.' }
-  ];
-
-  const activeRound = dbRoundsList.find((r: any) => r.isActive === true || r.status === 'ACTIVE') || dbRoundsList[0];
-  const effectiveRoundId = roundId || (activeRound ? String(activeRound.id) : '1');
-  const currentRoundObj = dbRoundsList.find((r: any) => String(r.id) === String(effectiveRoundId)) || activeRound;
-  const currentRoundName = currentRoundObj?.name || currentRoundObj?.roundName || 'Vòng Sơ loại - Round A';
+  const currentRoundObj = dbRoundsList.find(
+    (r: any) => String(r.roundId ?? r.id) === String(effectiveRoundId)
+  ) || activeRound;
+  const currentRoundName = currentRoundObj?.roundName || currentRoundObj?.name || 'Chưa chọn vòng thi';
 
   const teams = activeTeams;
 

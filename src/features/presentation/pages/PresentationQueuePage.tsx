@@ -14,25 +14,38 @@ const PresentationQueuePage: React.FC = () => {
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
   const isCoordinator = ['COORDINATOR', 'ADMIN'].includes(userInfo.role);
 
-  // Local state for queue to support real-time local transitions
   const [localGroups, setLocalGroups] = useState<QueueGroup[]>([]);
   const [useMock, setUseMock] = useState(false);
+  const [roundId, setRoundId] = useState<number | null>(null);
 
-  // Fetch Presentation Queue
+  const { data: deadlineData } = useQuery({
+    queryKey: ['currentDeadline'],
+    queryFn: () => personBApi.getCurrentDeadline(),
+    retry: false,
+    enabled: !useMock,
+  });
+
+  useEffect(() => {
+    if (deadlineData?.round_id) {
+      setRoundId(Number(deadlineData.round_id));
+    }
+  }, [deadlineData]);
+
   const { data: queueData, isLoading, error, refetch } = useQuery<PresentationQueueResponse>({
-    queryKey: ['presentationQueue', useMock],
+    queryKey: ['presentationQueue', roundId, useMock],
     queryFn: async () => {
       if (useMock) {
         const { mockPresentationQueue } = await import('../../../api/personB.mock');
         return mockPresentationQueue;
       }
       try {
-        return await personBApi.getPresentationQueue();
+        return await personBApi.getPresentationQueue(roundId ?? undefined);
       } catch (err: any) {
         toast.error(`Lỗi tải thứ tự thuyết trình: ${err?.message || 'Không thể lấy dữ liệu'}`);
         throw err;
       }
     },
+    enabled: useMock || roundId != null,
     retry: false
   });
 
@@ -88,10 +101,9 @@ const PresentationQueuePage: React.FC = () => {
     return () => clearInterval(interval);
   }, [phase, currentTeam]);
 
-  // Next Team Mutation (Fire and Forget Backend Sync)
   const nextMutation = useMutation({
-    mutationFn: async () => {
-      return await personBApi.triggerNextPresentation();
+    mutationFn: async (currentTeamId?: string | number) => {
+      return await personBApi.triggerNextPresentation(roundId ?? undefined, currentTeamId);
     },
     onSuccess: () => {
       toast.success('Đã đồng bộ thứ tự tiếp theo lên hệ thống.');
@@ -130,11 +142,9 @@ const PresentationQueuePage: React.FC = () => {
     setPhase('present');
     setTimeLeft(5 * 60); // 300s
 
-    // Trigger BE fire-and-forget sync
-    nextMutation.mutate();
+    nextMutation.mutate(firstUpcomingTeam.team_id);
   };
 
-  // Handle clicking "Next Team"
   const handleNextTeam = () => {
     if (!nextTeam) {
       toast.error('Đã đến đội cuối cùng trong hàng đợi.');
@@ -161,8 +171,7 @@ const PresentationQueuePage: React.FC = () => {
     setPhase('present');
     setTimeLeft(5 * 60); // 300s
 
-    // Trigger BE fire-and-forget sync
-    nextMutation.mutate();
+    nextMutation.mutate(currentTeam?.team_id);
   };
 
   // Timer display helper
@@ -210,10 +219,10 @@ const PresentationQueuePage: React.FC = () => {
     }
   };
 
-  // Stats for Card 2
-  const total = flatTeams.length;
-  const done = flatTeams.filter((t) => t.status === 'DONE').length;
-  const absent = flatTeams.filter((t) => t.status === 'ELIMINATED').length;
+  const roomStats = queueData?.room_stats;
+  const total = roomStats?.total ?? flatTeams.length;
+  const done = roomStats?.done ?? flatTeams.filter((t) => t.status === 'DONE').length;
+  const absent = roomStats?.absent ?? flatTeams.filter((t) => t.status === 'ELIMINATED').length;
   const progressPercent = total > 0 ? Math.round((done / total) * 100) : 0;
 
   return (

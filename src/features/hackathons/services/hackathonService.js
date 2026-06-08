@@ -26,7 +26,7 @@ export const hackathonService = {
     return axiosClient.get(ENDPOINTS.HACKATHONS.READINESS(id), { params: { target: targetStatus } });
   },
 
-  updateStatus: async (id, targetStatus, note = '') => {
-    return axiosClient.patch(ENDPOINTS.HACKATHONS.STATUS(id), { targetStatus, note });
+  updateStatus: async (id, status, note = '') => {
+    return axiosClient.patch(ENDPOINTS.HACKATHONS.STATUS(id), { status, note });
   }
 };

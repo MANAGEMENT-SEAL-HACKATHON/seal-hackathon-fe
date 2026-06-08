@@ -29,14 +29,13 @@ const submissionSchema = z.object({
       (val) => {
         try {
           const url = new URL(val);
-          return !url.pathname.toLowerCase().endsWith('.pdf');
+          return url.pathname.toLowerCase().endsWith('.pdf');
         } catch {
-          return !val.toLowerCase().endsWith('.pdf');
+          return val.toLowerCase().endsWith('.pdf');
         }
       },
-      { message: 'Không chấp nhận tệp PDF (.pdf). Vui lòng nộp link chia sẻ trực tuyến (Google Slides, Canva, Pitch, v.v.)' }
+      { message: 'Link slide phải trỏ tới file PDF (.pdf) theo quy định BE.' }
     ),
-  late_reason: z.string().optional()
 });
 
 type SubmissionFormValues = z.infer<typeof submissionSchema>;
@@ -96,7 +95,6 @@ const StudentSubmissionPage: React.FC = () => {
       repo_url: '',
       demo_url: '',
       slide_url: '',
-      late_reason: ''
     }
   });
 
@@ -129,7 +127,6 @@ const StudentSubmissionPage: React.FC = () => {
       repo_url: values.repo_url,
       demo_url: values.demo_url || undefined,
       slide_url: values.slide_url,
-      lateReason: values.late_reason
     });
   };
 
@@ -256,34 +253,24 @@ const StudentSubmissionPage: React.FC = () => {
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white ${
                     errors.slide_url ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-100'
                   }`}
-                  placeholder="Ví dụ: Google Slides, Pitch link (không nộp link PDF trực tiếp)"
+                  placeholder="Ví dụ: https://drive.google.com/.../slide.pdf"
                 />
                 {errors.slide_url && (
                   <span className="text-red-500 text-xs mt-1 block">{errors.slide_url.message}</span>
                 )}
                 <span className="text-xs text-gray-400 block mt-1">
-                  Lưu ý: Hệ thống không chấp nhận định dạng file .pdf trực tiếp để thuận tiện cập nhật nội dung.
+                  BE yêu cầu link slide kết thúc bằng .pdf (INVALID_SLIDE_FORMAT nếu sai định dạng).
                 </span>
               </div>
 
-              {/* Conditional Late Reason Field */}
               {isOverdue && (
-                <div className="space-y-1 p-4 bg-red-50/50 dark:bg-red-950/10 border border-red-200 dark:border-red-900/50 rounded-md">
-                  <label className="block text-sm font-semibold text-red-700 dark:text-red-300">
-                    Lý do nộp trễ (Bắt buộc)
-                  </label>
-                  <textarea
-                    {...register('late_reason')}
-                    rows={3}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white ${
-                      errors.late_reason ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-100'
-                    }`}
-                    placeholder="Vui lòng cung cấp lý do nộp bài trễ hạn..."
-                  />
-                  {errors.late_reason && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.late_reason.message}</span>
-                  )}
-                </div>
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="Nộp sau hạn chót"
+                  description="Hệ thống tự gán trạng thái LATE_PENDING. BTC sẽ duyệt bài nộp muộn — không cần gửi lý do từ form."
+                  className="rounded-md"
+                />
               )}
 
               <div className="pt-4 border-t border-gray-100 dark:border-zinc-850 flex justify-end">

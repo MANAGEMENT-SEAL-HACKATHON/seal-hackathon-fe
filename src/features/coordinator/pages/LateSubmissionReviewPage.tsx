@@ -42,7 +42,7 @@ const LateSubmissionReviewPage: React.FC = () => {
     onSuccess: (_, submissionId) => {
       toast.success('Duyệt bài nộp muộn thành công!');
       // Update local cache state by removing the approved row
-      queryClient.setQueryData<LateSubmission[]>(['lateSubmissions'], (old) => {
+      queryClient.setQueryData<LateSubmission[]>(['lateSubmissions', useMock], (old) => {
         return (old || []).filter((sub) => sub.submission_id !== submissionId);
       });
     },
@@ -62,7 +62,7 @@ const LateSubmissionReviewPage: React.FC = () => {
       setRejectReason('');
       setSelectedSubmissionId(null);
       // Remove row from list
-      queryClient.setQueryData<LateSubmission[]>(['lateSubmissions'], (old) => {
+      queryClient.setQueryData<LateSubmission[]>(['lateSubmissions', useMock], (old) => {
         return (old || []).filter((sub) => sub.submission_id !== variables.submissionId);
       });
     },

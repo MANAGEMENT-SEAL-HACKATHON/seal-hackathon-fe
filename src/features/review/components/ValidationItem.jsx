@@ -68,8 +68,7 @@ export const ValidationItem = ({ status, code, details, message, index }) => {
       case "MISSING_PRELIMINARY_ROUND":
         return (
           <span>
-            Giải đấu <strong>chưa có Vòng Sơ loại</strong> hoặc Vòng Sơ loại
-            chưa có Track (Bảng đấu) nào.
+            Giải đấu <strong>chưa có Vòng Sơ loại</strong> hoặc chưa có bảng đấu nào.
             <br />
             <Text type="secondary">
               Vui lòng tạo vòng thi và thiết lập bảng đấu để tiếp tục.
@@ -97,6 +96,17 @@ export const ValidationItem = ({ status, code, details, message, index }) => {
             <br />
             <Text type="secondary">
               Đây là sự kiện bắt buộc phải có để chính thức bắt đầu Hackathon.
+            </Text>
+          </span>
+        );
+
+      case "EVENT_ORDER_VIOLATION":
+        return (
+          <span>
+            Thứ tự sự kiện không hợp lệ.
+            <br />
+            <Text type="secondary">
+              Tạo <strong>KICKOFF</strong> trước <strong>WORKSHOP</strong> (POST order). Trên lịch, Workshop phải diễn ra trước Khai mạc và khác ngày.
             </Text>
           </span>
         );

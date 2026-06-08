@@ -17,6 +17,7 @@ import { useReadiness } from "../hooks/useReadiness";
 import { reviewService } from "../services/reviewService";
 import { ReviewTabs } from "../components/ReviewTabs";
 import { ReviewSummaryCard } from "../components/ReviewSummaryCard";
+import { ROUTES } from "../../../shared/constants/routes";
 
 const { Title, Paragraph } = Typography;
 const { useToken } = theme;
@@ -40,9 +41,9 @@ const ReviewValidatePage = ({ hackathonId: propHackathonId }) => {
   // 2. Hàm gọi API kích hoạt giải đấu
   const handleActivate = async () => {
     try {
-      await reviewService.changeStatus(hId, "ONGOING");
-      message.success("Kích hoạt giải đấu thành công!");
-      navigate(`/hackathons/${hId}`);
+      await reviewService.changeStatus(hId, 'ONGOING', 'Mở đăng ký');
+      message.success('Đã mở đăng ký — kỳ thi đang ở trạng thái ONGOING.');
+      navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hId)), { replace: true });
     } catch (error) {
       message.error(error.message || "Không thể kích hoạt giải đấu");
     }

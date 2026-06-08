@@ -21,7 +21,7 @@ const LotteryManagementPage = ({ hackathonId }) => {
 
   const {
     rounds, tracks, activeTeams, isLoading,
-    selectedRoundId, setSelectedRoundId,
+    selectedRoundId, setSelectedRoundId, lotteryGate,
     handleAssignTopic, handleRunAutoLottery, handleChangeTrack
   } = useLotteryManagement(hackathonId);
 
@@ -54,6 +54,15 @@ const LotteryManagementPage = ({ hackathonId }) => {
   // Cột cho Bảng 2: Danh sách Đội thi & Bốc thăm
   const teamColumns = [
     { title: 'Tên Đội', dataIndex: 'teamName', key: 'teamName', render: t => <strong>{t}</strong> },
+    {
+      title: 'Khóa đội',
+      key: 'isLocked',
+      width: 110,
+      render: (_, record) => {
+        const locked = record.isLocked ?? record.is_locked;
+        return locked ? <Tag color="red">Đã khóa</Tag> : <Tag color="default">Chưa khóa</Tag>;
+      },
+    },
     { 
       title: 'Bảng đấu hiện tại', 
       key: 'track', 
@@ -126,20 +135,25 @@ const LotteryManagementPage = ({ hackathonId }) => {
             title={<Space><Shuffle size={18} /> Bốc thăm Bảng đấu cho Đội thi (Lottery)</Space>}
             style={{ borderRadius: 12, borderTop: `3px solid ${token.colorSuccess}` }}
             extra={
-              <Button 
-                type="primary" 
-                icon={<Shuffle size={16} />} 
+              <Button
+                type="primary"
+                icon={<Shuffle size={16} />}
                 onClick={handleRunAutoLottery}
                 loading={isLoading}
-                style={{ backgroundColor: token.colorSuccess }}
+                disabled={!lotteryGate.allowed}
+                title={lotteryGate.reason || undefined}
+                style={{ backgroundColor: lotteryGate.allowed ? token.colorSuccess : undefined }}
               >
                 Bốc thăm Tự động (Cho đội chưa có)
               </Button>
             }
           >
-            <Alert 
-              message="Hệ thống chỉ liệt kê các Đội thi đã được duyệt (Trạng thái: ACTIVE)." 
-              type="info" showIcon style={{ marginBottom: 16 }} 
+            <Alert
+              message="Hệ thống chỉ liệt kê các Đội thi đã được duyệt (Trạng thái: ACTIVE)."
+              description={lotteryGate.reason || 'Sau ngày kết thúc đăng ký, hệ thống khóa đội rồi Coordinator mới bốc thăm (PATCH /lottery).'}
+              type={lotteryGate.allowed ? 'info' : 'warning'}
+              showIcon
+              style={{ marginBottom: 16 }}
             />
             <Table 
               dataSource={activeTeams} 

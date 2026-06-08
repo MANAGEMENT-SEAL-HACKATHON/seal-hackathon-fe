@@ -73,6 +73,11 @@ const ReviewWrapper = () => {
   );
 };
 
+const HackathonDetailRedirect = () => {
+  const { hackathonId } = useParams();
+  return <Navigate to={ROUTES.HACKATHON_SETUP.replace(':hackathonId', hackathonId)} replace />;
+};
+
 const getStoredUserInfo = () => {
   try {
     return JSON.parse(localStorage.getItem('userInfo') || '{}');
@@ -204,6 +209,7 @@ const AppRouter = () => {
         <Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
         <Route path={ROUTES.PROFILE} element={<OnboardingPage />} />
         <Route path={ROUTES.HACKATHONS} element={<HackathonListPage />} />
+        <Route path="/hackathons/:hackathonId" element={<HackathonDetailRedirect />} />
         <Route path={ROUTES.HACKATHON_CREATE} element={<CreateHackathonPage />} />
         <Route path={ROUTES.HACKATHON_SETUP} element={<HackathonSetupPage />} />
         <Route path={ROUTES.GLOBAL_TEAMS} element={<CoordinatorTeamPage />} />

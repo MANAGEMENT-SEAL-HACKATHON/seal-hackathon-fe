@@ -17,6 +17,12 @@ export const peopleService = {
   getTrackJudges: async (trackId) => axiosClient.get(`/api/v1/tracks/${trackId}/judges`),
   getRoundJudges: async (roundId) => axiosClient.get(`/api/v1/rounds/${roundId}/judges`),
 
-  // Lịch sử Mentor theo Đội thi
+  assignMentorToTrack: async ({ mentorId, trackId }) =>
+    axiosClient.post('/api/v1/mentor-assignments', { mentorId, trackId }),
+  getTrackMentors: async (trackId) => axiosClient.get(`/api/v1/tracks/${trackId}/mentors`),
+  removeMentorAssignment: async (assignmentId) =>
+    axiosClient.delete(`/api/v1/mentor-assignments/${assignmentId}`),
+
+  // Gán mentor theo đội — chỉ dùng GĐ2+ (tùy chọn), không dùng wizard GĐ1
   getTeamMentors: async (teamId) => axiosClient.get(`/api/v1/teams/${teamId}/mentors`),
 };
