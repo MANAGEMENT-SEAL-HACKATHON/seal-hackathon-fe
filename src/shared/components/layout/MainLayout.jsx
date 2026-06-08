@@ -17,7 +17,7 @@ import {
 import {
   LayoutDashboard, Trophy, Users, Activity, BarChart3, Settings, HelpCircle,
   Mail, CalendarClock, AlertTriangle, CheckCheck, UserCheck, UserPlus, User,
-  FileText
+  FileText, ClipboardCheck, History
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../constants/routes';
