@@ -100,7 +100,6 @@ const MainLayout = ({ children }) => {
       { key: ROUTES.PROFILE, icon: <User size={18} />, label: 'Trang cá nhân' },
       { key: ROUTES.HACKATHONS, icon: <Trophy size={18} />, label: 'Cấu hình Sự kiện' },
       { key: ROUTES.GLOBAL_TEAMS, icon: <Users size={18} />, label: 'Quản lý Đội thi' },
-      { key: ROUTES.ROUND_RANKING, icon: <BarChart3 size={18} />, label: 'BXH sơ loại' },
       { key: ROUTES.USER_APPROVAL, icon: <UserCheck size={18} />, label: 'Duyệt tài khoản' },
       { key: ROUTES.TEMP_JUDGES, icon: <UserPlus size={18} />, label: 'Giám khảo khách' },
       { key: 'monitor', icon: <Activity size={18} />, label: 'Giám sát Real-time' },

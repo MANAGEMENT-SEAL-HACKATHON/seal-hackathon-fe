@@ -60,9 +60,11 @@ export const useRoundRankingPreview = (roundId, options = {}) => {
   const summary = useMemo(() => getRankingSummary(items, groups), [items, groups]);
 
   const visibleItems = useMemo(() => {
-    if (selectedGroup === "all") return items;
+    if (selectedGroup === "all") {
+      return groups.flatMap((group) => group.items);
+    }
     return groups.find((group) => group.key === selectedGroup)?.items || [];
-  }, [groups, items, selectedGroup]);
+  }, [groups, selectedGroup]);
 
   return {
     items,

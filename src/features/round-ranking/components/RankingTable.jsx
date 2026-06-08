@@ -1,104 +1,89 @@
-import { Button, Empty, Space, Table, Tag, Typography } from "antd";
-import { Ban } from "lucide-react";
+import { Empty, Spin, Typography, theme } from "antd";
+import { AnimatePresence, motion } from "framer-motion";
+import RankingBoardRow from "./RankingBoardRow";
 
 const { Text } = Typography;
 
-const statusColor = {
-  ACTIVE: "green",
-  ELIMINATED: "red",
-};
+const columns = ["Rank", "Đội", "Bảng", "Điểm", "Biến động", "Cảnh báo", ""];
 
 const RankingTable = ({
   items,
   isLoading,
+  movements = {},
   canEliminate = true,
   eliminatingTeamId,
   onEliminate,
 }) => {
-  const columns = [
-    {
-      title: "Rank",
-      dataIndex: "rank",
-      key: "rank",
-      width: 88,
-      align: "center",
-      render: (rank) => <Text strong>#{rank || "-"}</Text>,
-    },
-    {
-      title: "Đội",
-      dataIndex: "teamName",
-      key: "teamName",
-      render: (teamName, record) => (
-        <Space direction="vertical" size={2}>
-          <Text strong delete={record.isEliminated}>{teamName}</Text>
-          <Text type="secondary">Team ID: {record.teamId}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: "Bảng",
-      dataIndex: "groupLabel",
-      key: "groupLabel",
-      responsive: ["md"],
-      render: (groupLabel) => <Tag>{groupLabel}</Tag>,
-    },
-    {
-      title: "Điểm TB trọng số",
-      dataIndex: "scoreLabel",
-      key: "scoreLabel",
-      align: "right",
-      render: (scoreLabel) => <Text strong>{scoreLabel}</Text>,
-    },
-    {
-      title: "Tiebreak",
-      dataIndex: "tiebreakRequired",
-      key: "tiebreakRequired",
-      responsive: ["lg"],
-      render: (required) => (required ? <Tag color="gold">Cần tiebreak</Tag> : <Text type="secondary">-</Text>),
-    },
-    {
-      title: "Trạng thái",
-      dataIndex: "status",
-      key: "status",
-      render: (status) => <Tag color={statusColor[status] || "default"}>{status}</Tag>,
-    },
-    {
-      title: "Hành động",
-      key: "action",
-      align: "right",
-      render: (_, record) => (
-        <Button
-          danger
-          icon={<Ban size={16} />}
-          disabled={!canEliminate || record.isEliminated}
-          loading={eliminatingTeamId === record.teamId}
-          onClick={() => onEliminate(record)}
-        >
-          Loại đội
-        </Button>
-      ),
-    },
-  ];
+  const { token } = theme.useToken();
+
+  if (isLoading && !items.length) {
+    return (
+      <div style={{ padding: 48, textAlign: "center" }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (!items.length) {
+    return <Empty description="Chưa có dữ liệu bảng xếp hạng." style={{ padding: "42px 0" }} />;
+  }
 
   return (
-    <Table
-      rowKey={(record) => record.teamId}
-      columns={columns}
-      dataSource={items}
-      loading={isLoading}
-      scroll={{ x: "max-content" }}
-      onRow={(record) => ({
-        style: record.isEliminated ? { opacity: 0.65 } : undefined,
-      })}
-      locale={{
-        emptyText: <Empty description="Chưa có dữ liệu bảng xếp hạng." />,
+    <div
+      style={{
+        background: token.colorBgContainer,
+        border: `1px solid ${token.colorBorderSecondary}`,
+        borderRadius: token.borderRadiusLG,
+        overflowX: "auto",
+        padding: 12,
       }}
-      pagination={{
-        pageSize: 10,
-        showSizeChanger: true,
-        showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} đội`,
-      }}
-    />
+    >
+      <div style={{ minWidth: 920 }}>
+        <div
+          style={{
+            alignItems: "center",
+            background: token.colorFillQuaternary,
+            display: "grid",
+            gap: 14,
+            gridTemplateColumns: "76px minmax(220px, 1.6fr) 116px 120px 150px 132px 56px",
+            marginBottom: 10,
+            padding: "10px 14px",
+            borderRadius: token.borderRadius,
+          }}
+        >
+          {columns.map((column, index) => (
+            <Text
+              key={column}
+              strong
+              style={{
+                color: token.colorTextSecondary,
+                fontSize: 12,
+                letterSpacing: 0,
+                textAlign: index === 3 ? "right" : "left",
+                textTransform: "uppercase",
+              }}
+            >
+              {column}
+            </Text>
+          ))}
+        </div>
+
+        <motion.div layout style={{ display: "grid", gap: 12 }}>
+          <AnimatePresence initial={false}>
+            {items.map((item) => (
+              <RankingBoardRow
+                key={item.teamId}
+                item={item}
+                movement={movements[String(item.teamId)]}
+                canEliminate={canEliminate}
+                eliminatingTeamId={eliminatingTeamId}
+                onEliminate={onEliminate}
+              />
+            ))}
+          </AnimatePresence>
+        </motion.div>
+      </div>
+    </div>
   );
 };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal } from 'antd';
-import { Plus, Edit, Trash2, Calendar, List } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, List, BarChart3 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import RoundFormModal from '../components/RoundFormModal';
 import { roundService } from '../services/roundService';
 import { trackService } from '../../tracks/services/trackService';
@@ -13,6 +14,7 @@ import dayjs from 'dayjs';
 const { Title } = Typography;
 
 const RoundManagementPage = ({ hackathonId, hackathon }) => {
+  const navigate = useNavigate();
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -55,6 +57,10 @@ const RoundManagementPage = ({ hackathonId, hackathon }) => {
   const handleEdit = (round) => {
     setEditingRound(round);
     setIsModalVisible(true);
+  };
+
+  const handleViewRanking = (roundId) => {
+    navigate(`/hackathons/${hackathonId}/rounds/${roundId}/ranking-preview`);
   };
 
   const handleDelete = async (id) => {
@@ -250,25 +256,33 @@ const RoundManagementPage = ({ hackathonId, hackathon }) => {
       title: 'Thao tác',
       key: 'actions',
       render: (_, record) => {
-        if (record.is_active) {
-          return <span style={{ color: '#8c8c8c', fontSize: 13 }}>Không thể thao tác</span>;
-        }
         return (
           <Space size="middle">
             <Button
-              type="text"
-              icon={<Edit size={16} />}
-              onClick={() => handleEdit(record)}
-            />
-            <Popconfirm
-              title="Xóa vòng thi"
-              description="Bạn có chắc chắn muốn xóa vòng thi này?"
-              onConfirm={() => handleDelete(record.id)}
-              okText="Xóa"
-              cancelText="Hủy"
+              type="link"
+              icon={<BarChart3 size={16} />}
+              onClick={() => handleViewRanking(record.id)}
             >
-              <Button type="text" danger icon={<Trash2 size={16} />} />
-            </Popconfirm>
+              Xếp hạng tạm
+            </Button>
+            {!record.is_active && (
+              <>
+                <Button
+                  type="text"
+                  icon={<Edit size={16} />}
+                  onClick={() => handleEdit(record)}
+                />
+                <Popconfirm
+                  title="Xóa vòng thi"
+                  description="Bạn có chắc chắn muốn xóa vòng thi này?"
+                  onConfirm={() => handleDelete(record.id)}
+                  okText="Xóa"
+                  cancelText="Hủy"
+                >
+                  <Button type="text" danger icon={<Trash2 size={16} />} />
+                </Popconfirm>
+              </>
+            )}
           </Space>
         );
       },
@@ -349,11 +363,19 @@ const RoundManagementPage = ({ hackathonId, hackathon }) => {
                     {' → '}
                     {round.submission_deadline ? formatDate(round.submission_deadline) : '-'}
                   </div>
-                  <div>
+                  <Space>
+                    <Button
+                      size="small"
+                      type="link"
+                      icon={<BarChart3 size={14} />}
+                      onClick={() => handleViewRanking(round.id)}
+                    >
+                      Xếp hạng tạm
+                    </Button>
                     {!round.is_active && (
                       <Button size="small" icon={<Edit size={14} />} onClick={() => handleEdit(round)}>Sửa</Button>
                     )}
-                  </div>
+                  </Space>
                 </div>
               ),
             }))}

@@ -1,16 +1,13 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { Alert, Card, Space, Typography } from "antd";
+import { Alert, Space } from "antd";
 import PageHeader from "../../../shared/components/ui/PageHeader";
 import EliminateTeamModal from "../../team-elimination/components/EliminateTeamModal";
 import { useEliminateTeam } from "../../team-elimination/hooks/useEliminateTeam";
-import RankingGroupFilter from "../components/RankingGroupFilter";
+import RankingPreviewPanel from "../components/RankingPreviewPanel";
 import RankingRealtimeToolbar from "../components/RankingRealtimeToolbar";
-import RankingSummary from "../components/RankingSummary";
-import RankingTable from "../components/RankingTable";
+import { useRankMovement } from "../hooks/useRankMovement";
 import { useRoundRankingPreview } from "../hooks/useRoundRankingPreview";
-
-const { Text } = Typography;
 
 const RoundRankingPreviewPage = ({
   roundId: roundIdProp,
@@ -35,6 +32,7 @@ const RoundRankingPreviewPage = ({
   } = useRoundRankingPreview(roundId);
 
   const { isEliminating, eliminatingTeamId, eliminateTeam } = useEliminateTeam();
+  const movements = useRankMovement(visibleItems);
 
   const handleConfirmEliminate = async (reason) => {
     const success = await eliminateTeam(selectedTeam, reason, () => fetchPreview({ silent: true }));
@@ -53,11 +51,12 @@ const RoundRankingPreviewPage = ({
   }
 
   return (
-    <Space direction="vertical" size={20} style={{ width: "100%" }}>
+    <Space direction="vertical" size={18} style={{ width: "100%" }}>
       {!embedded && (
         <PageHeader
-          title="Leaderboard Sơ loại"
-          subtitle="Preview realtime trước khi khóa chấm điểm"
+          title="Xếp hạng tạm thời"
+          subtitle="Theo dõi thứ hạng tạm thời trước khi khóa chấm điểm"
+          backAction
           extra={
             <RankingRealtimeToolbar
               isRefreshing={isRefreshing}
@@ -76,8 +75,6 @@ const RoundRankingPreviewPage = ({
         />
       )}
 
-      <RankingSummary summary={summary} />
-
       {error && (
         <Alert
           type="error"
@@ -87,25 +84,18 @@ const RoundRankingPreviewPage = ({
         />
       )}
 
-      <Card
-        title="Bảng xếp hạng tạm"
-        extra={<Text type="secondary">Dữ liệu lấy từ FR-20 preview ranking</Text>}
-      >
-        <Space direction="vertical" size={16} style={{ width: "100%" }}>
-          <RankingGroupFilter
-            groups={groups}
-            selectedGroup={selectedGroup}
-            onChange={setSelectedGroup}
-          />
-          <RankingTable
-            items={visibleItems}
-            isLoading={isLoading}
-            canEliminate={canEliminate}
-            eliminatingTeamId={eliminatingTeamId}
-            onEliminate={setSelectedTeam}
-          />
-        </Space>
-      </Card>
+      <RankingPreviewPanel
+        canEliminate={canEliminate}
+        eliminatingTeamId={eliminatingTeamId}
+        groups={groups}
+        isLoading={isLoading}
+        movements={movements}
+        onEliminate={setSelectedTeam}
+        onGroupChange={setSelectedGroup}
+        selectedGroup={selectedGroup}
+        summary={summary}
+        visibleItems={visibleItems}
+      />
 
       <EliminateTeamModal
         open={Boolean(selectedTeam)}

@@ -5,7 +5,6 @@ export const ROUTES = {
   HACKATHONS: '/hackathons',
   HACKATHON_CREATE: '/hackathons/create',
   HACKATHON_SETUP: '/hackathons/:hackathonId/setup',
-  ROUND_RANKING: '/round-ranking',
   TRACKS: '/hackathons/:hackathonId/tracks',
   ROUNDS: '/hackathons/:hackathonId/rounds',
   ROUND_RANKING_PREVIEW: '/hackathons/:hackathonId/rounds/:roundId/ranking-preview',
