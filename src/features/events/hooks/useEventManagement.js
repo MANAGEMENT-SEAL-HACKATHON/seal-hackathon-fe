@@ -6,6 +6,8 @@ import { hackathonService } from '../../hackathons/services/hackathonService';
 import { roundService } from '../../rounds/services/roundService';
 import { mapEventToFE, mapEventToBE } from '../mappers/eventMapper';
 import { mapHackathonToFE } from '../../hackathons/mappers/hackathonMapper';
+import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
+import { EVENT_TYPE_LABELS, UNIQUE_EVENT_TYPES } from '../utils/eventTypeRules';
 
 export const useEventManagement = (hackathonId, addNotification) => {
   const [events, setEvents] = useState([]);
@@ -57,16 +59,14 @@ export const useEventManagement = (hackathonId, addNotification) => {
 
     const dateFormat = 'HH:mm DD/MM/YYYY';
 
-    // --- 1. KIỂM TRA TRÙNG LẶP SỰ KIỆN DUY NHẤT ---
-    const isOverlap = events.some(e => {
-      if ((values.type === 'KICKOFF' && e.type === 'KICKOFF') || (values.type === 'AWARDS' && e.type === 'AWARDS')) {
-        return true; 
-      }
-      return false;
-    });
+    // --- 1. Mỗi kỳ chỉ 1 Khai mạc / Workshop / Trao giải ---
+    if (UNIQUE_EVENT_TYPES.includes(values.type) && events.some((e) => e.type === values.type)) {
+      const label = EVENT_TYPE_LABELS[values.type] || values.type;
+      return message.error(`Kỳ thi này đã có ${label}. Mỗi loại chỉ tạo một lần.`);
+    }
 
-    if (isOverlap) {
-      return message.error(`Sự kiện ${values.type === 'KICKOFF' ? 'Khai mạc' : 'Trao giải'} đã tồn tại trong hệ thống. Vui lòng kiểm tra lại.`);
+    if (!events.length && values.type !== 'KICKOFF') {
+      return message.error('Sự kiện đầu tiên phải là Lễ khai mạc.');
     }
 
     // --- 2. QUY TẮC: WORKSHOP ---
@@ -141,7 +141,7 @@ export const useEventManagement = (hackathonId, addNotification) => {
         fetchData();
         if (onSuccess) onSuccess();
       } catch (error) {
-        message.error(error.message || 'Có lỗi xảy ra khi tạo sự kiện. Vui lòng thử lại.');
+        message.error(getTeamErrorMessage(error) || 'Có lỗi xảy ra khi tạo sự kiện. Vui lòng thử lại.');
       } finally {
         setIsLoading(false);
       }

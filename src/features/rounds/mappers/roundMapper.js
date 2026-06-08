@@ -37,18 +37,18 @@ export const mapRoundToBE = (feData) => {
 
   const payload = {
     name: feData.name,
-    sequenceOrder: feData.sequenceOrder || 1,
     examAt: formatDateTime(feData.exam_at),
     isFinal,
-    roundType: feData.round_type || 'PRELIMINARY',
-    lateSubmissionPolicy: feData.late_submission_policy || 'HARD_LOCK',
+    roundType: feData.round_type || (isFinal ? 'FINAL' : 'PRELIMINARY'),
+    lateSubmissionPolicy: isFinal
+      ? 'HARD_LOCK'
+      : (feData.late_submission_policy || 'ALLOW_LATE_PENDING'),
     submissionOpen: formatDateTime(feData.submission_open),
     submissionDeadline: formatDateTime(feData.submission_deadline),
     codingDurationHours: feData.coding_duration_hours
       ? parseFloat(feData.coding_duration_hours)
       : null,
-    problemStatementUrl: feData.problem_statement_url,
-    problemReleasedAt: formatDateTime(feData.exam_at), // Tạm mượn trường này để lưu Ngày giờ thi
+    problemStatementUrl: feData.problem_statement_url || null,
     wildcardEnabled: !!feData.wildcard_enabled,
     tiebreakRule: feData.tiebreak_rule || 'PENALTY_SCORE',
   };

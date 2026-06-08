@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal } from 'antd';
 import { Plus, Edit, Trash2, Calendar, List, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal, Alert } from 'antd';
+import { Plus, Edit, Trash2, Calendar, List } from 'lucide-react';
 import RoundFormModal from '../components/RoundFormModal';
 import { roundService } from '../services/roundService';
 import { trackService } from '../../tracks/services/trackService';
@@ -9,17 +11,38 @@ import { criteriaService } from '../../criteria/services/criteriaService';
 import { mapRoundToFE, mapRoundToBE, sortRoundsByExamAt } from '../mappers/roundMapper';
 import { getRoundErrorMessage } from '../../../shared/constants/roundErrors';
 import { formatDate } from '../../../shared/utils/date';
+import { teamService } from '../../teams/services/teamService';
+import {
+  buildPartitionStats,
+  validateAdvancementConfig,
+} from '../utils/roundAdvancementRules';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
 
-const RoundManagementPage = ({ hackathonId, hackathon }) => {
-  const navigate = useNavigate();
+const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingRound, setEditingRound] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'timeline'
+  const [advancementTeams, setAdvancementTeams] = useState([]);
+  const [advancementTracks, setAdvancementTracks] = useState([]);
+  const navigate = useNavigate()
+
+  const fetchAdvancementData = async () => {
+    try {
+      const [teamsRes, tracksRes] = await Promise.all([
+        teamService.listByHackathon(hackathonId, { status: 'ACTIVE' }),
+        trackService.listByHackathon(hackathonId),
+      ]);
+      setAdvancementTeams(Array.isArray(teamsRes) ? teamsRes : teamsRes?.items || []);
+      setAdvancementTracks(Array.isArray(tracksRes) ? tracksRes : tracksRes?.items || []);
+    } catch {
+      setAdvancementTeams([]);
+      setAdvancementTracks([]);
+    }
+  };
 
   const fetchRounds = async () => {
     try {
@@ -47,14 +70,17 @@ const RoundManagementPage = ({ hackathonId, hackathon }) => {
 
   useEffect(() => {
     fetchRounds();
+    fetchAdvancementData();
   }, [hackathonId]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
+    await fetchAdvancementData();
     setEditingRound(null);
     setIsModalVisible(true);
   };
 
-  const handleEdit = (round) => {
+  const handleEdit = async (round) => {
+    await fetchAdvancementData();
     setEditingRound(round);
     setIsModalVisible(true);
   };
@@ -68,7 +94,8 @@ const RoundManagementPage = ({ hackathonId, hackathon }) => {
       setLoading(true);
       await roundService.delete(id);
       message.success('Đã xóa vòng thi thành công');
-      fetchRounds();
+      await fetchRounds();
+      if (onHackathonSync) await onHackathonSync();
     } catch (error) {
       message.error(error.message || 'Lỗi khi xóa vòng thi');
       setLoading(false);
@@ -116,11 +143,48 @@ const RoundManagementPage = ({ hackathonId, hackathon }) => {
             return;
           }
         } else {
+          const [teamsRes, tracksRes] = await Promise.all([
+            teamService.listByHackathon(hackathonId, { status: 'ACTIVE' }),
+            trackService.listByHackathon(hackathonId),
+          ]);
+          const freshTeams = Array.isArray(teamsRes) ? teamsRes : teamsRes?.items || [];
+          const freshTracks = Array.isArray(tracksRes) ? tracksRes : tracksRes?.items || [];
+          const partitions = buildPartitionStats(freshTeams, freshTracks, {
+            requireLocked: hackathon?.status === 'ONGOING',
+          });
+          const advancementCheck = validateAdvancementConfig({
+            topNAdvance: values.top_n_advance,
+            minTeamsFinal: values.min_teams_final,
+            partitions,
+            requirePartitions: hackathon?.status === 'ONGOING',
+          });
+
+          if (!advancementCheck.valid) {
+            Modal.error({
+              title: 'Chưa thể kích hoạt Sơ loại',
+              content: (
+                <div>
+                  <p>Kiểm tra lại luật đi tiếp theo số đội thực tế sau lottery:</p>
+                  <ul style={{ paddingLeft: 18 }}>
+                    {advancementCheck.errors.map((err) => (
+                      <li key={err}>{err}</li>
+                    ))}
+                  </ul>
+                  <p style={{ fontSize: 13, marginTop: 8 }}>
+                    Gợi ý: chỉnh Top N mỗi bảng ≤ số đội ít nhất trong từng bảng, rồi lưu lại trước khi kích hoạt.
+                  </p>
+                </div>
+              ),
+            });
+            setLoading(false);
+            return;
+          }
+
           const tracks = await trackService.listByRound(roundId);
           if (!tracks || tracks.length === 0) {
             Modal.error({
               title: 'Không thể kích hoạt vòng thi',
-              content: 'Vòng thi chưa có bảng đấu (track) nào. Vui lòng tạo ít nhất một bảng đấu trước.',
+              content: 'Vòng thi chưa có bảng đấu nào. Thêm ít nhất một bảng đấu trước.',
             });
             setLoading(false);
             return;
@@ -196,6 +260,7 @@ const RoundManagementPage = ({ hackathonId, hackathon }) => {
 
       setIsModalVisible(false);
       await fetchRounds();
+      if (onHackathonSync) await onHackathonSync();
     } catch (error) {
       message.error(getRoundErrorMessage(error));
       setLoading(false);
@@ -295,6 +360,13 @@ const RoundManagementPage = ({ hackathonId, hackathon }) => {
 
   return (
     <div>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Vòng thi"
+        description={<span style={{ fontSize: 12 }}>Tạo Sơ loại + Chung kết. Số đội đi tiếp nhập dự tính trước, xác nhận lại trước khi mở thi.</span>}
+      />
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
         <Space>
           <Button.Group style={{ marginRight: 16 }}>
@@ -391,6 +463,8 @@ const RoundManagementPage = ({ hackathonId, hackathon }) => {
           initialValues={editingRound}
           existingRounds={rounds}
           hackathon={hackathon}
+          advancementTeams={advancementTeams}
+          advancementTracks={advancementTracks}
           onCancel={() => setIsModalVisible(false)}
           onFinish={handleModalFinish}
         />

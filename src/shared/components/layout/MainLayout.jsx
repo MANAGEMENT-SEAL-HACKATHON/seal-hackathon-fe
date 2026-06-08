@@ -100,6 +100,8 @@ const MainLayout = ({ children }) => {
       { key: ROUTES.PROFILE, icon: <User size={18} />, label: 'Trang cá nhân' },
       { key: ROUTES.HACKATHONS, icon: <Trophy size={18} />, label: 'Cấu hình Sự kiện' },
       { key: ROUTES.GLOBAL_TEAMS, icon: <Users size={18} />, label: 'Quản lý Đội thi' },
+      { key: ROUTES.COORDINATOR_LATE_SUBMISSIONS, icon: <ClipboardCheck size={18} />, label: 'Duyệt nộp muộn' },
+      { key: ROUTES.PRESENTATION_QUEUE, icon: <History size={18} />, label: 'Hàng đợi thuyết trình' },
       { key: ROUTES.USER_APPROVAL, icon: <UserCheck size={18} />, label: 'Duyệt tài khoản' },
       { key: ROUTES.TEMP_JUDGES, icon: <UserPlus size={18} />, label: 'Giám khảo khách' },
       { key: 'monitor', icon: <Activity size={18} />, label: 'Giám sát Real-time' },
@@ -111,6 +113,14 @@ const MainLayout = ({ children }) => {
       { key: ROUTES.JUDGE_DASHBOARD, icon: <LayoutDashboard size={18} />, label: 'Tổng quan' },
       { key: ROUTES.JUDGE_CRITERIA, icon: <FileText size={18} />, label: 'Tiêu chí Đánh giá' },
       { key: ROUTES.PROFILE, icon: <User size={18} />, label: 'Trang cá nhân' },
+      { key: ROUTES.PRESENTATION_QUEUE, icon: <History size={18} />, label: 'Hàng đợi thuyết trình' },
+    ];
+  } else if (userRole === 'MENTOR') {
+    menuItems = [
+      { key: ROUTES.DASHBOARD, icon: <LayoutDashboard size={18} />, label: 'Overview' },
+      { key: ROUTES.MENTOR_ROUNDS, icon: <Users size={18} />, label: 'Support Teams' },
+      { key: ROUTES.PRESENTATION_QUEUE, icon: <History size={18} />, label: 'Presentation Queue' },
+      { key: ROUTES.PROFILE, icon: <User size={18} />, label: 'Profile' },
     ];
   } else if (userRole === 'STUDENT') {
     menuItems = [
@@ -224,31 +234,140 @@ const MainLayout = ({ children }) => {
 
   const siderContent = (
     <>
-      <div style={{ height: 80, display: 'flex', alignItems: 'center', padding: '0 24px', marginBottom: 8 }}>
-        <img src="/logo.jpg" alt="SEAL Hackathon Logo" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 8, marginRight: 12, flexShrink: 0 }} />
-        {(!collapsed || isMobile) && (
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: token.colorText, lineHeight: '1.2', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>HackOS</div>
-            <div style={{ fontSize: 12, color: token.colorTextSecondary || '#8c8c8c', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-              {isCoordinatorOrAdmin ? 'Quản trị viên Doanh nghiệp' : (userRole === 'JUDGE' ? 'Cổng Giám Khảo SEAL' : 'Thí sinh SEAL')}
+      {userRole === 'MENTOR' ? (
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '10px', height: 80 }}>
+          <img src="/logo.jpg" alt="SEAL Hackathon Logo" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 8 }} />
+          {(!collapsed || isMobile) && (
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '16px', color: '#111827' }}>Mentor Portal</div>
+              <div style={{ fontSize: '11px', color: '#6B7280' }}>Management Cockpit</div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ height: 80, display: 'flex', alignItems: 'center', padding: '0 24px', marginBottom: 8 }}>
+          <img src="/logo.jpg" alt="SEAL Hackathon Logo" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 8, marginRight: 12, flexShrink: 0 }} />
+          {(!collapsed || isMobile) && (
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: token.colorText, lineHeight: '1.2', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>HackOS</div>
+              <div style={{ fontSize: 12, color: token.colorTextSecondary || '#8c8c8c', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                {isCoordinatorOrAdmin ? 'Quản trị viên Doanh nghiệp' : (userRole === 'JUDGE' ? 'Cổng Giám Khảo SEAL' : 'Thí sinh SEAL')}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
       {(!collapsed || isMobile) && (userRole === 'COORDINATOR' || userRole === 'ADMIN') && (
         <div style={{ padding: '0 16px 24px' }}>
           <Button type="primary" icon={<PlusOutlined />} block size="large" style={{ height: 48, borderRadius: 8, fontWeight: 600 }} onClick={() => { if(isMobile) setDrawerVisible(false); navigate(ROUTES.HACKATHON_CREATE); }}>Tạo Sự kiện Mới</Button>
         </div>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 180px)', justifyContent: 'space-between' }}>
-        <Menu mode="inline" selectedKeys={[location.pathname]} items={menuItems} onClick={handleMenuClick} style={{ borderRight: 0 }} />
-        <Menu mode="inline" items={bottomMenuItems} style={{ borderRight: 0, marginBottom: 24 }} onClick={handleBottomMenuClick} />
-      </div>
+      
+      {userRole === 'MENTOR' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 80px)', justifyContent: 'space-between' }}>
+          <Menu
+            mode="inline"
+            selectedKeys={[
+              location.pathname.startsWith('/mentor/support') || location.pathname === ROUTES.MENTOR_ROUNDS
+                ? ROUTES.MENTOR_ROUNDS
+                : location.pathname
+            ]}
+            items={menuItems}
+            onClick={handleMenuClick}
+            style={{ borderRight: 0 }}
+          />
+          
+          {/* Bottom part */}
+          <div style={{ padding: '8px', borderTop: '1px solid #F3F4F6' }}>
+            {/* Button View Active Round */}
+            <button style={{
+              background: '#111827',
+              color: 'white',
+              borderRadius: '10px',
+              padding: '12px 16px',
+              fontWeight: 600,
+              fontSize: '14px',
+              width: '100%',
+              border: 'none',
+              cursor: 'pointer',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }} onClick={() => navigate(ROUTES.MENTOR_SUPPORT)}>
+              View Active Round
+            </button>
+            
+            {/* Support Center & Logout links */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 8px 12px' }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px', 
+                fontSize: '14px', 
+                color: '#374151',
+                cursor: 'pointer',
+                padding: '6px 0'
+              }} onClick={() => navigate('/support-center')}>
+                <HelpCircle size={18} />
+                <span>Support Center</span>
+              </div>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px', 
+                fontSize: '14px', 
+                color: '#EF4444',
+                cursor: 'pointer',
+                padding: '6px 0'
+              }} onClick={() => handleBottomMenuClick({ key: 'logout' })}>
+                <LogoutOutlined style={{ fontSize: '18px' }} />
+                <span>Logout</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 180px)', justifyContent: 'space-between' }}>
+          <Menu mode="inline" selectedKeys={[location.pathname]} items={menuItems} onClick={handleMenuClick} style={{ borderRight: 0 }} />
+          <Menu mode="inline" items={bottomMenuItems} style={{ borderRight: 0, marginBottom: 24 }} onClick={handleBottomMenuClick} />
+        </div>
+      )}
     </>
   );
 
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
+      <style>{`
+        .mentor-sider {
+          background-color: white !important;
+          border-right: 1px solid #E5E7EB !important;
+        }
+        .mentor-sider .ant-layout-sider-children {
+          background-color: white !important;
+        }
+        .mentor-sider .ant-menu {
+          background-color: white !important;
+        }
+        .mentor-sider .ant-menu-item {
+          border-radius: 8px !important;
+          margin: 4px 8px !important;
+          font-size: 14px !important;
+          color: #374151 !important;
+        }
+        .mentor-sider .ant-menu-item-selected {
+          background-color: #00C851 !important;
+          color: white !important;
+          font-weight: 600 !important;
+        }
+        .mentor-sider .ant-menu-item-selected .ant-menu-title-content {
+          color: white !important;
+        }
+        .mentor-sider .ant-menu-item-selected svg {
+          color: white !important;
+        }
+      `}</style>
       {isMobile ? (
         <Drawer
           placement="left"
@@ -260,7 +379,7 @@ const MainLayout = ({ children }) => {
           {siderContent}
         </Drawer>
       ) : (
-        <Sider trigger={null} collapsible collapsed={collapsed} theme={darkMode ? 'dark' : 'light'} width={260} style={{ boxShadow: darkMode ? '2px 0 8px 0 rgba(0,0,0,.15)' : '2px 0 8px 0 rgba(29,35,41,.03)', zIndex: 10, position: 'fixed', height: '100vh', left: 0, top: 0, bottom: 0 }}>
+        <Sider trigger={null} collapsible collapsed={collapsed} theme={darkMode ? 'dark' : 'light'} width={260} className={userRole === 'MENTOR' ? 'mentor-sider' : ''} style={{ boxShadow: darkMode ? '2px 0 8px 0 rgba(0,0,0,.15)' : '2px 0 8px 0 rgba(29,35,41,.03)', zIndex: 10, position: 'fixed', height: '100vh', left: 0, top: 0, bottom: 0 }}>
           {siderContent}
         </Sider>
       )}
@@ -293,11 +412,26 @@ const MainLayout = ({ children }) => {
             />
             {!isMobile && <Button type="text" icon={<SettingOutlined style={{ fontSize: 20 }} />} />}
             {!isMobile && <Button type="text" icon={<QuestionCircleOutlined style={{ fontSize: 20 }} />} />}
-            <Avatar 
-              src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" 
-              style={{ cursor: 'pointer', border: `2px solid ${token.colorBorder}` }} 
-              onClick={() => navigate(ROUTES.PROFILE)}
-            />
+            {userRole === 'MENTOR' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => navigate(ROUTES.PROFILE)}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: '1.2' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>Mentor Pham</span>
+                  <span style={{ fontSize: '11px', color: '#6B7280' }}>Expert Lead</span>
+                </div>
+                <Avatar 
+                  style={{ backgroundColor: '#52C41A', verticalAlign: 'middle', cursor: 'pointer' }} 
+                  size="large"
+                >
+                  M
+                </Avatar>
+              </div>
+            ) : (
+              <Avatar 
+                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" 
+                style={{ cursor: 'pointer', border: `2px solid ${token.colorBorder}` }} 
+                onClick={() => navigate(ROUTES.PROFILE)}
+              />
+            )}
           </Space>
         </Header>
         

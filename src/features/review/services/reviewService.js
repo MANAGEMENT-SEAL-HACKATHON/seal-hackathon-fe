@@ -11,7 +11,7 @@ export const reviewService = {
   },
 
   // 2. Chuyển đổi trạng thái Hackathon (Kích hoạt)
-  changeStatus: async (hackathonId, targetStatus) => {
-    return axiosClient.patch(ENDPOINTS.HACKATHONS.STATUS(hackathonId), { targetStatus });
+  changeStatus: async (hackathonId, status, note = '') => {
+    return axiosClient.patch(ENDPOINTS.HACKATHONS.STATUS(hackathonId), { status, note });
   }
 };

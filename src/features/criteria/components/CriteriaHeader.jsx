@@ -48,6 +48,9 @@ export const CriteriaHeader = ({
             >
               Vòng thi (Round)
             </Text>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
+              Sơ loại: theo từng bảng đấu. Chung kết: theo vòng. Tổng trọng số = 1.
+            </Text>
             <Select
               style={{ width: "100%" }}
               size="large"
@@ -73,7 +76,7 @@ export const CriteriaHeader = ({
                   color: token.colorTextSecondary,
                 }}
               >
-                Bảng đấu (Track)
+                Bảng đấu
               </Text>
               <Select
                 style={{ width: "100%" }}

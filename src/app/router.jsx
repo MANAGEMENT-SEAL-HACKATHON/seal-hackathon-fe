@@ -28,6 +28,11 @@ import JudgeDashboardPage from '../features/judging/pages/JudgeDashboardPage';
 import LiveScoringPage from '../features/judging/pages/LiveScoringPage';
 import JudgeCriteriaViewPage from '../features/judging/pages/JudgeCriteriaViewPage';
 import RoundRankingPreviewPage from '../features/round-ranking/pages/RoundRankingPreviewPage';
+import MentorSupportPage from '../features/mentor/pages/MentorSupportPage';
+import MentorRoundsPage from '../features/mentor/pages/MentorRoundsPage';
+import StudentSubmissionPage from '../student/features/submission/pages/StudentSubmissionPage';
+import LateSubmissionReviewPage from '../features/coordinator/pages/LateSubmissionReviewPage';
+import PresentationQueuePage from '../features/presentation/pages/PresentationQueuePage';
 
 const TrackWrapper = () => {
   const { hackathonId } = useParams();
@@ -67,6 +72,11 @@ const ReviewWrapper = () => {
       <ReviewValidatePage />
     </div>
   );
+};
+
+const HackathonDetailRedirect = () => {
+  const { hackathonId } = useParams();
+  return <Navigate to={ROUTES.HACKATHON_SETUP.replace(':hackathonId', hackathonId)} replace />;
 };
 
 const getStoredUserInfo = () => {
@@ -200,6 +210,7 @@ const AppRouter = () => {
         <Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
         <Route path={ROUTES.PROFILE} element={<OnboardingPage />} />
         <Route path={ROUTES.HACKATHONS} element={<HackathonListPage />} />
+        <Route path="/hackathons/:hackathonId" element={<HackathonDetailRedirect />} />
         <Route path={ROUTES.HACKATHON_CREATE} element={<CreateHackathonPage />} />
         <Route path={ROUTES.HACKATHON_SETUP} element={<HackathonSetupPage />} />
         <Route path={ROUTES.GLOBAL_TEAMS} element={<CoordinatorTeamPage />} />
@@ -244,6 +255,31 @@ const AppRouter = () => {
         } />
         <Route path={ROUTES.CRITERIA} element={<CriteriaWrapper />} />
         <Route path={ROUTES.REVIEW_VALIDATE} element={<ReviewWrapper />} />
+
+        {/* Person B Routes */}
+        <Route path={ROUTES.MENTOR_ROUNDS} element={
+          <ProtectedRoute allowedRoles={['MENTOR', 'COORDINATOR', 'ADMIN']}>
+            <MentorRoundsPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.MENTOR_SUPPORT} element={
+          <ProtectedRoute allowedRoles={['MENTOR', 'COORDINATOR', 'ADMIN']}>
+            <MentorSupportPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.STUDENT_SUBMIT} element={
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <StudentSubmissionPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.COORDINATOR_LATE_SUBMISSIONS} element={
+          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+            <LateSubmissionReviewPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.PRESENTATION_QUEUE} element={
+          <PresentationQueuePage />
+        } />
       </Route>
 
       {/* Fallback */}

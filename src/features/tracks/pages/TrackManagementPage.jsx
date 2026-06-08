@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Popconfirm, message, Card, Spin } from 'antd';
+import { Table, Button, Space, Popconfirm, message, Card, Spin, Alert } from 'antd';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import TrackFormModal from '../components/TrackFormModal';
 import StatusBadge from '../../../shared/components/ui/StatusBadge';
@@ -37,7 +37,7 @@ const TrackManagementPage = ({ hackathonId }) => {
       setTracks((tracksRes || []).map(mapTrackToFE));
       setRounds(fullRounds);
     } catch (error) {
-      message.error(error.message || 'Lỗi khi tải dữ liệu track');
+      message.error(error.message || 'Không tải được dữ liệu bảng đấu');
     } finally {
       setLoading(false);
     }
@@ -60,7 +60,7 @@ const TrackManagementPage = ({ hackathonId }) => {
       setEditingTrack(mapTrackToFE(trackDetail));
       setIsModalVisible(true);
     } catch (error) {
-      message.error(error.message || 'Lỗi khi tải chi tiết track');
+      message.error(error.message || 'Không tải được chi tiết bảng đấu');
     } finally {
       setLoading(false);
     }
@@ -70,10 +70,10 @@ const TrackManagementPage = ({ hackathonId }) => {
     try {
       setLoading(true);
       await trackService.delete(id);
-      message.success('Đã xóa track thành công');
+      message.success('Đã xóa bảng đấu');
       fetchData();
     } catch (error) {
-      message.error(error.message || 'Lỗi khi xóa track');
+      message.error(error.message || 'Không xóa được bảng đấu');
       setLoading(false);
     }
   };
@@ -84,22 +84,22 @@ const TrackManagementPage = ({ hackathonId }) => {
       const payload = mapTrackToBE(values);
       if (editingTrack) {
         await trackService.update(editingTrack.id, payload);
-        message.success('Đã cập nhật track thành công');
+        message.success('Đã cập nhật bảng đấu');
       } else {
         await trackService.createByRound(values.round_id, payload);
-        message.success('Đã tạo track mới thành công');
+        message.success('Đã thêm bảng đấu');
       }
       setIsModalVisible(false);
       await fetchData();
     } catch (error) {
-      message.error(error.message || 'Lỗi khi lưu track');
+      message.error(error.message || 'Không lưu được bảng đấu');
       setLoading(false);
     }
   };
 
   const columns = [
     {
-      title: 'Tên Track',
+      title: 'Tên bảng đấu',
       dataIndex: 'name',
       key: 'name',
       render: (text) => <strong>{text}</strong>,
@@ -111,12 +111,17 @@ const TrackManagementPage = ({ hackathonId }) => {
       render: (val) => rounds.find(r => r.id === val)?.name || '-',
     },
     {
-      title: 'Số đội tối đa',
+      title: 'Đội / nhóm',
+      key: 'max_per_group',
+      render: (_, record) => record.max_teams_per_group || '—',
+    },
+    {
+      title: 'Tổng đội',
       key: 'teams',
       render: (_, record) => `${record.max_teams || 'Không giới hạn'}`,
     },
     {
-      title: 'Sĩ số đội',
+      title: 'Thành viên / đội',
       key: 'team_size',
       render: (_, record) => `${record.min_team_size || '-'} - ${record.max_team_size || '-'} người`,
     },
@@ -137,8 +142,8 @@ const TrackManagementPage = ({ hackathonId }) => {
             onClick={() => handleEdit(record)}
           />
           <Popconfirm
-            title="Xóa Track"
-            description="Bạn có chắc chắn muốn xóa track này?"
+            title="Xóa bảng đấu"
+            description="Bạn có chắc muốn xóa bảng đấu này?"
             onConfirm={() => handleDelete(record.id)}
             okText="Xóa"
             cancelText="Hủy"
@@ -158,6 +163,13 @@ const TrackManagementPage = ({ hackathonId }) => {
 
   return (
     <div>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Bảng đấu (chủ đề thi)"
+        description={<span style={{ fontSize: 12 }}>Chỉ thêm trong vòng Sơ loại. Mỗi bảng đấu cần bộ tiêu chí riêng.</span>}
+      />
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
         <Button 
           type="primary" 
@@ -165,12 +177,12 @@ const TrackManagementPage = ({ hackathonId }) => {
           onClick={handleAdd}
           disabled={prelimRounds.length === 0}
         >
-          Thêm Track
+          Thêm bảng đấu
         </Button>
       </div>
       
       {prelimRounds.length === 0 && (
-        <Card style={{ marginBottom: 16 }}>Vui lòng tạo ít nhất một Vòng sơ loại trước khi thêm Track.</Card>
+        <Card style={{ marginBottom: 16 }}>Tạo vòng Sơ loại trước khi thêm bảng đấu.</Card>
       )}
 
       <Table scroll={{ x: 'max-content' }}
@@ -179,13 +191,13 @@ const TrackManagementPage = ({ hackathonId }) => {
         rowKey="id"
         pagination={false}
         loading={loading}
-        locale={{ emptyText: 'No tracks found for this hackathon' }}
+        locale={{ emptyText: 'Chưa có bảng đấu nào.' }}
       />
 
       {isModalVisible && (
         <TrackFormModal
           visible={isModalVisible}
-          title={editingTrack ? 'Edit Track' : 'Add Track'}
+          title={editingTrack ? 'Sửa bảng đấu' : 'Thêm bảng đấu'}
           initialValues={editingTrack}
           rounds={prelimRounds}
           isEditing={!!editingTrack}

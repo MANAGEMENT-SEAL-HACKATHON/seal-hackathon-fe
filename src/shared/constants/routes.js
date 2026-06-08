@@ -22,4 +22,9 @@ export const ROUTES = {
   JUDGE_DASHBOARD: '/judge/dashboard',               // Trang Dashboard tổng quan
   JUDGE_SCORING: '/judging/:assignmentId/scoring',   // Phòng chấm thi trực tiếp
   JUDGE_CRITERIA: '/judge/criteria',
+  MENTOR_SUPPORT: '/mentor/support',
+  MENTOR_ROUNDS: '/mentor/rounds',
+  STUDENT_SUBMIT: '/student/submit',
+  COORDINATOR_LATE_SUBMISSIONS: '/coordinator/late-submissions',
+  PRESENTATION_QUEUE: '/presentation/queue',
 };
