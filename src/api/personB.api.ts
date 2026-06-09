@@ -10,22 +10,27 @@ const mapSubmissionStatusToFe = (beStatus?: string): 'ON_TIME' | 'LATE_PENDING' 
   return 'NONE';
 };
 
-/** Lấy roundId từ API student/mentor — không dùng endpoint coordinator. */
 const resolveActiveRoundId = async (): Promise<number | null> => {
   try {
     const deadline = await axiosClient.get<any, { roundId?: number }>(
       '/api/v1/me/rounds/current/deadline'
     );
     if (deadline?.roundId) return Number(deadline.roundId);
-  } catch {
-    // fall through
+  } catch (err: any) {
+    if (err?.status === 404 || err?.response?.status === 404) {
+      return null;
+    }
   }
 
   try {
-    const rounds = await axiosClient.get<any, any[]>('/api/v1/me/mentor/rounds');
-    const list = Array.isArray(rounds) ? rounds : [];
-    const active = list.find((r) => r.status === 'ACTIVE') || list[0];
-    if (active?.roundId) return Number(active.roundId);
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+    const role = userInfo.role || userInfo.userRole;
+    if (role === 'MENTOR') {
+      const rounds = await axiosClient.get<any, any[]>('/api/v1/me/mentor/rounds');
+      const list = Array.isArray(rounds) ? rounds : [];
+      const active = list.find((r) => r.status === 'ACTIVE') || list[0];
+      if (active?.roundId) return Number(active.roundId);
+    }
   } catch {
     // ignore
   }
@@ -276,13 +281,20 @@ export const personBApi = {
 
   /** GET /api/v1/me/rounds/current/deadline */
   getCurrentDeadline: async (): Promise<DeadlineResponse> => {
-    const data = await axiosClient.get<any, { deadline?: string; roundId?: number }>(
-      '/api/v1/me/rounds/current/deadline'
-    );
-    return {
-      deadline: data.deadline,
-      round_id: data.roundId ? String(data.roundId) : undefined,
-    };
+    try {
+      const data = await axiosClient.get<any, { deadline?: string; roundId?: number }>(
+        '/api/v1/me/rounds/current/deadline'
+      );
+      return {
+        deadline: data.deadline,
+        round_id: data.roundId ? String(data.roundId) : undefined,
+      };
+    } catch (err: any) {
+      if (err?.status === 404 || err?.response?.status === 404) {
+        return { deadline: undefined, round_id: undefined };
+      }
+      throw err;
+    }
   },
 
   /** GET /api/v1/me/rounds/{roundId}/problem */
