@@ -29,12 +29,12 @@ const submissionSchema = z.object({
       (val) => {
         try {
           const url = new URL(val);
-          return url.pathname.toLowerCase().endsWith('.pdf');
+          return !url.pathname.toLowerCase().endsWith('.pdf');
         } catch {
-          return val.toLowerCase().endsWith('.pdf');
+          return !val.toLowerCase().endsWith('.pdf');
         }
       },
-      { message: 'Link slide phải trỏ tới file PDF (.pdf) theo quy định BE.' }
+      { message: 'Slide không được là file PDF. Vui lòng dùng link Google Slides, Canva, hoặc tương tự.' }
     ),
 });
 
@@ -138,7 +138,7 @@ const StudentSubmissionPage: React.FC = () => {
     if (!deadlineData?.deadline) return;
 
     const calculateTimeLeft = () => {
-      const difference = +new Date(deadlineData.deadline) - +new Date();
+      const difference = +new Date(deadlineData.deadline!) - +new Date();
       if (difference <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         setIsOverdue(true);
@@ -253,13 +253,13 @@ const StudentSubmissionPage: React.FC = () => {
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white ${
                     errors.slide_url ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-100'
                   }`}
-                  placeholder="Ví dụ: https://drive.google.com/.../slide.pdf"
+                  placeholder="Ví dụ: https://docs.google.com/presentation/d/xxx/edit"
                 />
                 {errors.slide_url && (
                   <span className="text-red-500 text-xs mt-1 block">{errors.slide_url.message}</span>
                 )}
                 <span className="text-xs text-gray-400 block mt-1">
-                  BE yêu cầu link slide kết thúc bằng .pdf (INVALID_SLIDE_FORMAT nếu sai định dạng).
+                  ⚠️ Không chấp nhận file PDF. Vui lòng dùng Google Slides, Canva hoặc link trình chiếu trực tuyến.
                 </span>
               </div>
 
