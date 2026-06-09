@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Spin } from 'antd';
+import { Spin, theme } from 'antd';
 import { personBApi, SubmissionRequest, SubmissionStatusResponse, DeadlineResponse } from '../../../../api/personB.api';
 import toast from 'react-hot-toast';
+import { useAppContext } from '../../../../app/AppContext';
 
 // ─── Zod Validation Schema ────────────────────────────────────────────────────
 const submissionSchema = z.object({
@@ -34,13 +35,13 @@ const submissionSchema = z.object({
 type SubmissionFormValues = z.infer<typeof submissionSchema>;
 
 // ─── Status config ─────────────────────────────────────────────────────────────
-const getStatusConfig = (status?: string) => {
+const getStatusConfig = (status?: string, darkMode?: boolean) => {
   switch (status) {
     case 'ON_TIME':
       return {
         dot: '#16A34A',
-        bg: '#F0FDF4',
-        border: '#BBF7D0',
+        bg: darkMode ? 'rgba(22, 163, 74, 0.1)' : '#F0FDF4',
+        border: darkMode ? 'rgba(22, 163, 74, 0.3)' : '#BBF7D0',
         label: 'Đã nộp (Đúng hạn)',
         sub: 'Bài nộp của bạn đã được ghi nhận thành công.',
         progress: 100,
@@ -48,8 +49,8 @@ const getStatusConfig = (status?: string) => {
     case 'LATE_PENDING':
       return {
         dot: '#D97706',
-        bg: '#FFFBEB',
-        border: '#FDE68A',
+        bg: darkMode ? 'rgba(217, 119, 6, 0.1)' : '#FFFBEB',
+        border: darkMode ? 'rgba(217, 119, 6, 0.3)' : '#FDE68A',
         label: 'Nộp muộn — Đang chờ duyệt',
         sub: 'BTC sẽ xem xét và phê duyệt bài nộp của bạn.',
         progress: 70,
@@ -57,8 +58,8 @@ const getStatusConfig = (status?: string) => {
     case 'REJECTED':
       return {
         dot: '#DC2626',
-        bg: '#FFF1F2',
-        border: '#FECDD3',
+        bg: darkMode ? 'rgba(220, 38, 38, 0.1)' : '#FFF1F2',
+        border: darkMode ? 'rgba(220, 38, 38, 0.3)' : '#FECDD3',
         label: 'Bị từ chối',
         sub: 'Bài nộp của bạn đã bị từ chối. Vui lòng liên hệ BTC.',
         progress: 0,
@@ -66,8 +67,8 @@ const getStatusConfig = (status?: string) => {
     default:
       return {
         dot: '#EF4444',
-        bg: '#FFF1F2',
-        border: '#FECDD3',
+        bg: darkMode ? 'rgba(239, 68, 68, 0.1)' : '#FFF1F2',
+        border: darkMode ? 'rgba(239, 68, 68, 0.3)' : '#FECDD3',
         label: 'Chưa nộp bài',
         sub: 'Bạn vẫn còn thời gian để hoàn thiện',
         progress: 0,
@@ -77,6 +78,8 @@ const getStatusConfig = (status?: string) => {
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 const StudentSubmissionPage: React.FC = () => {
+  const { token } = theme.useToken();
+  const { darkMode } = useAppContext();
   const queryClient = useQueryClient();
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
   const studentId = userInfo.userId || userInfo.id || 'student-1';
@@ -185,7 +188,7 @@ const StudentSubmissionPage: React.FC = () => {
   }, [deadlineData]);
 
   const hasApiError = !!(subError || deadlineError);
-  const statusConfig = getStatusConfig(submissionData?.status);
+  const statusConfig = getStatusConfig(submissionData?.status, darkMode);
   const isSubmitting = mutation.isPending || isSubLoading;
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -241,17 +244,17 @@ const StudentSubmissionPage: React.FC = () => {
 
         {/* ══ LEFT: Form Card ══════════════════════════════════════════════════ */}
         <div style={{
-          background: 'white',
-          border: '1px solid #E5E7EB',
+          background: token.colorBgContainer,
+          border: `1px solid ${token.colorBorderSecondary}`,
           borderRadius: '14px',
           padding: '28px',
           boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
         }}>
           {/* Title */}
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#111827', margin: '0 0 4px 0' }}>
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: token.colorText, margin: '0 0 4px 0' }}>
             Nộp Bài Dự Thi
           </h2>
-          <p style={{ fontSize: '13px', color: '#6B7280', margin: '0 0 24px 0' }}>
+          <p style={{ fontSize: '13px', color: token.colorTextDescription, margin: '0 0 24px 0' }}>
             Vui lòng cung cấp đầy đủ liên kết sản phẩm của nhóm bạn dưới đây.
           </p>
 
@@ -261,7 +264,7 @@ const StudentSubmissionPage: React.FC = () => {
             <div>
               <label style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
-                fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px',
+                fontSize: '13px', fontWeight: 600, color: darkMode ? '#E2E8F0' : '#374151', marginBottom: '6px',
               }}>
                 <span style={{ fontSize: '14px' }}>🔗</span>
                 Đường dẫn Repository (Yêu cầu)
@@ -272,18 +275,18 @@ const StudentSubmissionPage: React.FC = () => {
                   style={{
                     width: '100%',
                     padding: '9px 36px 9px 12px',
-                    border: `1px solid ${errors.repo_url ? '#EF4444' : '#D1D5DB'}`,
+                    border: `1px solid ${errors.repo_url ? '#EF4444' : (darkMode ? '#334155' : '#D1D5DB')}`,
                     borderRadius: '8px',
                     fontSize: '13px',
-                    color: '#111827',
+                    color: darkMode ? 'white' : '#111827',
                     outline: 'none',
                     boxSizing: 'border-box',
-                    background: errors.repo_url ? '#FFF5F5' : 'white',
+                    background: errors.repo_url ? (darkMode ? '#7F1D1D' : '#FFF5F5') : (darkMode ? '#1E293B' : 'white'),
                     transition: 'border-color 150ms',
                   }}
                   placeholder="Ví dụ: https://github.com/myteam/seal-hackathon"
                   onFocus={e => { if (!errors.repo_url) e.target.style.borderColor = '#6366F1'; }}
-                  onBlur={e => { if (!errors.repo_url) e.target.style.borderColor = '#D1D5DB'; }}
+                  onBlur={e => { if (!errors.repo_url) e.target.style.borderColor = (darkMode ? '#334155' : '#D1D5DB'); }}
                 />
                 {watch('repo_url') && (
                   <button
@@ -307,7 +310,7 @@ const StudentSubmissionPage: React.FC = () => {
             <div>
               <label style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
-                fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px',
+                fontSize: '13px', fontWeight: 600, color: darkMode ? '#E2E8F0' : '#374151', marginBottom: '6px',
               }}>
                 <span style={{ fontSize: '14px' }}>🚀</span>
                 Đường dẫn Deploy Demo (Tùy chọn)
@@ -317,18 +320,18 @@ const StudentSubmissionPage: React.FC = () => {
                 style={{
                   width: '100%',
                   padding: '9px 12px',
-                  border: `1px solid ${errors.demo_url ? '#EF4444' : '#D1D5DB'}`,
+                  border: `1px solid ${errors.demo_url ? '#EF4444' : (darkMode ? '#334155' : '#D1D5DB')}`,
                   borderRadius: '8px',
                   fontSize: '13px',
-                  color: '#111827',
+                  color: darkMode ? 'white' : '#111827',
                   outline: 'none',
                   boxSizing: 'border-box',
-                  background: errors.demo_url ? '#FFF5F5' : 'white',
+                  background: errors.demo_url ? (darkMode ? '#7F1D1D' : '#FFF5F5') : (darkMode ? '#1E293B' : 'white'),
                   transition: 'border-color 150ms',
                 }}
                 placeholder="Ví dụ: https://myteam-demo.vercel.app"
                 onFocus={e => { if (!errors.demo_url) e.target.style.borderColor = '#6366F1'; }}
-                onBlur={e => { if (!errors.demo_url) e.target.style.borderColor = '#D1D5DB'; }}
+                onBlur={e => { if (!errors.demo_url) e.target.style.borderColor = (darkMode ? '#334155' : '#D1D5DB'); }}
               />
               {errors.demo_url && (
                 <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '4px', display: 'block' }}>
@@ -341,7 +344,7 @@ const StudentSubmissionPage: React.FC = () => {
             <div>
               <label style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
-                fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px',
+                fontSize: '13px', fontWeight: 600, color: darkMode ? '#E2E8F0' : '#374151', marginBottom: '6px',
               }}>
                 <span style={{ fontSize: '14px' }}>📊</span>
                 Đường dẫn Slide Thuyết trình (Yêu cầu)
@@ -351,18 +354,18 @@ const StudentSubmissionPage: React.FC = () => {
                 style={{
                   width: '100%',
                   padding: '9px 12px',
-                  border: `1px solid ${errors.slide_url ? '#EF4444' : '#D1D5DB'}`,
+                  border: `1px solid ${errors.slide_url ? '#EF4444' : (darkMode ? '#334155' : '#D1D5DB')}`,
                   borderRadius: '8px',
                   fontSize: '13px',
-                  color: '#111827',
+                  color: darkMode ? 'white' : '#111827',
                   outline: 'none',
                   boxSizing: 'border-box',
-                  background: errors.slide_url ? '#FFF5F5' : 'white',
+                  background: errors.slide_url ? (darkMode ? '#7F1D1D' : '#FFF5F5') : (darkMode ? '#1E293B' : 'white'),
                   transition: 'border-color 150ms',
                 }}
                 placeholder="Ví dụ: https://docs.google.com/presentation/d/xxx/edit"
                 onFocus={e => { if (!errors.slide_url) e.target.style.borderColor = '#6366F1'; }}
-                onBlur={e => { if (!errors.slide_url) e.target.style.borderColor = '#D1D5DB'; }}
+                onBlur={e => { if (!errors.slide_url) e.target.style.borderColor = (darkMode ? '#334155' : '#D1D5DB'); }}
               />
               {errors.slide_url && (
                 <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '4px', display: 'block' }}>
@@ -373,8 +376,8 @@ const StudentSubmissionPage: React.FC = () => {
               {/* Green info note */}
               <div style={{
                 marginTop: '8px',
-                background: '#F0FDF4',
-                border: '1px solid #BBF7D0',
+                background: darkMode ? 'rgba(22, 163, 74, 0.1)' : '#F0FDF4',
+                border: `1px solid ${darkMode ? 'rgba(22, 163, 74, 0.3)' : '#BBF7D0'}`,
                 borderRadius: '8px',
                 padding: '10px 12px',
                 display: 'flex',
@@ -382,7 +385,7 @@ const StudentSubmissionPage: React.FC = () => {
                 gap: '8px',
               }}>
                 <span style={{ color: '#16A34A', fontSize: '14px', marginTop: '1px' }}>ℹ️</span>
-                <span style={{ fontSize: '12px', color: '#15803D', lineHeight: '1.5' }}>
+                <span style={{ fontSize: '12px', color: darkMode ? '#4ADE80' : '#15803D', lineHeight: '1.5' }}>
                   <strong>Lưu ý:</strong> Không chấp nhận file PDF. Vui lòng dùng Google Slides, Canva
                   hoặc{' '}
                   <span style={{ textDecoration: 'underline' }}>link trình chiếu trực tuyến</span>.
@@ -393,12 +396,12 @@ const StudentSubmissionPage: React.FC = () => {
             {/* Overdue warning */}
             {isOverdue && (
               <div style={{
-                background: '#FFFBEB',
-                border: '1px solid #FDE68A',
+                background: darkMode ? 'rgba(217, 119, 6, 0.1)' : '#FFFBEB',
+                border: `1px solid ${darkMode ? 'rgba(217, 119, 6, 0.3)' : '#FDE68A'}`,
                 borderRadius: '8px',
                 padding: '10px 14px',
                 fontSize: '13px',
-                color: '#92400E',
+                color: darkMode ? '#FBBF24' : '#92400E',
                 display: 'flex',
                 gap: '8px',
                 alignItems: 'flex-start',
@@ -454,8 +457,8 @@ const StudentSubmissionPage: React.FC = () => {
 
           {/* Countdown Card */}
           <div style={{
-            background: 'white',
-            border: '1px solid #E5E7EB',
+            background: token.colorBgContainer,
+            border: `1px solid ${token.colorBorderSecondary}`,
             borderRadius: '12px',
             padding: '16px',
             boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
@@ -465,7 +468,7 @@ const StudentSubmissionPage: React.FC = () => {
               marginBottom: '10px',
             }}>
               <span style={{
-                fontSize: '10px', fontWeight: 700, color: '#6B7280',
+                fontSize: '10px', fontWeight: 700, color: token.colorTextDescription,
                 textTransform: 'uppercase', letterSpacing: '0.06em',
               }}>
                 THỜI GIAN CÒN LẠI
@@ -485,34 +488,34 @@ const StudentSubmissionPage: React.FC = () => {
                     { val: String(timeLeft.seconds).padStart(2, '0'), label: 'Giây' },
                   ].map(({ val, label }) => (
                     <div key={label} style={{
-                      background: '#F9FAFB', borderRadius: '6px', padding: '6px 4px', textAlign: 'center',
+                      background: darkMode ? '#1E293B' : '#F9FAFB', borderRadius: '6px', padding: '6px 4px', textAlign: 'center',
                     }}>
-                      <div style={{ fontSize: '18px', fontWeight: 800, color: isOverdue ? '#EF4444' : '#111827', lineHeight: 1.2 }}>
+                      <div style={{ fontSize: '18px', fontWeight: 800, color: isOverdue ? '#EF4444' : token.colorText, lineHeight: 1.2 }}>
                         {val}
                       </div>
-                      <div style={{ fontSize: '9px', color: '#9CA3AF', marginTop: '2px' }}>{label}</div>
+                      <div style={{ fontSize: '9px', color: token.colorTextDescription, marginTop: '2px' }}>{label}</div>
                     </div>
                   ))}
                 </div>
                 {isOverdue ? (
                   <div style={{
                     textAlign: 'center', fontSize: '11px', fontWeight: 700,
-                    color: '#DC2626', background: '#FFF1F2', borderRadius: '6px', padding: '4px 8px',
+                    color: '#DC2626', background: darkMode ? 'rgba(220, 38, 38, 0.1)' : '#FFF1F2', borderRadius: '6px', padding: '4px 8px',
                   }}>
                     ĐÃ QUÁ HẠN CHÓT!
                   </div>
                 ) : (
-                  <div style={{ fontSize: '10px', color: '#9CA3AF', textAlign: 'center' }}>
+                  <div style={{ fontSize: '10px', color: token.colorTextDescription, textAlign: 'center' }}>
                     Hạn chót: {new Date(deadlineData?.deadline || '').toLocaleString('vi-VN')}
                   </div>
                 )}
               </>
             ) : (
               <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: '#374151', marginBottom: '4px' }}>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: token.colorText, marginBottom: '4px' }}>
                   Không có hạn chót active
                 </div>
-                <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                <div style={{ fontSize: '11px', color: token.colorTextDescription }}>
                   Hệ thống đang mở nộp bài tự do
                 </div>
               </div>
@@ -521,18 +524,18 @@ const StudentSubmissionPage: React.FC = () => {
 
           {/* Status Card */}
           <div style={{
-            background: 'white',
-            border: '1px solid #E5E7EB',
+            background: token.colorBgContainer,
+            border: `1px solid ${token.colorBorderSecondary}`,
             borderRadius: '12px',
             padding: '16px',
             boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
           }}>
             <span style={{
-              fontSize: '10px', fontWeight: 700, color: '#6B7280',
+              fontSize: '10px', fontWeight: 700, color: token.colorTextDescription,
               textTransform: 'uppercase', letterSpacing: '0.06em',
               display: 'block', marginBottom: '12px',
             }}>
-              TRANG THÁI BÀI NỘP
+              TRẠNG THÁI BÀI NỘP
             </span>
 
             {isSubLoading ? (
@@ -554,10 +557,10 @@ const StudentSubmissionPage: React.FC = () => {
                     }} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: token.colorText }}>
                       {statusConfig.label}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '2px' }}>
+                    <div style={{ fontSize: '11px', color: token.colorTextDescription, marginTop: '2px' }}>
                       {statusConfig.sub}
                     </div>
                   </div>
@@ -566,13 +569,13 @@ const StudentSubmissionPage: React.FC = () => {
                 {/* Progress bar */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '10px', color: '#9CA3AF' }}>Tiến độ nhóm</span>
-                    <span style={{ fontSize: '10px', fontWeight: 600, color: '#374151' }}>
+                    <span style={{ fontSize: '10px', color: token.colorTextDescription }}>Tiến độ nhóm</span>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: token.colorText }}>
                       {statusConfig.progress}%
                     </span>
                   </div>
                   <div style={{
-                    height: '4px', background: '#F3F4F6', borderRadius: '999px', overflow: 'hidden',
+                    height: '4px', background: darkMode ? '#334155' : '#F3F4F6', borderRadius: '999px', overflow: 'hidden',
                   }}>
                     <div style={{
                       height: '100%',
@@ -592,10 +595,10 @@ const StudentSubmissionPage: React.FC = () => {
                 {submissionData?.submitted_at && (
                   <div style={{
                     marginTop: '10px', paddingTop: '10px',
-                    borderTop: '1px solid #F3F4F6',
-                    fontSize: '10px', color: '#9CA3AF',
+                    borderTop: `1px solid ${darkMode ? '#334155' : '#F3F4F6'}`,
+                    fontSize: '10px', color: token.colorTextDescription,
                   }}>
-                    Nộp lúc: <strong style={{ color: '#6B7280' }}>
+                    Nộp lúc: <strong style={{ color: token.colorText }}>
                       {new Date(submissionData.submitted_at).toLocaleString('vi-VN')}
                     </strong>
                   </div>
