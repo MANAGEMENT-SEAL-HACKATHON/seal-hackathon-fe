@@ -222,10 +222,12 @@ const StudentTeamWorkspace = () => {
       <Drawer
         title={<span style={{ fontSize: 18, fontWeight: 700 }}>Hộp thư Lời mời</span>}
         placement="right"
-        width={screens.md ? 800 : '100%'}
         onClose={() => setIsInvitationsDrawerOpen(false)}
         open={isInvitationsDrawerOpen}
-        styles={{ body: { padding: '24px', background: token.colorBgLayout } }}
+        styles={{
+          body: { padding: '24px', background: token.colorBgLayout },
+          wrapper: { width: screens.md ? 800 : '100%' },
+        }}
       >
         <StudentInvitationsPage onActionSuccess={handleInvitationActionSuccess} hasTeams={hasTeams} />
       </Drawer>

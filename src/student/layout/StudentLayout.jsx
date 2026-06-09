@@ -207,8 +207,7 @@ const StudentLayout = ({ children }) => {
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           closable={false}
-          width={292}
-          styles={{ body: { padding: 0, background: token.colorBgContainer } }}
+          styles={{ body: { padding: 0, background: token.colorBgContainer }, wrapper: { width: 292 } }}
         >
           {sidebar}
         </Drawer>
