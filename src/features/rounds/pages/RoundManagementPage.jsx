@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal, Alert } from 'antd';
-import { Plus, Edit, Trash2, Calendar, List, BarChart3 } from 'lucide-react';
+import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal, Alert, Tooltip, Input } from 'antd';
+import { Plus, Edit, Trash2, Calendar, List, BarChart3, PlayCircle, Lock, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import RoundFormModal from '../components/RoundFormModal';
 import { roundService } from '../services/roundService';
@@ -15,8 +15,9 @@ import {
   validateAdvancementConfig,
 } from '../utils/roundAdvancementRules';
 import dayjs from 'dayjs';
+import LiveCodingMonitor from '../components/LiveCodingMonitor';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   const [rounds, setRounds] = useState([]);
@@ -26,7 +27,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'timeline'
   const [advancementTeams, setAdvancementTeams] = useState([]);
   const [advancementTracks, setAdvancementTracks] = useState([]);
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const fetchAdvancementData = async () => {
     try {
@@ -41,6 +42,14 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       setAdvancementTracks([]);
     }
   };
+
+  // ==========================================
+  // THÊM MỚI: State cho Bước 8 (Modal Khóa chấm điểm)
+  // ==========================================
+  const [isLockModalVisible, setIsLockModalVisible] = useState(false);
+  const [lockingRound, setLockingRound] = useState(null);
+  const [lockReason, setLockReason] = useState('');
+  const [isLocking, setIsLocking] = useState(false);
 
   const fetchRounds = async () => {
     try {
@@ -100,13 +109,57 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
     }
   };
 
+  // ==========================================
+  // BƯỚC 1: Hàm Kích hoạt Vòng thi
+  // ==========================================
+  const handleActivateRound = (round) => {
+    Modal.confirm({
+      title: 'Xác nhận kích hoạt vòng thi?',
+      content: `Bạn có chắc chắn muốn kích hoạt ${round.name}? Thao tác này sẽ mở cổng cho thí sinh và Giám khảo tham gia.`,
+      okText: 'Kích hoạt ngay',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          setLoading(true);
+          await roundService.activate(round.id, { note: 'Kích hoạt thủ công' });
+          message.success(`ROUND_STARTED: ${round.name} đã được kích hoạt thành công!`);
+          fetchRounds();
+        } catch (error) {
+          message.error(getRoundErrorMessage(error) || 'Lỗi khi kích hoạt vòng thi. Hãy kiểm tra lại tiêu chí và bảng đấu.');
+          setLoading(false);
+        }
+      }
+    });
+  };
+
+  // ==========================================
+  // BƯỚC 8: Hàm Khóa chấm điểm
+  // ==========================================
+  const handleLockScoring = async () => {
+    if (!lockReason.trim()) {
+      return message.warning('Vui lòng nhập lý do khóa chấm điểm.');
+    }
+    
+    setIsLocking(true);
+    try {
+      await roundService.lockScoring(lockingRound.id, { force_lock_reason: lockReason });
+      message.success(`Đã khóa chấm điểm cho ${lockingRound.name}. Trạng thái hiện tại: scoring_locked`);
+      setIsLockModalVisible(false);
+      setLockReason('');
+      fetchRounds();
+    } catch (error) {
+      message.error('Lỗi khi khóa chấm điểm. Vui lòng kiểm tra lại kết nối.');
+    } finally {
+      setIsLocking(false);
+    }
+  };
+
   const handleModalFinish = async (values) => {
     try {
       setLoading(true);
 
       const isActivating = values.is_active && (!editingRound || !editingRound.is_active);
 
-      // Validate activation readiness before saving or activating
       if (isActivating) {
         if (!editingRound) {
           Modal.error({
@@ -233,7 +286,6 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         roundId = createdOrUpdatedRound.id;
       }
 
-      // If user wants to activate the round and it is not already active
       if (values.is_active && (!editingRound || !editingRound.is_active)) {
         try {
           await roundService.activate(roundId, { note: 'Kích hoạt từ giao diện cấu hình' });
@@ -305,6 +357,12 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       key: 'status',
       render: (_, record) => {
         const isEnded = record.submission_deadline && dayjs().isAfter(dayjs(record.submission_deadline));
+        
+        // BƯỚC 8: Hiển thị Badge Đã khóa chấm điểm
+        if (record.scoring_locked || record.scoringLocked) {
+          return <Tag color="red" icon={<Lock size={12} style={{marginRight: 4}}/>}>Đã khóa chấm điểm</Tag>;
+        }
+
         if (isEnded) {
           return <Tag color="red">Đã kết thúc</Tag>;
         }
@@ -319,6 +377,62 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       title: 'Thao tác',
       key: 'actions',
       render: (_, record) => {
+        // Đã khóa chấm thì chỉ cho xem xếp hạng
+        if (record.scoring_locked || record.scoringLocked) {
+          return (
+            <Space size="middle">
+              <Button
+                type="link"
+                icon={<BarChart3 size={16} />}
+                onClick={() => handleViewRanking(record.id)}
+              >
+                Xếp hạng
+              </Button>
+              <span style={{ color: '#8c8c8c', fontSize: 13 }}>Đã đóng sổ (Locked)</span>
+            </Space>
+          );
+        }
+
+        // Nếu vòng thi ĐANG HOẠT ĐỘNG
+        if (record.is_active) {
+          return (
+            <Space size="middle">
+              <Button
+                type="link"
+                icon={<BarChart3 size={16} />}
+                onClick={() => handleViewRanking(record.id)}
+              >
+                Xếp hạng tạm
+              </Button>
+
+              <Tooltip title="Phân công Giám khảo">
+                <Button 
+                  type="text" 
+                  style={{ color: '#8b5cf6' }} 
+                  icon={<UserPlus size={16} />} 
+                  onClick={() => {
+                    const peopleTab = document.querySelector('.ant-tabs-tab[data-node-key="people"]');
+                    if (peopleTab) {
+                      peopleTab.click();
+                      message.success(`Đã chuyển sang Tab Nhân sự để phân công Giám khảo.`);
+                    } else {
+                      message.info(`Vui lòng chuyển sang Tab Nhân sự để phân công.`);
+                    }
+                  }} 
+                />
+              </Tooltip>
+
+              <Tooltip title="Khóa chấm điểm (Force Lock)">
+                <Button type="text" danger icon={<Lock size={16} />} onClick={() => {
+                  setLockingRound(record);
+                  setIsLockModalVisible(true);
+                }} />
+              </Tooltip>
+            </Space>
+          );
+        }
+
+        // Nếu vòng thi NGƯNG HOẠT ĐỘNG
         return (
           <Space size="middle">
             <Button
@@ -328,24 +442,46 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
             >
               Xếp hạng tạm
             </Button>
-            {!record.is_active && (
-              <>
-                <Button
-                  type="text"
-                  icon={<Edit size={16} />}
-                  onClick={() => handleEdit(record)}
-                />
-                <Popconfirm
-                  title="Xóa vòng thi"
-                  description="Bạn có chắc chắn muốn xóa vòng thi này?"
-                  onConfirm={() => handleDelete(record.id)}
-                  okText="Xóa"
-                  cancelText="Hủy"
-                >
-                  <Button type="text" danger icon={<Trash2 size={16} />} />
-                </Popconfirm>
-              </>
-            )}
+
+            <Tooltip title="Sửa vòng thi">
+              <Button
+                type="text"
+                icon={<Edit size={16} />}
+                onClick={() => handleEdit(record)}
+              />
+            </Tooltip>
+
+            {/* BƯỚC 1: Nút Play Kích hoạt vòng thi */}
+            <Tooltip title="Kích hoạt Vòng thi">
+              <Button type="text" style={{ color: '#10b981' }} icon={<PlayCircle size={16} />} onClick={() => handleActivateRound(record)} />
+            </Tooltip>
+
+            <Tooltip title="Phân công Giám khảo">
+              <Button 
+                type="text" 
+                style={{ color: '#8b5cf6' }} 
+                icon={<UserPlus size={16} />} 
+                onClick={() => {
+                  const peopleTab = document.querySelector('.ant-tabs-tab[data-node-key="people"]');
+                  if (peopleTab) {
+                    peopleTab.click();
+                    message.success(`Đã chuyển sang Tab Nhân sự để phân công Giám khảo.`);
+                  } else {
+                    message.info(`Vui lòng chuyển sang Tab Nhân sự để phân công.`);
+                  }
+                }} 
+              />
+            </Tooltip>
+
+            <Popconfirm
+              title="Xóa vòng thi"
+              description="Bạn có chắc chắn muốn xóa vòng thi này?"
+              onConfirm={() => handleDelete(record.id)}
+              okText="Xóa"
+              cancelText="Hủy"
+            >
+               <Button type="text" danger icon={<Trash2 size={16} />} />
+            </Popconfirm>
           </Space>
         );
       },
@@ -356,6 +492,11 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
     return <Card style={{ textAlign: 'center', padding: '40px 0' }}><Spin size="large" /></Card>;
   }
 
+  // ==========================================
+  // THÊM MỚI (BƯỚC 2): Tìm vòng thi đang hoạt động (ACTIVE)
+  // ==========================================
+  const activeRound = rounds.find(r => r.is_active);
+
   return (
     <div>
       <Alert
@@ -365,6 +506,11 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         message="Vòng thi"
         description={<span style={{ fontSize: 12 }}>Tạo Sơ loại + Chung kết. Số đội đi tiếp nhập dự tính trước, xác nhận lại trước khi mở thi.</span>}
       />
+      {/* ========================================== */}
+      {/* THÊM MỚI (BƯỚC 2): Hiển thị Banner Đếm ngược */}
+      {/* ========================================== */}
+      {activeRound && <LiveCodingMonitor activeRound={activeRound} />}
+
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
         <Space>
           <Button.Group style={{ marginRight: 16 }}>
@@ -417,6 +563,9 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                     </Title>
                     {(() => {
                       const isEnded = round.submission_deadline && dayjs().isAfter(dayjs(round.submission_deadline));
+                      if (round.scoring_locked || round.scoringLocked) {
+                        return <Tag color="red" icon={<Lock size={12} style={{marginRight: 4}}/>}>Đã khóa chấm</Tag>;
+                      }
                       if (isEnded) return <Tag color="blue">Đã kết thúc</Tag>;
                       return (
                         <Tag color={round.is_active ? 'green' : 'default'}>
@@ -442,7 +591,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                     >
                       Xếp hạng tạm
                     </Button>
-                    {!round.is_active && (
+                    {!round.is_active && !(round.scoring_locked || round.scoringLocked) && (
                       <Button size="small" icon={<Edit size={14} />} onClick={() => handleEdit(round)}>Sửa</Button>
                     )}
                   </Space>
@@ -467,6 +616,36 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
           onFinish={handleModalFinish}
         />
       )}
+
+      {/* ========================================== */}
+      {/* BƯỚC 8: Modal Nhập lý do khóa điểm */}
+      {/* ========================================== */}
+      <Modal
+        title={<span><Lock size={18} style={{ color: '#ef4444', marginRight: 8, verticalAlign: 'middle' }}/> Khóa chấm điểm Vòng thi</span>}
+        open={isLockModalVisible}
+        onOk={handleLockScoring}
+        onCancel={() => setIsLockModalVisible(false)}
+        confirmLoading={isLocking}
+        okText="Xác nhận Khóa"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text>Bạn đang thực hiện khóa luồng chấm điểm của vòng: <strong>{lockingRound?.name}</strong>.</Text><br/>
+          <Text type="danger">Lưu ý: Hành động này sẽ chốt sổ điểm, Giám khảo sẽ không thể chỉnh sửa điểm hay comment được nữa.</Text>
+        </div>
+        
+        <div>
+          <Text strong>Lý do khóa (force_lock_reason) <span style={{ color: 'red' }}>*</span></Text>
+          <Input.TextArea 
+            rows={3} 
+            placeholder="Ví dụ: Đã hết thời gian chấm thi theo quy định..." 
+            value={lockReason}
+            onChange={(e) => setLockReason(e.target.value)}
+            style={{ marginTop: 8 }}
+          />
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -1,82 +1,62 @@
-/**
- * TẠM THỜI SỬ DỤNG MOCK DATA VÌ BACKEND CHƯA CÓ API.
- * Sau này Backend làm xong, chỉ cần đổi nội dung trong các hàm này thành axiosClient.get(...)
- */
+import axiosClient from '../../../shared/api/axiosClient';
+
 export const judgeService = {
-  // 1. Lấy thông kê cho Dashboard
-  getDashboardStats: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          stats: { totalEvaluated: 15, pendingEvaluations: 8, calibrationScore: 92 },
-          assignments: [
-            {
-              id: 101,
-              hackathonName: 'SEAL Hackathon Spring 2026',
-              role: 'HEAD_JUDGE',
-              trackName: 'AI & Machine Learning',
-              roundName: 'Chung Kết',
-              status: 'ONGOING',
-              progress: 65,
-              totalTeams: 20,
-              scoredTeams: 13,
-              date: '2026-06-05',
-            },
-            {
-              id: 102,
-              hackathonName: 'SEAL Hackathon Summer 2026',
-              role: 'NORMAL_JUDGE',
-              trackName: 'Web Development',
-              roundName: 'Sơ Loại',
-              status: 'UPCOMING',
-              progress: 0,
-              totalTeams: 45,
-              scoredTeams: 0,
-              date: '2026-08-15',
-            }
-          ],
-          upcomingEvents: [
-            { id: 1, title: 'Họp Hiệu chuẩn Giám khảo', time: '08:00 AM, 01/06/2026', type: 'CALIBRATION' },
-            { id: 2, title: 'Bắt đầu chấm thi: Vòng Sơ loại', time: '09:00 AM, 02/06/2026', type: 'SCORING' }
-          ]
-        });
-      }, 600); // Giả lập mạng chậm 0.6s
-    });
+  // 2.1 GET /judge-track-assignments - Danh sách Track (Sơ loại)
+  getTrackAssignments: async () => {
+    return axiosClient.get('/api/v1/me/judge-track-assignments');
   },
 
-  // 2. Lấy danh sách đội thi trong 1 assignment
-  getTeamsToScore: async (assignmentId) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([
-          { id: 1, name: 'Cyber Nurture', leader: 'Nguyễn Văn A', status: 'PENDING' },
-          { id: 2, name: 'Tech Innovators', leader: 'Trần Thị B', status: 'SCORED', totalScore: 85.5 },
-          { id: 3, name: 'SEAL Alpha', leader: 'Lê Văn C', status: 'PENDING' },
-          { id: 4, name: 'FPT Go', leader: 'Phạm Văn D', status: 'PENDING' },
-        ]);
-      }, 500);
-    });
+  // 2.2 GET /judge-final-assignments - Danh sách Round (Chung kết)
+  getFinalAssignments: async () => {
+    return axiosClient.get('/api/v1/me/judge-final-assignments');
   },
 
-  // 3. Lấy danh sách tiêu chí chấm điểm (Chuẩn theo cấu trúc Database của nhóm)
-  getScoringCriteria: async (assignmentId) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([
-          { id: 1, name: 'Tính Đổi mới & Sáng tạo', type: 'Innovation', weight: 0.30, max_score: 100, description: 'Đánh giá mức độ độc đáo của giải pháp so với thị trường.' },
-          { id: 2, name: 'Chất lượng Kỹ thuật', type: 'Technical', weight: 0.40, max_score: 100, description: 'Đánh giá kiến trúc phần mềm, clean code và hiệu năng.' },
-          { id: 3, name: 'Kỹ năng Thuyết trình', type: 'General', weight: 0.30, max_score: 100, description: 'Đánh giá kỹ năng trình bày, slide và trả lời câu hỏi (Q&A).' },
-        ]);
-      }, 500);
-    });
+  // 2.3 GET /scoring-schedule - Xem lịch chấm thi
+  getScoringSchedule: async (roundId) => {
+    return axiosClient.get('/api/v1/me/scoring-schedule', { params: { roundId } });
   },
 
-  // 4. Gửi điểm lên server
-  submitScore: async (assignmentId, teamId, payload) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true, message: 'Saved successfully' });
-      }, 800);
+  // 2.4 GET /judge-history - Lấy lịch sử chấm thi (FINISHED)
+  getJudgeHistory: async (year) => {
+    return axiosClient.get('/api/v1/me/judge-history', { params: { year } });
+  },
+
+  // 3.1 GET /scores - Lấy danh sách điểm đã chấm của chính mình
+  getMyScores: async (roundId) => {
+    // Lưu ý: PDF quy định chỉ có tham số roundId 
+    return axiosClient.get('/api/v1/me/scores', { params: { roundId } });
+  },
+
+  // 3.2 PATCH /scores/{scoreId}/comment - Cập nhật Comment cho bài chấm
+  updateComment: async (scoreId, comment) => {
+    return axiosClient.patch(`/api/v1/me/scores/${scoreId}/comment`, { comment });
+  },
+
+  // 3.3 PATCH /scoring-completion - Cập nhật trạng thái Tiến độ chấm
+  updateScoringCompletion: async (assignmentId, completionStatus) => {
+    return axiosClient.patch('/api/v1/me/scoring-completion', { assignmentId, completionStatus });
+  },
+
+  // 3.4 POST /tiebreak-evaluations - Gửi kết quả Tiebreak Vote (Dành cho HEAD Judge)
+  submitTiebreak: async (roundId, orderedTeamIds) => {
+    return axiosClient.post('/api/v1/me/tiebreak-evaluations', { roundId, orderedTeamIds });
+  },
+
+  // === CÁC API KHÔNG NẰM TRONG MODULE /me NHƯNG CẦN THIẾT CHO CHẤM THI ===
+  // Lấy danh sách bài nộp của thí sinh
+  getSubmissions: async (params) => {
+    return axiosClient.get('/api/v1/submissions', { params });
+  },
+  
+  // Nộp điểm mới (Toàn bộ form)
+  submitScore: async (payload) => {
+    return axiosClient.post('/api/v1/scores', payload);
+  },
+
+  // Lấy file slide bài nộp (Yêu cầu responseType: 'blob' để đọc được file PDF)
+  getSubmissionSlide: async (submissionId) => {
+    return axiosClient.get(`/api/v1/submissions/${submissionId}/slide`, {
+      responseType: 'blob' 
     });
   }
 };

@@ -1,126 +1,247 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { message } from 'antd';
 import { judgeService } from '../services/judgeService';
-// Import Mapper từ chính file của nhóm bạn (đảm bảo đường dẫn đúng)
-import { mapCriterionToFE } from '../../criteria/mappers/criteriaMapper'; 
+import { criteriaService } from '../../criteria/services/criteriaService';
 
-export const useLiveScoring = (assignmentId) => {
+/**
+ * Custom hook quản lý logic phòng chấm thi (Live Scoring)
+ * Xử lý tải danh sách đội, tiêu chí, tính điểm và submit điểm về hệ thống.
+ */
+export const useLiveScoring = (assignmentId, roundId, trackId, isFinal) => {
   const [teams, setTeams] = useState([]);
   const [criteria, setCriteria] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Lưu điểm đang chấm (Dạng: { criteriaId: score })
   const [currentScores, setCurrentScores] = useState({});
   const [comment, setComment] = useState('');
 
+  // GĐ5: Trạng thái score_type=NORMAL theo yêu cầu để phân biệt với CALIBRATION
+  const scoreType = 'NORMAL';
+
   const fetchScoringData = useCallback(async () => {
-    if (!assignmentId) return;
+    const cleanParams = {};
+    
+    // Đóng gói tham số an toàn
+    if (roundId) {
+      cleanParams.roundId = roundId;
+    }
+    
+    if (trackId) {
+      cleanParams.trackId = trackId;
+    }
+
+    if (Object.keys(cleanParams).length === 0) {
+      message.error("Lỗi dữ liệu: Không tìm thấy ID Vòng thi/Bảng đấu.");
+      return;
+    }
+
     setIsLoading(true);
+
     try {
-      // 1. Tạm thời MOCK danh sách Teams chờ Backend viết API
-      // Sau này Backend có API, bạn chỉ cần thay đoạn này thành:
-      // const teamsRes = await judgeService.getTeamsToScore(assignmentId);
-      const fetchedTeams = [
-        { id: 1, name: 'Cyber Nurture', leader: 'Nguyễn Văn A', status: 'PENDING' },
-        { id: 2, name: 'Tech Innovators', leader: 'Trần Thị B', status: 'SCORED', totalScore: 85.5 },
-        { id: 3, name: 'SEAL Alpha', leader: 'Lê Văn C', status: 'PENDING' },
-      ];
+      // ==========================================
+      // 1. TẢI DANH SÁCH BÀI NỘP (ĐỘI THI)
+      // ==========================================
+      const resTeams = await judgeService
+        .getSubmissions(cleanParams)
+        .catch(() => {
+          return [];
+        });
+        
+      const rawTeamsData = Array.isArray(resTeams) 
+        ? resTeams 
+        : resTeams?.items || resTeams?.data || [];
 
-      // 2. GỌI API THẬT ĐỂ LẤY CRITERIA (Dùng API của nhóm)
-      const criteriaRes = await judgeService.getScoringCriteria(assignmentId);
+      // Map dữ liệu đội thi an toàn
+      const mappedTeams = rawTeamsData.map((sub) => {
+        return {
+          id: sub.id || sub.submissionId || sub.teamId,
+          name: sub.teamName || sub.team_name || 'Đội thi',
+          leader: sub.leaderName || 'Trưởng nhóm',
+          status: sub.status === 'SCORED' || sub.isScoredByMe ? 'SCORED' : 'PENDING',
+          totalScore: sub.totalScore || sub.weightedAverageScore || 0,
+        };
+      });
+
+      // Nếu API Teams thật sự rỗng (chưa có đội nộp bài), báo lỗi nhẹ
+      if (mappedTeams.length === 0) {
+        console.warn("Chưa có đội thi nào nộp bài hoặc được phân công.");
+      }
+
+      setTeams(mappedTeams);
       
-      // Sử dụng Mapper của nhóm để chuẩn hóa dữ liệu
-      const rawCriteria = Array.isArray(criteriaRes) ? criteriaRes : criteriaRes?.items || criteriaRes?.data || [];
-      const fetchedCriteria = rawCriteria.map(mapCriterionToFE).filter(Boolean);
+      // Mặc định chọn đội đầu tiên nếu có dữ liệu
+      if (mappedTeams.length > 0) {
+        setSelectedTeam(mappedTeams[0]);
+      }
 
-      setTeams(fetchedTeams);
+      // ==========================================
+      // 2. TẢI ĐIỂM ĐÃ CHẤM (Phục hồi điểm cũ nếu có)
+      // ==========================================
+      if (roundId) {
+        judgeService
+          .getMyScores(roundId)
+          .then((resScores) => {
+            console.log("Dữ liệu điểm đã chấm:", resScores);
+          })
+          .catch(() => {
+            // Bỏ qua im lặng nếu lỗi khi lấy điểm cũ để không làm gián đoạn
+          });
+      }
+
+      // ==========================================
+      // 3. TẢI DANH SÁCH TIÊU CHÍ (API THẬT)
+      // ==========================================
+      let rawCriteria = [];
+      
+      if (isFinal && roundId) {
+        rawCriteria = await criteriaService.listByFinalRound(roundId);
+      } else if (trackId) {
+        rawCriteria = await criteriaService.listByTrack(trackId);
+      }
+
+      let fetchedCriteria = Array.isArray(rawCriteria) 
+        ? rawCriteria 
+        : rawCriteria?.items || rawCriteria?.data || [];
+
+      // Gán 100% dữ liệu API thật vào state
       setCriteria(fetchedCriteria);
-      
-      if (fetchedTeams.length > 0) {
-        setSelectedTeam(fetchedTeams[0]);
+
+      if (fetchedCriteria.length === 0) {
+        message.warning("Vòng thi/Bảng đấu này chưa được cấu hình tiêu chí chấm điểm!");
       }
     } catch (error) {
-      message.error(error?.message || 'Lỗi khi tải dữ liệu chấm thi từ máy chủ.');
+      console.error("Lỗi fetch dữ liệu chấm:", error);
+      message.error("Lỗi kết nối máy chủ khi lấy dữ liệu.");
+      setCriteria([]); // Xóa rỗng state để không bị lỗi UI
     } finally {
       setIsLoading(false);
     }
-  }, [assignmentId]);
+  }, [assignmentId, roundId, trackId, isFinal]);
 
+  // Hook khởi chạy
   useEffect(() => {
     fetchScoringData();
   }, [fetchScoringData]);
 
-  // Cập nhật điểm khi kéo Slider
+  // Xử lý thay đổi điểm cục bộ
   const handleScoreChange = (criteriaId, value) => {
-    setCurrentScores(prev => ({ ...prev, [criteriaId]: value }));
+    setCurrentScores((prev) => {
+      return {
+        ...prev,
+        [criteriaId]: value,
+      };
+    });
   };
 
-  // LOGIC TÍNH ĐIỂM DỰA TRÊN WEIGHT & MAX_SCORE
+  // Tính tổng điểm preview dựa trên trọng số
   const calculateTotalScore = () => {
     let total = 0;
-    criteria.forEach(c => {
-      // Nếu loại là PENALTY (nếu có), trừ điểm thay vì cộng. 
-      // Nhưng theo MOCK của bạn, các type là Technical, Innovation, General
-      const rawScore = currentScores[c.id] || 0; 
-      
-      // Công thức: Tổng điểm = (Điểm đạt được / Điểm Max) * Trọng số * 100
-      // Ví dụ: Đạt 80/100, Trọng số 0.4 => (80/100) * 0.4 * 100 = 32 điểm thành phần
-      // Hoặc tính thẳng: Điểm đạt * Trọng số (Nếu hệ thống chấm theo thang tổng)
-      
-      // Áp dụng công thức đơn giản nhất theo hệ thống MOCK: 
-      // Giám khảo chấm điểm (rawScore), hệ thống tự nhân với trọng số (weight).
-      total += rawScore * (c.weight || 0); 
+    
+    criteria.forEach((c) => {
+      const rawScore = currentScores[c.id] || 0;
+      total += rawScore * (c.weight || 0);
     });
+    
     return total.toFixed(2);
   };
 
-  // NỘP ĐIỂM
-  const submitFinalScore = async () => {
-    if (!selectedTeam) return;
+  // Xác định trạng thái có đang chấm hay không
+  const isCurrentlyScoring = useMemo(() => {
+    const hasScores = Object.keys(currentScores).length > 0;
+    const isNotScored = selectedTeam?.status !== 'SCORED';
     
-    // Kiểm tra xem đã chấm đủ tiêu chí chưa
-    const missingCriteria = criteria.some(c => currentScores[c.id] === undefined);
-    if (missingCriteria) {
-      message.warning('Vui lòng kéo thanh điểm cho tất cả các tiêu chí trước khi chốt.');
+    return hasScores && isNotScored;
+  }, [currentScores, selectedTeam]);
+
+  // GỬI ĐIỂM VỀ BACKEND (Gửi Promise.all song song)
+  const submitFinalScore = async () => {
+    if (!selectedTeam) {
       return;
+    }
+    
+    const missingCriteria = criteria.some((c) => {
+      return currentScores[c.id] === undefined;
+    });
+    
+    if (missingCriteria) {
+      return message.warning('Vui lòng chấm tất cả các tiêu chí trước khi chốt.');
     }
 
     setIsSubmitting(true);
+    
     try {
-      const finalTotalScore = parseFloat(calculateTotalScore());
-      const payload = {
-        scores: criteria.map(c => ({
-          criteriaId: c.id,
-          score: currentScores[c.id] || 0
-        })),
-        comment: comment,
-        totalScore: finalTotalScore
-      };
+      // 1. Tạo mảng các API Request (Mỗi tiêu chí là một Request)
+      const submitPromises = criteria.map((c) => {
+        const payload = {
+          submissionId: selectedTeam.id,
+          criterionId: c.id,
+          scoreValue: currentScores[c.id] || 0,
+          comment: comment.trim(),
+        };
+        // Trả về promise gọi API (chưa chạy ngay)
+        return judgeService.submitScore(payload);
+      });
+
+      // 2. Kích hoạt bắn TẤT CẢ API cùng một lúc
+      await Promise.all(submitPromises);
+
+      // 3. Cập nhật tiến độ ngầm
+      judgeService
+        .updateScoringCompletion(assignmentId, 'IN_PROGRESS')
+        .catch(() => {
+          // Bỏ qua lỗi ngầm
+        });
+
+      // 4. Báo thành công và cập nhật UI
+      message.success(`Đã lưu toàn bộ điểm thành công!`);
       
-      // MOCK CALL API (Sau này mở comment dòng dưới)
-      // await judgeService.submitScore(assignmentId, selectedTeam.id, payload);
+      setTeams((prev) => {
+        return prev.map((t) => {
+          if (t.id === selectedTeam.id) {
+            return {
+              ...t,
+              status: 'SCORED',
+              totalScore: calculateTotalScore(),
+            };
+          }
+          return t;
+        });
+      });
       
-      setTimeout(() => {
-        message.success(`Đã lưu điểm cho đội ${selectedTeam.name} thành công!`);
-        setTeams(prev => prev.map(t => 
-          t.id === selectedTeam.id ? { ...t, status: 'SCORED', totalScore: finalTotalScore } : t
-        ));
-        setCurrentScores({});
-        setComment('');
-        setIsSubmitting(false);
-      }, 800);
-      
+      // Reset state form
+      setCurrentScores({});
+      setComment('');
     } catch (error) {
-      message.error(error?.message || 'Lỗi khi lưu điểm. Vui lòng kiểm tra lại.');
+      // Bắt lỗi khóa vòng thi (Locked) hoặc lỗi chung
+      const status = error?.status || error?.response?.status;
+      const code = error?.code;
+      
+      if (status === 423 || code === 423) {
+        message.error("Vòng thi đã đóng sổ - không thể thao tác thêm!");
+      } else {
+        const errorMsg = error?.response?.data?.message || error?.message;
+        message.error(errorMsg || 'Lỗi khi lưu điểm. Vui lòng thử lại!');
+      }
+    } finally {
       setIsSubmitting(false);
     }
   };
 
   return {
-    teams, criteria, selectedTeam, setSelectedTeam,
-    isLoading, isSubmitting, currentScores, handleScoreChange,
-    comment, setComment, calculateTotalScore, submitFinalScore
+    teams,
+    criteria,
+    selectedTeam,
+    setSelectedTeam,
+    isLoading,
+    isSubmitting,
+    currentScores,
+    handleScoreChange,
+    comment,
+    setComment,
+    calculateTotalScore,
+    submitFinalScore,
+    isCurrentlyScoring,
+    scoreType,
   };
 };
