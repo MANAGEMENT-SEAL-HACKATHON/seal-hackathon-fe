@@ -111,6 +111,8 @@ const MainLayout = ({ children }) => {
   } else if (userRole === 'JUDGE' || userRole === 'TEMP_JUDGE') {
     menuItems = [
       { key: ROUTES.JUDGE_DASHBOARD, icon: <LayoutDashboard size={18} />, label: 'Tổng quan' },
+      // THÊM MENU PHÒNG CHẤM THI VÀO ĐÂY
+      { key: '/judge/assignments', icon: <ClipboardCheck size={18} />, label: 'Phòng Chấm Thi' },
       { key: ROUTES.JUDGE_CRITERIA, icon: <FileText size={18} />, label: 'Tiêu chí Đánh giá' },
       { key: ROUTES.PROFILE, icon: <User size={18} />, label: 'Trang cá nhân' },
       { key: ROUTES.PRESENTATION_QUEUE, icon: <History size={18} />, label: 'Hàng đợi thuyết trình' },

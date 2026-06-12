@@ -27,4 +27,4 @@ const JudgeDashboardPage = () => {
   return <JudgeDashboard user={userProfile} />;
 };
 
-export default JudgeDashboardPage;``
+export default JudgeDashboardPage;

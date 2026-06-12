@@ -1,44 +1,100 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Select, Table, Tag, Alert, Spin, Space } from 'antd';
+import { Typography, Card, Select, Table, Tag, Alert, Spin, Space, message } from 'antd';
 import { FileTextOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
+import { judgeService } from '../services/judgeService';
+import { criteriaService } from '../../criteria/services/criteriaService';
 
 const { Title, Text } = Typography;
 
 const JudgeCriteriaViewPage = () => {
-  const [loading, setLoading] = useState(true);
-  const [selectedAssignment, setSelectedAssignment] = useState('101');
+  const [loading, setLoading] = useState(false);
+  const [assignmentOptions, setAssignmentOptions] = useState([]);
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [criteriaData, setCriteriaData] = useState([]);
 
-  // MOCK DATA: Giả lập danh sách nhiệm vụ và tiêu chí
-  const mockAssignments = [
-    { value: '101', label: 'Chung Kết - AI & Machine Learning' },
-    { value: '102', label: 'Sơ Loại - Web Development' }
-  ];
-
-  const mockCriteria = {
-    '101': [
-      { id: 1, name: 'Xử lý & Truy xuất Dữ liệu', type: 'TECHNICAL', weight: 0.30, maxScore: 10, description: 'Đánh giá độ chính xác và tốc độ xử lý dữ liệu của mô hình.' },
-      { id: 2, name: 'Độ tin cậy & Chống ảo giác', type: 'TECHNICAL', weight: 0.20, maxScore: 10, description: 'Mô hình không bịa đặt thông tin (hallucination).' },
-      { id: 3, name: 'Tư duy Agent', type: 'TECHNICAL', weight: 0.20, maxScore: 10, description: 'Khả năng tự động hóa và xử lý đa tầng của hệ thống.' },
-      { id: 4, name: 'Tính thực tế & Tối ưu', type: 'TECHNICAL', weight: 0.20, maxScore: 10, description: 'Khả năng áp dụng vào thực tế doanh nghiệp.' },
-      { id: 5, name: 'Q&A & Phản biện', type: 'SOFT_SKILL', weight: 0.10, maxScore: 10, description: 'Kỹ năng trả lời câu hỏi và bảo vệ quan điểm trước Hội đồng.' },
-    ],
-    '102': [
-      { id: 6, name: 'Kiến trúc phần mềm', type: 'TECHNICAL', weight: 0.40, maxScore: 10, description: 'Clean code, cấu trúc thư mục và design pattern.' },
-      { id: 7, name: 'Giao diện & Trải nghiệm (UI/UX)', type: 'SOFT_SKILL', weight: 0.30, maxScore: 10, description: 'Tính thân thiện, dễ sử dụng và thẩm mỹ của web.' },
-      { id: 8, name: 'Tính đổi mới & Sáng tạo', type: 'TECHNICAL', weight: 0.30, maxScore: 10, description: 'Sự khác biệt của sản phẩm so với các giải pháp hiện có.' },
-    ]
-  };
-
+  // 1. LẤY DANH SÁCH NHIỆM VỤ ĐỂ HIỂN THỊ VÀO DROPDOWN
   useEffect(() => {
-    // Giả lập load data từ API mất 0.5s
-    setLoading(true);
-    const timer = setTimeout(() => {
-      setCriteriaData(mockCriteria[selectedAssignment] || []);
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    const fetchAssignments = async () => {
+      try {
+        setLoading(true);
+        // Gọi API lấy danh sách Sơ loại và Chung kết
+        const [tracksRes, finalsRes] = await Promise.all([
+          judgeService.getTrackAssignments().catch(() => []),
+          judgeService.getFinalAssignments().catch(() => [])
+        ]);
+
+        const rawTracks = Array.isArray(tracksRes) ? tracksRes : tracksRes?.items || tracksRes?.data || [];
+        const rawFinals = Array.isArray(finalsRes) ? finalsRes : finalsRes?.items || finalsRes?.data || [];
+
+        const options = [];
+
+        // Thêm nhiệm vụ Sơ loại (dùng prefix 'track_' để phân biệt)
+        rawTracks.forEach(item => {
+          if (item.trackId || item.track_id) {
+            options.push({
+              value: `track_${item.trackId || item.track_id}`,
+              label: `Sơ loại - ${item.trackName || item.track_name || 'Bảng đấu'}`
+            });
+          }
+        });
+
+        // Thêm nhiệm vụ Chung kết (dùng prefix 'round_' để phân biệt)
+        rawFinals.forEach(item => {
+          if (item.roundId || item.round_id) {
+            options.push({
+              value: `round_${item.roundId || item.round_id}`,
+              label: `Chung kết - ${item.roundName || item.round_name || 'Vòng thi'}`
+            });
+          }
+        });
+
+        setAssignmentOptions(options);
+
+        // Mặc định chọn cái đầu tiên nếu có
+        if (options.length > 0) {
+          setSelectedAssignment(options[0].value);
+        }
+      } catch (error) {
+        message.error("Lỗi khi tải danh sách nhiệm vụ.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssignments();
+  }, []);
+
+  // 2. LẤY TIÊU CHÍ (CRITERIA) MỖI KHI ĐỔI DROPDOWN
+  useEffect(() => {
+    if (!selectedAssignment) return;
+
+    const fetchCriteria = async () => {
+      setLoading(true);
+      try {
+        let rawCriteria = [];
+        
+        // Cắt chuỗi để biết đang chọn Track hay Round
+        if (selectedAssignment.startsWith('track_')) {
+          const trackId = selectedAssignment.replace('track_', '');
+          rawCriteria = await criteriaService.listByTrack(trackId);
+        } else if (selectedAssignment.startsWith('round_')) {
+          const roundId = selectedAssignment.replace('round_', '');
+          rawCriteria = await criteriaService.listByFinalRound(roundId);
+        }
+
+        const fetchedCriteria = Array.isArray(rawCriteria) ? rawCriteria : rawCriteria?.items || rawCriteria?.data || [];
+        setCriteriaData(fetchedCriteria);
+      } catch (error) {
+        console.error("Lỗi tải tiêu chí:", error);
+        message.error("Không thể tải tiêu chí đánh giá cho vòng này.");
+        setCriteriaData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCriteria();
   }, [selectedAssignment]);
 
   const columns = [
@@ -55,7 +111,7 @@ const JudgeCriteriaViewPage = () => {
       key: 'name',
       render: (text, record) => (
         <div>
-          <Text strong>{text}</Text>
+          <Text strong>{text || record.criteriaName}</Text>
           <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '4px' }}>
             {record.description}
           </div>
@@ -68,8 +124,8 @@ const JudgeCriteriaViewPage = () => {
       key: 'type',
       width: 120,
       render: (type) => (
-        <Tag color={type === 'TECHNICAL' ? 'blue' : 'orange'} style={{ fontWeight: 600 }}>
-          {type}
+        <Tag color={type === 'TECHNICAL' ? 'blue' : type === 'GENERAL' ? 'green' : 'orange'} style={{ fontWeight: 600 }}>
+          {type || 'GENERAL'}
         </Tag>
       ),
     },
@@ -79,19 +135,20 @@ const JudgeCriteriaViewPage = () => {
       key: 'weight',
       width: 100,
       align: 'center',
-      render: (weight) => <Text strong style={{ color: '#1677ff' }}>{weight.toFixed(2)}</Text>,
+      render: (weight) => <Text strong style={{ color: '#1677ff' }}>{(weight || 0).toFixed(2)}</Text>,
     },
     {
       title: 'Điểm Max',
-      dataIndex: 'maxScore',
       key: 'maxScore',
       width: 100,
       align: 'center',
-      render: (score) => <Text strong>{score}</Text>,
+      render: (_, record) => <Text strong>{record.maxScore || record.max_score || 10}</Text>,
     }
   ];
 
-  const totalWeight = criteriaData.reduce((sum, item) => sum + item.weight, 0);
+  // Tính tổng trọng số hiện tại
+  const totalWeight = criteriaData.reduce((sum, item) => sum + (item.weight || 0), 0);
+  const isWeightValid = Math.abs(totalWeight - 1.0) < 0.001; // Cân nhắc sai số thập phân
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -118,25 +175,30 @@ const JudgeCriteriaViewPage = () => {
               size="large"
               value={selectedAssignment}
               onChange={setSelectedAssignment}
-              options={mockAssignments}
+              options={assignmentOptions}
               style={{ width: '100%', maxWidth: 400 }}
+              placeholder={assignmentOptions.length === 0 ? "Chưa có nhiệm vụ phân công" : "Chọn vòng thi..."}
+              disabled={loading || assignmentOptions.length === 0}
             />
           </div>
 
-          <div style={{ background: totalWeight === 1 ? '#f6ffed' : '#fff2f0', border: `1px solid ${totalWeight === 1 ? '#b7eb8f' : '#ffccc7'}`, padding: '12px 16px', borderRadius: 8, display: 'inline-block' }}>
-            <Text strong style={{ color: totalWeight === 1 ? '#389e0d' : '#cf1322' }}>
-              Tổng trọng số hiện tại: {totalWeight.toFixed(2)} {totalWeight === 1 ? '(Hợp lệ)' : '(Chưa đạt 1.0)'}
-            </Text>
-          </div>
+          {criteriaData.length > 0 && (
+            <div style={{ background: isWeightValid ? '#f6ffed' : '#fff2f0', border: `1px solid ${isWeightValid ? '#b7eb8f' : '#ffccc7'}`, padding: '12px 16px', borderRadius: 8, display: 'inline-block' }}>
+              <Text strong style={{ color: isWeightValid ? '#389e0d' : '#cf1322' }}>
+                Tổng trọng số hiện tại: {totalWeight.toFixed(2)} {isWeightValid ? '(Hợp lệ)' : '(Chưa đạt 1.0)'}
+              </Text>
+            </div>
+          )}
 
           <Spin spinning={loading} tip="Đang tải dữ liệu tiêu chí...">
             <Table
               columns={columns}
               dataSource={criteriaData}
-              rowKey="id"
+              rowKey={(record) => record.id || record.criteriaId}
               pagination={false}
               bordered
               style={{ marginTop: 8 }}
+              locale={{ emptyText: 'Chưa có tiêu chí nào được cấu hình cho vòng này.' }}
             />
           </Spin>
 

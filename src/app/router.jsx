@@ -34,6 +34,9 @@ import StudentSubmissionPage from '../student/features/submission/pages/StudentS
 import LateSubmissionReviewPage from '../features/coordinator/pages/LateSubmissionReviewPage';
 import PresentationQueuePage from '../features/presentation/pages/PresentationQueuePage';
 
+// THÊM IMPORT TRANG MỚI VÀO ĐÂY
+import ScoringLobbyPage from '../features/judging/pages/ScoringLobbyPage';
+
 const TrackWrapper = () => {
   const { hackathonId } = useParams();
   return (
@@ -230,7 +233,17 @@ const AppRouter = () => {
             <JudgeDashboardPage />
           </ProtectedRoute>
         } />
-          {/* Routes inside LiveScoringPage */}
+        
+        {/* ==================================================== */}
+        {/* THÊM ROUTE CHO PHÒNG CHẤM THI VÀO ĐÂY */}
+        {/* ==================================================== */}
+        <Route path="/judge/assignments" element={
+          <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR', 'ADMIN']}>
+            <ScoringLobbyPage />
+          </ProtectedRoute>
+        } />
+
+         {/* Routes inside LiveScoringPage */}
         <Route path={ROUTES.JUDGE_SCORING} element={
           <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR', 'ADMIN']}>
             <LiveScoringPage />
