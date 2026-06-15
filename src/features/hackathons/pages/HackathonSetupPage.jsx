@@ -15,6 +15,10 @@ import { mapHackathonToFE } from '../mappers/hackathonMapper';
 import { mapRoundToFE } from '../../rounds/mappers/roundMapper';
 import LotteryManagementPage from '../../teams/pages/LotteryManagementPage';
 
+// 1. IMPORT TRANG ANALYTICS MỚI (CHỈ THÊM DÒNG NÀY)
+import AnalyticsPage from '../../analytics/pages/AnalyticsPage.jsx';
+import HackathonResultsPage from '../../hackathon-results/pages/HackathonResultsPage.jsx';
+
 const { Title } = Typography;
 const { Option } = Select;
 
@@ -123,6 +127,17 @@ const HackathonSetupPage = () => {
       key: 'review',
       label: 'Đánh giá & Kiểm tra',
       children: activeTab === 'review' ? <ReviewValidatePage hackathonId={hackathon.id} /> : null, 
+    },
+    // 2. TAB ANALYTICS (CHỈ THÊM ĐOẠN NÀY)
+    {
+      key: 'analytics',
+      label: 'Phân tích & Dữ liệu',
+      children: activeTab === 'analytics' ? <AnalyticsPage hackathonId={hackathon.id} hackathon={hackathon} rounds={rounds} /> : null,
+    },
+    {
+      key: 'results',
+      label: 'Tổng kết & Giải thưởng',
+      children: activeTab === 'results' ? <HackathonResultsPage hackathonId={hackathon.id} /> : null,
     }
   ];
 

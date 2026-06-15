@@ -1,14 +1,48 @@
 import axiosClient from "../../../../shared/api/axiosClient";
-import { mapStudentScoreboard } from "../mappers/studentResults.mapper";
 
 export const studentResultsService = {
-  getPublicScoreboard: async (roundId) => {
-    const response = await axiosClient.get(`/api/v1/rounds/${roundId}/scoreboard`);
-    return mapStudentScoreboard(response);
+  getRoundLeaderboard: async (roundId) => {
+    try {
+      const response = await axiosClient.get(`/api/v1/me/rounds/${roundId}/leaderboard`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
   },
 
-  getStudentLeaderboard: async (roundId) => {
-    const response = await axiosClient.get(`/api/v1/me/rounds/${roundId}/leaderboard`);
-    return mapStudentScoreboard(response);
+  getPublicScoreboard: async (roundId) => {
+    try {
+      const response = await axiosClient.get(`/api/v1/rounds/${roundId}/scoreboard`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
   },
+
+  getHackathonRankings: async (hackathonId) => {
+    try {
+      const response = await axiosClient.get(`/api/v1/me/hackathons/${hackathonId}/rankings`);
+      return Array.isArray(response) ? response : (response?.items || response?.data || []);
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getMyPrizes: async () => {
+    try {
+      const response = await axiosClient.get(`/api/v1/me/prizes`);
+      return Array.isArray(response) ? response : (response?.data || []);
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getMyCertificates: async () => {
+    try {
+      const response = await axiosClient.get(`/api/v1/me/certificates`);
+      return Array.isArray(response) ? response : (response?.data || []);
+    } catch (e) {
+      return [];
+    }
+  }
 };

@@ -28,22 +28,44 @@ const OfficialRankingPanel = ({ ranking, isLoading, error }) => {
     {
       title: "Hạng",
       dataIndex: "rank",
-      width: 82,
-      render: (rank) => (
-        <Text strong style={{ color: rank === 1 ? "#d48806" : undefined, fontSize: 16 }}>
-          #{rank}
-        </Text>
-      ),
+      width: 80,
+      align: "center",
+      render: (rank) => {
+        let color = undefined;
+        let bg = "transparent";
+        if (rank === 1) { color = "#d48806"; bg = "#fffbe6"; }
+        else if (rank === 2) { color = "#595959"; bg = "#f5f5f5"; }
+        else if (rank === 3) { color = "#ad6800"; bg = "#fff2e8"; }
+        
+        return (
+          <div style={{
+            background: bg,
+            color: color,
+            fontWeight: "bold",
+            fontSize: 16,
+            width: 32,
+            height: 32,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "50%",
+            margin: "0 auto",
+            border: rank <= 3 ? `1px solid ${color}40` : "none"
+          }}>
+            {rank}
+          </div>
+        );
+      },
     },
     {
       title: "Đội thi",
       dataIndex: "teamName",
       render: (name, item) => (
-        <Space direction="vertical" size={1}>
-          <Text strong>{name}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+        <Space direction="vertical" size={4}>
+          <Text strong style={{ fontSize: 15, color: '#1f2937' }}>{name}</Text>
+          <Tag bordered={false} style={{ margin: 0, background: '#f3f4f6', color: '#4b5563', fontSize: 12 }}>
             {item.groupLabel}
-          </Text>
+          </Tag>
         </Space>
       ),
     },
@@ -51,17 +73,30 @@ const OfficialRankingPanel = ({ ranking, isLoading, error }) => {
       title: "Điểm chính thức",
       dataIndex: "weightedAvgScore",
       align: "right",
-      render: (value) => <Text strong style={{ fontSize: 17 }}>{score(value)}</Text>,
+      render: (value) => (
+        <span style={{ 
+          fontSize: 18, 
+          fontWeight: 700, 
+          color: '#2563eb',
+          fontFamily: 'monospace'
+        }}>
+          {score(value)}
+        </span>
+      ),
     },
     {
-      title: "Kết quả",
+      title: "Trạng thái",
       key: "result",
-      width: 160,
+      width: 190,
       render: (_, item) =>
         item.isAdvanced || item.qualificationStatus === "ADVANCED" ? (
-          <Tag color="success">Được đề xuất đi tiếp</Tag>
+          <Tag color="success" style={{ fontWeight: 600, padding: '4px 12px', borderRadius: 4 }}>
+            Được đề xuất đi tiếp
+          </Tag>
         ) : (
-          <Tag>Chờ chốt danh sách</Tag>
+          <Tag style={{ color: '#6b7280', background: '#f9fafb', borderColor: '#e5e7eb', padding: '4px 12px', borderRadius: 4 }}>
+            Chờ chốt danh sách
+          </Tag>
         ),
     },
   ];
@@ -76,16 +111,23 @@ const OfficialRankingPanel = ({ ranking, isLoading, error }) => {
       />
       {error && <Alert showIcon type="error" message="Không tải được leaderboard" description={error.message} />}
       <Card
-        title={<Space><TrophyOutlined />Leaderboard Sơ loại</Space>}
-        extra={<Text type="secondary">{activeItems.length} đội ACTIVE</Text>}
+        title={<Space><TrophyOutlined style={{ color: '#faad14' }} /><Text strong style={{ fontSize: 16 }}>Bảng điểm xếp hạng</Text></Space>}
+        extra={
+          <Space size="large">
+            <Segmented
+              options={[{ label: "Tất cả bảng", value: "all" }, ...groups.map((group) => ({ label: group, value: group }))]}
+              value={selectedGroup}
+              onChange={setSelectedGroup}
+              style={{ fontWeight: 500 }}
+            />
+            <Tag color="blue" bordered={false} style={{ fontWeight: 600, padding: '2px 8px' }}>
+              {activeItems.length} đội ACTIVE
+            </Tag>
+          </Space>
+        }
+        styles={{ header: { borderBottom: '1px solid #f0f0f0', padding: '16px 24px' }, body: { padding: '16px 24px' } }}
+        style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}
       >
-        <Segmented
-          block
-          options={[{ label: "Tất cả bảng", value: "all" }, ...groups.map((group) => ({ label: group, value: group }))]}
-          value={selectedGroup}
-          onChange={setSelectedGroup}
-          style={{ marginBottom: 16 }}
-        />
         <Table
           rowKey="key"
           columns={columns}
@@ -94,6 +136,7 @@ const OfficialRankingPanel = ({ ranking, isLoading, error }) => {
           pagination={false}
           locale={{ emptyText: <Empty description="Chưa có kết quả chính thức." /> }}
           scroll={{ x: 720 }}
+          size="middle"
         />
       </Card>
     </Space>

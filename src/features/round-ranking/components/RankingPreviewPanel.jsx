@@ -59,6 +59,16 @@ const RankingPreviewPanel = ({
           <RankingTopSteps items={visibleItems} movements={movements} />
         )}
 
+        {!isLoading && visibleItems.length === 0 && (
+          <Alert
+            type="warning"
+            showIcon
+            message={<span style={{ fontWeight: 600 }}>Chưa có dữ liệu xếp hạng</span>}
+            description="Bảng điểm hiện tại đang trống. Kết quả sẽ được cập nhật liên tục ngay khi các đội bắt đầu nộp bài và giám khảo tiến hành chấm điểm."
+            style={{ border: '1px solid #ffe58f', borderRadius: 8 }}
+          />
+        )}
+
         <RankingTable
           items={visibleItems}
           isLoading={isLoading}

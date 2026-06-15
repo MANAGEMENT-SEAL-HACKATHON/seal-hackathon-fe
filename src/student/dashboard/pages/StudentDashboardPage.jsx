@@ -6,6 +6,7 @@ import ProfileStatusBanner from '../components/ProfileStatusBanner';
 import HackathonTimeline from '../components/HackathonTimeline';
 import TeamOverviewWidget from '../components/TeamOverviewWidget';
 import LiveCountdownWidget from '../components/LiveCountdownWidget';
+import FinalSubmissionPanel from '../../features/submission/components/FinalSubmissionPanel';
 
 const { Text, Title } = Typography;
 
@@ -243,6 +244,22 @@ const StudentDashboardPage = () => {
         <TeamOverviewWidget user={user} selectedTeam={selectedTeam} isLoading={isTeamLoading} />
         <LiveCountdownWidget hackathon={activeHackathon} selectedTeam={selectedTeam} />
       </div>
+
+      {/* ========================================== */}
+      {/* KHU VỰC NỘP BÀI CHUNG KẾT (TÍCH HỢP MỚI)   */}
+      {/* ========================================== */}
+      {selectedTeam && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <FinalSubmissionPanel
+            teamId={selectedTeam.id}
+            hackathonId={activeHackathon?.id}
+          />
+        </motion.div>
+      )}
 
       <HackathonTimeline hackathon={activeHackathon} selectedTeam={selectedTeam} />
     </Space>

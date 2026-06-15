@@ -15,7 +15,7 @@ export const useStudentRoundResults = (roundId, source = "public") => {
     try {
       const data =
         source === "student"
-          ? await studentResultsService.getStudentLeaderboard(roundId)
+          ? await studentResultsService.getRoundLeaderboard(roundId)
           : await studentResultsService.getPublicScoreboard(roundId);
       setScoreboard(data);
     } catch (fetchError) {

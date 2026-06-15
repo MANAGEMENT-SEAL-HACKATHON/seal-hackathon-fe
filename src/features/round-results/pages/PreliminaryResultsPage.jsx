@@ -58,7 +58,7 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
         <div style={{ display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
           <Space direction="vertical" size={7}>
             <Space wrap>
-              <Tag color="blue" icon={<SafetyCertificateOutlined />}>GĐ4 · Kết quả Sơ loại</Tag>
+              <Tag color="blue" icon={<SafetyCertificateOutlined />}>Kết quả Sơ loại</Tag>
               <Tag color={results.ranking.isPublished ? "success" : "warning"}>
                 {results.ranking.isPublished ? "Đã công bố" : "Chưa công bố"}
               </Tag>

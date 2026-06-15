@@ -24,42 +24,82 @@ const WildcardPanel = ({ wildcard, error, decidingReviewId, onDecide }) => {
 
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
-      <Card>
-        <Space direction="vertical" size={12} style={{ width: "100%" }}>
-          <Space wrap>
-            <Tag color={wildcard.config.hackathonEnabled ? "success" : "default"}>
-              Global: {wildcard.config.hackathonEnabled ? "Đã bật" : "Đang tắt"}
-            </Tag>
-            <Tag color={wildcard.config.roundEnabled ? "success" : "default"}>
-              Round: {wildcard.config.roundEnabled ? "Đã bật" : "Đang tắt"}
-            </Tag>
-            <Tag color="blue">{wildcard.config.availableSlots} suất vé vớt</Tag>
-          </Space>
-          <Alert
-            showIcon
-            type={enabled ? "info" : "warning"}
-            message={enabled ? "Wild Card đang khả dụng" : "Chưa thể xét Wild Card"}
-            description="Chức năng chỉ hoạt động khi wildcard_enabled được bật ở cả cấp Hackathon và Round. Danh sách được Backend xếp hạng chéo giữa các bảng."
-          />
-        </Space>
-      </Card>
+      <Space wrap style={{ marginBottom: 4 }}>
+        <Tag color={wildcard.config.hackathonEnabled ? "success" : "default"} style={{ fontWeight: 500, padding: '2px 10px' }}>
+          Global: {wildcard.config.hackathonEnabled ? "Đã bật" : "Đang tắt"}
+        </Tag>
+        <Tag color={wildcard.config.roundEnabled ? "success" : "default"} style={{ fontWeight: 500, padding: '2px 10px' }}>
+          Round: {wildcard.config.roundEnabled ? "Đã bật" : "Đang tắt"}
+        </Tag>
+        <Tag color="blue" bordered={false} style={{ fontWeight: 600, padding: '2px 10px' }}>
+          {wildcard.config.availableSlots} suất vé vớt
+        </Tag>
+      </Space>
 
-      <Card title={<Space><StarOutlined />Đề xuất Wild Card cross-bảng</Space>}>
+      <Alert
+        showIcon
+        type={enabled ? "info" : "warning"}
+        message={<Text strong>{enabled ? "Wild Card đang khả dụng" : "Chưa thể xét Wild Card"}</Text>}
+        description={<span style={{ color: '#475569' }}>Chức năng này cần được bật cấu hình Vé vớt ở cả cấp độ Hackathon và Vòng thi. Hệ thống sẽ tự động so sánh chéo điểm số giữa các bảng để đưa ra đề xuất.</span>}
+        style={{ borderRadius: 8, border: enabled ? '1px solid #bae0ff' : '1px solid #ffe58f', background: enabled ? '#e6f4ff' : '#fffbe6' }}
+      />
+
+      <Card 
+        title={<Space><StarOutlined style={{ color: '#faad14' }} /><Text strong style={{ fontSize: 16 }}>Đề xuất Wild Card cross-bảng</Text></Space>}
+        styles={{ header: { borderBottom: '1px solid #f0f0f0', padding: '16px 24px' }, body: { padding: '16px 24px' } }}
+        style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}
+      >
         <Table
           rowKey="key"
           pagination={false}
           dataSource={wildcard.items}
-          locale={{ emptyText: <Empty description="Không có ứng viên Wild Card." /> }}
+          locale={{ 
+            emptyText: (
+              <Empty 
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <div style={{ color: '#8c8c8c' }}>
+                    <span style={{ fontWeight: 500, color: '#595959' }}>Chưa có danh sách đề xuất vé vớt</span>
+                    <br />
+                    <span style={{ fontSize: 13 }}>Tính năng này có thể chưa được bật, hoặc hiện tại không có đội thi nào đáp ứng đủ điều kiện nhận vé vớt.</span>
+                  </div>
+                } 
+              />
+            )
+          }}
           scroll={{ x: 760 }}
+          size="middle"
           columns={[
-            { title: "Ưu tiên", dataIndex: "candidateRank", width: 90, render: (value) => <Text strong>#{value}</Text> },
-            { title: "Đội", dataIndex: "teamName", render: (value, item) => <Space direction="vertical" size={0}><Text strong>{value}</Text><Text type="secondary">{item.groupLabel}</Text></Space> },
-            { title: "Điểm", dataIndex: "weightedAvgScore", align: "right", render: (value) => <Text strong>{value.toFixed(2)}</Text> },
+            { 
+              title: "Ưu tiên", 
+              dataIndex: "candidateRank", 
+              width: 100, 
+              align: "center",
+              render: (value) => <span style={{ fontWeight: 'bold', fontSize: 16, color: '#d48806' }}>#{value}</span> 
+            },
+            { 
+              title: "Đội thi", 
+              dataIndex: "teamName", 
+              render: (value, item) => (
+                <Space direction="vertical" size={4}>
+                  <Text strong style={{ fontSize: 15, color: '#1f2937' }}>{value}</Text>
+                  <Tag bordered={false} style={{ margin: 0, background: '#f3f4f6', color: '#4b5563', fontSize: 12 }}>
+                    {item.groupLabel}
+                  </Tag>
+                </Space>
+              ) 
+            },
+            { 
+              title: "Điểm chéo", 
+              dataIndex: "weightedAvgScore", 
+              align: "right", 
+              render: (value) => <span style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: '#2563eb' }}>{value.toFixed(2)}</span> 
+            },
             {
-              title: "Quyết định",
+              title: "Trạng thái",
               dataIndex: "coordinatorApproved",
               render: (approved) =>
-                approved === true ? <Tag color="success">Đã duyệt</Tag> : approved === false ? <Tag color="error">Đã từ chối</Tag> : <Tag color="warning">Chờ duyệt</Tag>,
+                approved === true ? <Tag color="success" style={{ fontWeight: 600, padding: '4px 10px' }}>Đã duyệt</Tag> : approved === false ? <Tag color="error" style={{ fontWeight: 600, padding: '4px 10px' }}>Đã từ chối</Tag> : <Tag color="processing" style={{ fontWeight: 600, padding: '4px 10px' }}>Chờ duyệt</Tag>,
             },
             {
               title: "Thao tác",

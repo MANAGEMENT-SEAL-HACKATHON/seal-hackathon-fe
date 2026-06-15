@@ -31,11 +31,16 @@ import RoundRankingPreviewPage from '../features/round-ranking/pages/RoundRankin
 import PreliminaryResultsPage from '../features/round-results/pages/PreliminaryResultsPage';
 import StudentRoundLeaderboardPage from '../student/features/results/pages/StudentRoundLeaderboardPage';
 import StudentResultsIndexPage from '../student/features/results/pages/StudentResultsIndexPage';
+import StudentHackathonResultsPage from '../student/features/results/pages/StudentHackathonResultsPage';
 import MentorSupportPage from '../features/mentor/pages/MentorSupportPage';
 import MentorRoundsPage from '../features/mentor/pages/MentorRoundsPage';
 import StudentSubmissionPage from '../student/features/submission/pages/StudentSubmissionPage';
 import LateSubmissionReviewPage from '../features/coordinator/pages/LateSubmissionReviewPage';
 import PresentationQueuePage from '../features/presentation/pages/PresentationQueuePage';
+
+// THÊM IMPORT TRANG MỚI VÀO ĐÂY
+import ScoringLobbyPage from '../features/judging/pages/ScoringLobbyPage';
+import HackathonResultsPage from '../features/hackathon-results/pages/HackathonResultsPage';
 
 const TrackWrapper = () => {
   const { hackathonId } = useParams();
@@ -221,9 +226,19 @@ const AppRouter = () => {
             <StudentRoundLeaderboardPage source="student" />
           </ProtectedRoute>
         } />
+        <Route path="/student/hackathons/:hackathonId/results" element={
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <StudentHackathonResultsPage />
+          </ProtectedRoute>
+        } />
         <Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
         <Route path={ROUTES.PROFILE} element={<OnboardingPage />} />
         <Route path={ROUTES.HACKATHONS} element={<HackathonListPage />} />
+        <Route path="/hackathons/:id/results" element={
+          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+            <HackathonResultsPage />
+          </ProtectedRoute>
+        } />
         <Route path="/hackathons/:hackathonId" element={<HackathonDetailRedirect />} />
         <Route path={ROUTES.HACKATHON_CREATE} element={<CreateHackathonPage />} />
         <Route path={ROUTES.HACKATHON_SETUP} element={<HackathonSetupPage />} />
@@ -244,7 +259,17 @@ const AppRouter = () => {
             <JudgeDashboardPage />
           </ProtectedRoute>
         } />
-          {/* Routes inside LiveScoringPage */}
+        
+        {/* ==================================================== */}
+        {/* THÊM ROUTE CHO PHÒNG CHẤM THI VÀO ĐÂY */}
+        {/* ==================================================== */}
+        <Route path="/judge/assignments" element={
+          <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR', 'ADMIN']}>
+            <ScoringLobbyPage />
+          </ProtectedRoute>
+        } />
+
+         {/* Routes inside LiveScoringPage */}
         <Route path={ROUTES.JUDGE_SCORING} element={
           <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR', 'ADMIN']}>
             <LiveScoringPage />
