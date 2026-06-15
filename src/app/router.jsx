@@ -28,10 +28,6 @@ import JudgeDashboardPage from '../features/judging/pages/JudgeDashboardPage';
 import LiveScoringPage from '../features/judging/pages/LiveScoringPage';
 import JudgeCriteriaViewPage from '../features/judging/pages/JudgeCriteriaViewPage';
 import RoundRankingPreviewPage from '../features/round-ranking/pages/RoundRankingPreviewPage';
-import PreliminaryResultsPage from '../features/round-results/pages/PreliminaryResultsPage';
-import StudentRoundLeaderboardPage from '../student/features/results/pages/StudentRoundLeaderboardPage';
-import StudentResultsIndexPage from '../student/features/results/pages/StudentResultsIndexPage';
-import StudentHackathonResultsPage from '../student/features/results/pages/StudentHackathonResultsPage';
 import MentorSupportPage from '../features/mentor/pages/MentorSupportPage';
 import MentorRoundsPage from '../features/mentor/pages/MentorRoundsPage';
 import StudentSubmissionPage from '../student/features/submission/pages/StudentSubmissionPage';
@@ -40,7 +36,6 @@ import PresentationQueuePage from '../features/presentation/pages/PresentationQu
 
 // THÊM IMPORT TRANG MỚI VÀO ĐÂY
 import ScoringLobbyPage from '../features/judging/pages/ScoringLobbyPage';
-import HackathonResultsPage from '../features/hackathon-results/pages/HackathonResultsPage';
 
 const TrackWrapper = () => {
   const { hackathonId } = useParams();
@@ -206,7 +201,6 @@ const AppRouter = () => {
       <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
       <Route path={ROUTES.GITHUB_CALLBACK} element={<GithubCallbackPage />} />
       <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePasswordPage />} />
-      <Route path={ROUTES.PUBLIC_ROUND_SCOREBOARD} element={<StudentRoundLeaderboardPage />} />
 
       {/* Protected Routes inside role-aware layout */}
       <Route element={<AppLayoutWrapper />}>
@@ -216,29 +210,9 @@ const AppRouter = () => {
             <StudentTeamPage />
           </ProtectedRoute>
         } />
-        <Route path={ROUTES.STUDENT_RESULTS} element={
-          <ProtectedRoute allowedRoles={['STUDENT']}>
-            <StudentResultsIndexPage />
-          </ProtectedRoute>
-        } />
-        <Route path={ROUTES.STUDENT_ROUND_RESULTS} element={
-          <ProtectedRoute allowedRoles={['STUDENT']}>
-            <StudentRoundLeaderboardPage source="student" />
-          </ProtectedRoute>
-        } />
-        <Route path="/student/hackathons/:hackathonId/results" element={
-          <ProtectedRoute allowedRoles={['STUDENT']}>
-            <StudentHackathonResultsPage />
-          </ProtectedRoute>
-        } />
         <Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
         <Route path={ROUTES.PROFILE} element={<OnboardingPage />} />
         <Route path={ROUTES.HACKATHONS} element={<HackathonListPage />} />
-        <Route path="/hackathons/:id/results" element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
-            <HackathonResultsPage />
-          </ProtectedRoute>
-        } />
         <Route path="/hackathons/:hackathonId" element={<HackathonDetailRedirect />} />
         <Route path={ROUTES.HACKATHON_CREATE} element={<CreateHackathonPage />} />
         <Route path={ROUTES.HACKATHON_SETUP} element={<HackathonSetupPage />} />
@@ -289,13 +263,6 @@ const AppRouter = () => {
           <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
             <div style={{ padding: 24 }}>
               <RoundRankingPreviewPage />
-            </div>
-          </ProtectedRoute>
-        } />
-        <Route path={ROUTES.ROUND_RESULTS} element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
-            <div style={{ padding: 24 }}>
-              <PreliminaryResultsPage />
             </div>
           </ProtectedRoute>
         } />
