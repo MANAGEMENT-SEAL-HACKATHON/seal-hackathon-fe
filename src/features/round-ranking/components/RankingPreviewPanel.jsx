@@ -65,7 +65,7 @@ const RankingPreviewPanel = ({
             showIcon
             message={<span style={{ fontWeight: 600 }}>Chưa có dữ liệu xếp hạng</span>}
             description="Bảng điểm hiện tại đang trống. Kết quả sẽ được cập nhật liên tục ngay khi các đội bắt đầu nộp bài và giám khảo tiến hành chấm điểm."
-            style={{ border: '1px solid #ffe58f', borderRadius: 8 }}
+            style={{ borderRadius: 8 }}
           />
         )}
 

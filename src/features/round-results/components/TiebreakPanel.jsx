@@ -13,12 +13,12 @@ const TiebreakPanel = ({ items, error }) => {
   if (error) return <Alert showIcon type="error" message="Không tải được dữ liệu tiebreak" description={error.message} />;
   if (!items.length) {
     return (
-      <Card style={{ borderRadius: 12, border: '1px dashed #d9d9d9' }}>
+      <Card style={{ borderRadius: 12 }}>
         <Empty 
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           description={
-            <div style={{ color: '#8c8c8c' }}>
-              <span style={{ fontWeight: 500, color: '#595959' }}>Không có đội đồng điểm tại ranh giới đi tiếp.</span>
+            <div>
+              <span style={{ fontWeight: 500 }}>Không có đội đồng điểm tại ranh giới đi tiếp.</span>
               <br />
               <span style={{ fontSize: 13 }}>Hệ thống đã kiểm tra và xác nhận danh sách các đội đi tiếp hoàn toàn hợp lệ, không cần phân xử thêm.</span>
             </div>
@@ -53,12 +53,12 @@ const TiebreakPanel = ({ items, error }) => {
           style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}
         >
           <Space direction="vertical" size={14} style={{ width: "100%" }}>
-            <Space wrap style={{ marginBottom: 4, padding: '10px 16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', width: '100%' }}>
+            <Space wrap style={{ marginBottom: 4, padding: '10px 16px', borderRadius: 8, width: '100%', background: 'var(--ant-color-bg-container-disabled)' }}>
               <Tag color="blue" bordered={false} style={{ fontWeight: 500 }}>{ruleLabels[item.rule] || item.rule}</Tag>
-              <Text type="secondary">Điểm ranh giới: <Text strong style={{ color: '#0f172a' }}>{item.cutoffScore.toFixed(2)}</Text></Text>
-              <Text type="secondary">Số suất còn lại: <Text strong style={{ color: '#0f172a' }}>{item.remainingSlots}</Text></Text>
+              <Text type="secondary">Điểm ranh giới: <Text strong>{item.cutoffScore.toFixed(2)}</Text></Text>
+              <Text type="secondary">Số suất còn lại: <Text strong>{item.remainingSlots}</Text></Text>
             </Space>
-            <Title level={5} style={{ margin: 0, fontSize: 15, color: '#334155' }}>Các đội đang đồng điểm</Title>
+            <Title level={5} style={{ margin: 0, fontSize: 15 }}>Các đội đang đồng điểm</Title>
             <Table
               rowKey="key"
               size="middle"
@@ -70,7 +70,7 @@ const TiebreakPanel = ({ items, error }) => {
                   dataIndex: "teamName",
                   render: (name, record) => (
                     <Space direction="vertical" size={2}>
-                      <Text strong style={{ fontSize: 14, color: '#1f2937' }}>{name}</Text>
+                      <Text strong style={{ fontSize: 14 }}>{name}</Text>
                       <Text type="secondary" style={{ fontSize: 12 }}>{record.groupLabel}</Text>
                     </Space>
                   )

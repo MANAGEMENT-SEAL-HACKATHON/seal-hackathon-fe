@@ -296,7 +296,10 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
             content: (
               <div>
                 <p>Vòng thi chưa đủ điều kiện để hoạt động. Vui lòng kiểm tra lại:</p>
-                <div style={{ padding: '8px', backgroundColor: '#fff2f0', border: '1px solid #ffccc7', borderRadius: '4px', color: '#ff4d4f' }}>
+                <div style={{ padding: '8px', backgroundColor: 'var(--ant-color-error-bg)', border: '1px solid var(--ant-color-error-border)', borderRadius: '4px', color: 'var(--ant-color-error)' }}>
+                  <Text strong type="danger" style={{ display: 'block', marginBottom: '8px' }}>
+                    <InfoCircleOutlined /> Lỗi: Tiến độ chia bảng / Giám khảo không hợp lệ
+                  </Text>
                   {actError.response?.data?.message || actError.response?.data?.error?.message || actError.message || 'Thiếu tiêu chí đánh giá hoặc chưa phân công giám khảo'}
                 </div>
                 <p style={{ marginTop: 8, fontSize: '13px' }}>Vòng thi đã được lưu thành công ở trạng thái "Ngưng hoạt động". Bạn hãy cấu hình đầy đủ tiêu chí trước khi bật kích hoạt nhé.</p>
@@ -388,7 +391,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
               >
                 Xếp hạng
               </Button>
-              <span style={{ color: '#8c8c8c', fontSize: 13 }}>Đã đóng sổ (Locked)</span>
+              <Text type="secondary" style={{ fontSize: 13 }}>Đã đóng sổ (Locked)</Text>
             </Space>
           );
         }
@@ -453,7 +456,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
 
             {/* BƯỚC 1: Nút Play Kích hoạt vòng thi */}
             <Tooltip title="Kích hoạt Vòng thi">
-              <Button type="text" style={{ color: '#10b981' }} icon={<PlayCircle size={16} />} onClick={() => handleActivateRound(record)} />
+              <Button type="text" style={{ color: 'var(--ant-color-success)' }} icon={<PlayCircle size={16} />} onClick={() => handleActivateRound(record)} />
             </Tooltip>
 
             <Tooltip title="Phân công Giám khảo">
@@ -574,13 +577,15 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                       );
                     })()}
                   </div>
-                  <div style={{ color: '#8c8c8c', marginBottom: 4 }}>
-                    Thi: {round.exam_at ? formatDate(round.exam_at) : '-'}
+                  <div style={{ marginBottom: 4 }}>
+                    <Text type="secondary">Thi: {round.exam_at ? formatDate(round.exam_at) : '-'}</Text>
                   </div>
-                  <div style={{ color: '#8c8c8c', marginBottom: 8 }}>
-                    Nộp bài: {round.submission_open ? formatDate(round.submission_open) : '-'}
-                    {' → '}
-                    {round.submission_deadline ? formatDate(round.submission_deadline) : '-'}
+                  <div style={{ marginBottom: 8 }}>
+                    <Text type="secondary">
+                      Nộp bài: {round.submission_open ? formatDate(round.submission_open) : '-'}
+                      {' → '}
+                      {round.submission_deadline ? formatDate(round.submission_deadline) : '-'}
+                    </Text>
                   </div>
                   <Space>
                     <Button
@@ -621,7 +626,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       {/* BƯỚC 8: Modal Nhập lý do khóa điểm */}
       {/* ========================================== */}
       <Modal
-        title={<span><Lock size={18} style={{ color: '#ef4444', marginRight: 8, verticalAlign: 'middle' }}/> Khóa chấm điểm Vòng thi</span>}
+        title={<span><Lock size={18} style={{ color: 'var(--ant-color-error)', marginRight: 8, verticalAlign: 'middle' }}/> Khóa chấm điểm Vòng thi</span>}
         open={isLockModalVisible}
         onOk={handleLockScoring}
         onCancel={() => setIsLockModalVisible(false)}

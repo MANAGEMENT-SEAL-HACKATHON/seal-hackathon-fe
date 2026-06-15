@@ -51,8 +51,9 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
     <Space direction="vertical" size={18} style={{ width: "100%" }}>
       <Card
         style={{
-          border: "1px solid #d6e4ff",
-          background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 70%)",
+          borderRadius: 16,
+          padding: "24px 32px",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>

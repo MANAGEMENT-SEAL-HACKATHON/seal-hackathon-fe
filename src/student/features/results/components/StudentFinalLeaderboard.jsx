@@ -30,14 +30,14 @@ const StudentFinalLeaderboard = ({ data, loading }) => {
             </div>
           );
         }
-        return <Text strong style={{ color: '#8c8c8c' }}>{rank}</Text>;
+        return <Text strong type="secondary">{rank}</Text>;
       }
     },
     {
       title: 'Đội thi',
       dataIndex: 'teamName',
       key: 'teamName',
-      render: (text) => <Text strong style={{ fontSize: 16, color: '#1f1f1f' }}>{text}</Text>,
+      render: (text) => <Text strong style={{ fontSize: 16 }}>{text}</Text>,
     },
     {
       title: 'Điểm tổng (Final)',
@@ -55,18 +55,18 @@ const StudentFinalLeaderboard = ({ data, loading }) => {
   return (
     <Card 
       style={{ 
-        background: '#fff', 
-        border: '1px solid #f0f0f0', 
+        background: 'var(--ant-color-bg-container)', 
+        border: '1px solid var(--ant-color-border-secondary)', 
         borderRadius: 16,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
+        boxShadow: 'var(--ant-box-shadow-tertiary)'
       }}
       bodyStyle={{ padding: 24 }}
     >
       <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ padding: 8, background: '#e6f4ff', borderRadius: 12, display: 'flex' }}>
-          <Medal size={20} color="#1677ff" />
+        <div style={{ padding: 8, background: 'var(--ant-color-primary-bg)', borderRadius: 12, display: 'flex' }}>
+          <Medal size={20} color="var(--ant-color-primary)" />
         </div>
-        <h3 style={{ margin: 0, color: '#1f1f1f', fontSize: 18 }}>Bảng xếp hạng Chung cuộc</h3>
+        <h3 style={{ margin: 0, fontSize: 18 }}>Bảng xếp hạng Chung cuộc</h3>
       </div>
 
       <Table 
@@ -78,9 +78,9 @@ const StudentFinalLeaderboard = ({ data, loading }) => {
         rowClassName={(record) => record.rank <= 3 ? 'top-tier-row' : ''}
       />
       <style>{`
-        .ant-table-thead > tr > th { background: #fafafa !important; color: #595959 !important; font-weight: 600 !important; }
-        .top-tier-row { background: linear-gradient(90deg, rgba(250, 173, 20, 0.05) 0%, rgba(255,255,255,0) 100%); }
-        .ant-table-tbody > tr > td { border-bottom: 1px solid #f0f0f0 !important; }
+        .ant-table-thead > tr > th { background: var(--ant-color-fill-alter) !important; color: var(--ant-color-text-secondary) !important; font-weight: 600 !important; }
+        .top-tier-row { background: linear-gradient(90deg, var(--ant-color-warning-bg) 0%, transparent 100%); }
+        .ant-table-tbody > tr > td { border-bottom: 1px solid var(--ant-color-border-secondary) !important; }
         .ant-table-cell::before { display: none !important; /* Xoá gạch dọc ở header */ }
       `}</style>
     </Card>

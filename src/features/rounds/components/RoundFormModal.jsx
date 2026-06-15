@@ -189,7 +189,7 @@ const RoundFormModal = ({
         <Form.Item
           name="name"
           label="Tên vòng thi"
-          extra={<span style={{ fontSize: 12, color: '#888' }}>Cần một vòng Sơ loại và một vòng Chung kết.</span>}
+          extra={<span style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>Cần một vòng Sơ loại và một vòng Chung kết.</span>}
           rules={[{ required: true, message: 'Vui lòng nhập tên vòng thi' }]}
         >
           <Input placeholder="Ví dụ: Vòng Sơ loại" />
@@ -268,7 +268,7 @@ const RoundFormModal = ({
                 <span>
                   Ngày giờ thi{' '}
                   <Tooltip title="Thời điểm thi đấu / trình bày — khác với hạn chót nộp bài">
-                    <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                    <InfoCircleOutlined style={{ color: 'var(--ant-color-text-secondary)' }} />
                   </Tooltip>
                 </span>
               }

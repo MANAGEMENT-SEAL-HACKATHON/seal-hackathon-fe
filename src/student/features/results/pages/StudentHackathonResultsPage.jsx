@@ -54,14 +54,14 @@ const StudentHackathonResultsPage = () => {
         type="text" 
         icon={<ArrowLeft size={16} />} 
         onClick={() => navigate('/student/results')}
-        style={{ color: '#595959', marginBottom: 16, padding: 0 }}
+        style={{ marginBottom: 16, padding: 0 }}
       >
         Quay lại tìm kiếm
       </Button>
 
       <div style={{ marginBottom: 32 }}>
-        <Title level={2} style={{ color: '#1f1f1f', margin: 0, fontWeight: 700 }}>Vinh danh Chung cuộc</Title>
-        <Text style={{ color: '#595959', fontSize: 16 }}>
+        <Title level={2} style={{ margin: 0, fontWeight: 700 }}>Vinh danh Chung cuộc</Title>
+        <Text type="secondary" style={{ fontSize: 16 }}>
           Hackathon ID: {hackathonId} — Bảng xếp hạng toàn đoàn và giải thưởng cá nhân xuất sắc.
         </Text>
       </div>
@@ -77,7 +77,7 @@ const StudentHackathonResultsPage = () => {
             showIcon
             message={<span style={{ fontWeight: 600, fontSize: 16 }}>Chưa có kết quả</span>}
             description={errorMsg}
-            style={{ padding: '20px 24px', borderRadius: 12, background: '#e6f4ff', border: '1px solid #91caff' }}
+            style={{ padding: '20px 24px', borderRadius: 12 }}
           />
         </div>
       ) : (

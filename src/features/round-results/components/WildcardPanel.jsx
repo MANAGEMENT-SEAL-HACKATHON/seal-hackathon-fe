@@ -40,8 +40,8 @@ const WildcardPanel = ({ wildcard, error, decidingReviewId, onDecide }) => {
         showIcon
         type={enabled ? "info" : "warning"}
         message={<Text strong>{enabled ? "Wild Card đang khả dụng" : "Chưa thể xét Wild Card"}</Text>}
-        description={<span style={{ color: '#475569' }}>Chức năng này cần được bật cấu hình Vé vớt ở cả cấp độ Hackathon và Vòng thi. Hệ thống sẽ tự động so sánh chéo điểm số giữa các bảng để đưa ra đề xuất.</span>}
-        style={{ borderRadius: 8, border: enabled ? '1px solid #bae0ff' : '1px solid #ffe58f', background: enabled ? '#e6f4ff' : '#fffbe6' }}
+        description={<Text type="secondary">Chức năng này cần được bật cấu hình Vé vớt ở cả cấp độ Hackathon và Vòng thi. Hệ thống sẽ tự động so sánh chéo điểm số giữa các bảng để đưa ra đề xuất.</Text>}
+        style={{ borderRadius: 8 }}
       />
 
       <Card 
@@ -58,8 +58,8 @@ const WildcardPanel = ({ wildcard, error, decidingReviewId, onDecide }) => {
               <Empty 
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
-                  <div style={{ color: '#8c8c8c' }}>
-                    <span style={{ fontWeight: 500, color: '#595959' }}>Chưa có danh sách đề xuất vé vớt</span>
+                  <div>
+                    <span style={{ fontWeight: 500 }}>Chưa có danh sách đề xuất vé vớt</span>
                     <br />
                     <span style={{ fontSize: 13 }}>Tính năng này có thể chưa được bật, hoặc hiện tại không có đội thi nào đáp ứng đủ điều kiện nhận vé vớt.</span>
                   </div>
@@ -82,8 +82,8 @@ const WildcardPanel = ({ wildcard, error, decidingReviewId, onDecide }) => {
               dataIndex: "teamName", 
               render: (value, item) => (
                 <Space direction="vertical" size={4}>
-                  <Text strong style={{ fontSize: 15, color: '#1f2937' }}>{value}</Text>
-                  <Tag bordered={false} style={{ margin: 0, background: '#f3f4f6', color: '#4b5563', fontSize: 12 }}>
+                  <Text strong style={{ fontSize: 15 }}>{value}</Text>
+                  <Tag bordered={false} style={{ margin: 0, fontSize: 12 }}>
                     {item.groupLabel}
                   </Tag>
                 </Space>

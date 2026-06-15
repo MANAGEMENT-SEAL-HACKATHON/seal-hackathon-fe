@@ -32,14 +32,13 @@ const OfficialRankingPanel = ({ ranking, isLoading, error }) => {
       align: "center",
       render: (rank) => {
         let color = undefined;
-        let bg = "transparent";
-        if (rank === 1) { color = "#d48806"; bg = "#fffbe6"; }
-        else if (rank === 2) { color = "#595959"; bg = "#f5f5f5"; }
-        else if (rank === 3) { color = "#ad6800"; bg = "#fff2e8"; }
+        let border = "none";
+        if (rank === 1) { color = "#d48806"; border = `1px solid ${color}40`; }
+        else if (rank === 2) { color = "#595959"; border = `1px solid ${color}40`; }
+        else if (rank === 3) { color = "#ad6800"; border = `1px solid ${color}40`; }
         
         return (
           <div style={{
-            background: bg,
             color: color,
             fontWeight: "bold",
             fontSize: 16,
@@ -50,7 +49,7 @@ const OfficialRankingPanel = ({ ranking, isLoading, error }) => {
             justifyContent: "center",
             borderRadius: "50%",
             margin: "0 auto",
-            border: rank <= 3 ? `1px solid ${color}40` : "none"
+            border: border
           }}>
             {rank}
           </div>
@@ -62,8 +61,8 @@ const OfficialRankingPanel = ({ ranking, isLoading, error }) => {
       dataIndex: "teamName",
       render: (name, item) => (
         <Space direction="vertical" size={4}>
-          <Text strong style={{ fontSize: 15, color: '#1f2937' }}>{name}</Text>
-          <Tag bordered={false} style={{ margin: 0, background: '#f3f4f6', color: '#4b5563', fontSize: 12 }}>
+          <Text strong style={{ fontSize: 15 }}>{name}</Text>
+          <Tag bordered={false} style={{ margin: 0, fontSize: 12 }}>
             {item.groupLabel}
           </Tag>
         </Space>
@@ -74,14 +73,12 @@ const OfficialRankingPanel = ({ ranking, isLoading, error }) => {
       dataIndex: "weightedAvgScore",
       align: "right",
       render: (value) => (
-        <span style={{ 
+        <Text strong style={{ 
           fontSize: 18, 
-          fontWeight: 700, 
-          color: '#2563eb',
           fontFamily: 'monospace'
         }}>
           {score(value)}
-        </span>
+        </Text>
       ),
     },
     {
@@ -94,7 +91,7 @@ const OfficialRankingPanel = ({ ranking, isLoading, error }) => {
             Được đề xuất đi tiếp
           </Tag>
         ) : (
-          <Tag style={{ color: '#6b7280', background: '#f9fafb', borderColor: '#e5e7eb', padding: '4px 12px', borderRadius: 4 }}>
+          <Tag style={{ padding: '4px 12px', borderRadius: 4 }}>
             Chờ chốt danh sách
           </Tag>
         ),
@@ -125,7 +122,6 @@ const OfficialRankingPanel = ({ ranking, isLoading, error }) => {
             </Tag>
           </Space>
         }
-        styles={{ header: { borderBottom: '1px solid #f0f0f0', padding: '16px 24px' }, body: { padding: '16px 24px' } }}
         style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}
       >
         <Table
