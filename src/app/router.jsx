@@ -28,6 +28,9 @@ import JudgeDashboardPage from '../features/judging/pages/JudgeDashboardPage';
 import LiveScoringPage from '../features/judging/pages/LiveScoringPage';
 import JudgeCriteriaViewPage from '../features/judging/pages/JudgeCriteriaViewPage';
 import RoundRankingPreviewPage from '../features/round-ranking/pages/RoundRankingPreviewPage';
+import PreliminaryResultsPage from '../features/round-results/pages/PreliminaryResultsPage';
+import StudentRoundLeaderboardPage from '../student/features/results/pages/StudentRoundLeaderboardPage';
+import StudentResultsIndexPage from '../student/features/results/pages/StudentResultsIndexPage';
 import MentorSupportPage from '../features/mentor/pages/MentorSupportPage';
 import MentorRoundsPage from '../features/mentor/pages/MentorRoundsPage';
 import StudentSubmissionPage from '../student/features/submission/pages/StudentSubmissionPage';
@@ -198,6 +201,7 @@ const AppRouter = () => {
       <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
       <Route path={ROUTES.GITHUB_CALLBACK} element={<GithubCallbackPage />} />
       <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePasswordPage />} />
+      <Route path={ROUTES.PUBLIC_ROUND_SCOREBOARD} element={<StudentRoundLeaderboardPage />} />
 
       {/* Protected Routes inside role-aware layout */}
       <Route element={<AppLayoutWrapper />}>
@@ -205,6 +209,16 @@ const AppRouter = () => {
         <Route path={ROUTES.STUDENT_TEAM} element={
           <ProtectedRoute allowedRoles={['STUDENT']}>
             <StudentTeamPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.STUDENT_RESULTS} element={
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <StudentResultsIndexPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.STUDENT_ROUND_RESULTS} element={
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <StudentRoundLeaderboardPage source="student" />
           </ProtectedRoute>
         } />
         <Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
@@ -250,6 +264,13 @@ const AppRouter = () => {
           <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
             <div style={{ padding: 24 }}>
               <RoundRankingPreviewPage />
+            </div>
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.ROUND_RESULTS} element={
+          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+            <div style={{ padding: 24 }}>
+              <PreliminaryResultsPage />
             </div>
           </ProtectedRoute>
         } />

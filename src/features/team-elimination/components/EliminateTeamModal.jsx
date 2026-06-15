@@ -17,7 +17,7 @@ const EliminateTeamModal = ({ open, team, confirmLoading, onCancel, onConfirm })
 
   return (
     <Modal
-      title="Loại đội khỏi vòng sơ loại?"
+      title="Loại đội do vi phạm?"
       open={open}
       okText="Xác nhận loại đội"
       okButtonProps={{ danger: true }}
@@ -28,8 +28,8 @@ const EliminateTeamModal = ({ open, team, confirmLoading, onCancel, onConfirm })
       destroyOnHidden
     >
       <Text>
-        Đội <Text strong>{team?.teamName}</Text> sẽ chuyển sang trạng thái ELIMINATED.
-        Vui lòng nhập lý do vi phạm để tiếp tục.
+        Đội <Text strong>{team?.teamName}</Text> sẽ chuyển sang trạng thái ELIMINATED và không
+        tiếp tục tham gia vòng sơ loại. Thao tác này chỉ dùng cho trường hợp vi phạm quy chế.
       </Text>
 
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}>

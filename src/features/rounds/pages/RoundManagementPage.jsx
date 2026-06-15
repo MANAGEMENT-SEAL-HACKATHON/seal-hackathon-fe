@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal, Alert } from 'antd';
-import { Plus, Edit, Trash2, Calendar, List, BarChart3 } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, List, BarChart3, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import RoundFormModal from '../components/RoundFormModal';
 import { roundService } from '../services/roundService';
@@ -85,6 +85,10 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
 
   const handleViewRanking = (roundId) => {
     navigate(`/hackathons/${hackathonId}/rounds/${roundId}/ranking-preview`);
+  };
+
+  const handleViewResults = (roundId) => {
+    navigate(`/hackathons/${hackathonId}/rounds/${roundId}/results`);
   };
 
   const handleDelete = async (id) => {
@@ -328,6 +332,15 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
             >
               Xếp hạng tạm
             </Button>
+            {!record.is_final && (
+              <Button
+                type="link"
+                icon={<Trophy size={16} />}
+                onClick={() => handleViewResults(record.id)}
+              >
+                Kết quả chính thức
+              </Button>
+            )}
             {!record.is_active && (
               <>
                 <Button
@@ -442,6 +455,16 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                     >
                       Xếp hạng tạm
                     </Button>
+                    {!round.is_final && (
+                      <Button
+                        size="small"
+                        type="link"
+                        icon={<Trophy size={14} />}
+                        onClick={() => handleViewResults(round.id)}
+                      >
+                        Kết quả chính thức
+                      </Button>
+                    )}
                     {!round.is_active && (
                       <Button size="small" icon={<Edit size={14} />} onClick={() => handleEdit(round)}>Sửa</Button>
                     )}

@@ -23,7 +23,7 @@ const RankingRealtimeToolbar = ({ isRefreshing, lastUpdatedAt, onRefresh }) => {
         style={{ alignItems: "center", display: "inline-flex", gap: 6, margin: 0, background: token.colorSuccessBgHover, border: "none" }}
       >
         <RadioTower size={14} />
-        Live Polling
+        Tự động cập nhật mỗi 30 giây
       </Tag>
       <Text style={{ color: token.colorTextSecondary }}>
         Cập nhật: {lastUpdatedAt ? dayjs(lastUpdatedAt).format("HH:mm:ss") : "--:--:--"}

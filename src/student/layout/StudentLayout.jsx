@@ -8,7 +8,7 @@ import {
   MoonOutlined,
   SunOutlined,
 } from '@ant-design/icons';
-import { CalendarDays, FileCheck2, LayoutDashboard, Mail, Trophy, UsersRound } from 'lucide-react';
+import { BarChart3, CalendarDays, FileCheck2, LayoutDashboard, Trophy, UsersRound } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../shared/constants/routes';
 import { useAppContext } from '../../app/AppContext';
@@ -66,7 +66,11 @@ const StudentLayout = ({ children }) => {
         label: 'Nộp bài thi',
         disabled: currentUser.status !== 'APPROVED',
       },
-
+      {
+        key: ROUTES.STUDENT_RESULTS,
+        icon: <BarChart3 size={18} />,
+        label: 'Kết quả thi đấu',
+      },
       {
         key: 'student-schedule',
         icon: <CalendarDays size={18} />,
@@ -91,6 +95,7 @@ const StudentLayout = ({ children }) => {
       key === ROUTES.DASHBOARD ||
       key === ROUTES.STUDENT_TEAM ||
       key === ROUTES.STUDENT_SUBMIT ||
+      key === ROUTES.STUDENT_RESULTS ||
       key === ROUTES.PROFILE
     ) {
       navigate(key);
@@ -104,6 +109,7 @@ const StudentLayout = ({ children }) => {
         await authService.logout(refreshToken);
       }
     } catch {
+      // Local session cleanup below still runs if logout API is unavailable.
     } finally {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
