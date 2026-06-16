@@ -314,6 +314,7 @@ const AppRouter = () => {
             <StudentSubmissionPage />
           </ProtectedRoute>
         } />
+        {/* 
         <Route path={ROUTES.COORDINATOR_LATE_SUBMISSIONS} element={
           <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
             <LateSubmissionReviewPage />
@@ -322,6 +323,7 @@ const AppRouter = () => {
         <Route path={ROUTES.PRESENTATION_QUEUE} element={
           <PresentationQueuePage />
         } />
+        */}
       </Route>
 
       {/* Fallback */}
