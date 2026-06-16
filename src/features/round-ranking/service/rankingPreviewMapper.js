@@ -7,14 +7,34 @@ const toNumber = (value, fallback = 0) => {
 
 const normalizeStatus = (status) => String(status || DEFAULT_STATUS).toUpperCase();
 
-const getScoreValue = (item = {}) =>
-  toNumber(item.weightedAvgScore ?? item.weighted_avg_score ?? item.totalScore, 0);
+const getScoreValue = (item = {}) => {
+  const rawScore = item.weightedAvgScore ?? item.weighted_avg_score ?? item.totalScore;
+  return rawScore === undefined || rawScore === null ? null : toNumber(rawScore, null);
+};
+
+const getScoringProgress = (item = {}) => {
+  const scoredCriteria = toNumber(
+    item.scoredCriteria ?? item.scored_criteria ?? item.completedCriteria ?? item.completed_criteria,
+    0
+  );
+  const totalCriteria = toNumber(item.totalCriteria ?? item.total_criteria, 0);
+  const explicitlyIncomplete = Boolean(
+    item.incompleteScoring ?? item.incomplete_scoring ?? item.scoringIncomplete ?? item.scoring_incomplete
+  );
+
+  return {
+    scoredCriteria,
+    totalCriteria,
+    isScoringIncomplete: explicitlyIncomplete || (totalCriteria > 0 && scoredCriteria < totalCriteria),
+  };
+};
 
 const getGroupInfo = (item = {}) => {
   const assignedGroup = item.assignedGroup ?? item.assigned_group;
 
   if (assignedGroup !== undefined && assignedGroup !== null && `${assignedGroup}`.trim()) {
-    const groupName = `${assignedGroup}`.trim();
+    const rawGroupName = `${assignedGroup}`.trim();
+    const groupName = rawGroupName.replace(/^(bảng|group|nhóm)\s+/i, "").trim() || rawGroupName;
     return {
       key: groupName,
       label: `Bảng ${groupName}`,
@@ -41,7 +61,8 @@ const getGroupInfo = (item = {}) => {
 export const mapRankingPreviewItem = (item = {}) => {
   const group = getGroupInfo(item);
   const weightedAvgScore = getScoreValue(item);
-  const status = normalizeStatus(item.status ?? item.teamStatus ?? item.team_status);
+  const scoringProgress = getScoringProgress(item);
+  const status = normalizeStatus(item.participationStatus ?? item.participation_status ?? item.status ?? item.teamStatus ?? item.team_status);
 
   return {
     rank: toNumber(item.rank, 0),
@@ -50,9 +71,11 @@ export const mapRankingPreviewItem = (item = {}) => {
     trackId: item.trackId ?? item.track_id ?? null,
     assignedGroup: item.assignedGroup ?? item.assigned_group ?? null,
     weightedAvgScore,
-    scoreLabel: weightedAvgScore.toFixed(2),
+    hasScore: weightedAvgScore !== null,
+    scoreLabel: weightedAvgScore === null ? "Chưa có điểm" : weightedAvgScore.toFixed(2),
     totalScore: weightedAvgScore,
     tiebreakRequired: Boolean(item.tiebreakRequired ?? item.tiebreak_required),
+    ...scoringProgress,
     status,
     isEliminated: status === "ELIMINATED",
     groupKey: group.key,
@@ -86,7 +109,7 @@ export const groupRankingItems = (items = []) => {
       ...group,
       items: group.items
         .slice()
-        .sort((a, b) => a.rank - b.rank || b.weightedAvgScore - a.weightedAvgScore),
+        .sort((a, b) => a.rank - b.rank || (b.weightedAvgScore ?? -1) - (a.weightedAvgScore ?? -1)),
     }))
     .sort((a, b) => a.sortValue.localeCompare(b.sortValue, "vi"));
 };
@@ -100,5 +123,6 @@ export const getRankingSummary = (items = [], groups = []) => {
     eliminatedTeams,
     groupCount: groups.length,
     tiebreakCount: items.filter((item) => item.tiebreakRequired).length,
+    incompleteTeams: items.filter((item) => item.isScoringIncomplete || !item.hasScore).length,
   };
 };

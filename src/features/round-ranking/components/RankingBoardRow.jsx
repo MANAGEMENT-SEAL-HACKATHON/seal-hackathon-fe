@@ -1,4 +1,4 @@
-import { Button, Tag, Tooltip, Typography, theme } from "antd";
+import { Button, Space, Tag, Tooltip, Typography, theme } from "antd";
 import { motion } from "framer-motion";
 import { Ban } from "lucide-react";
 import RankingMovementTag from "./RankingMovementTag";
@@ -37,7 +37,7 @@ const RankingBoardRow = ({
         boxShadow: token.boxShadowTertiary,
         display: "grid",
         gap: 14,
-        gridTemplateColumns: "76px minmax(220px, 1.6fr) 116px 120px 150px 132px 56px",
+        gridTemplateColumns: "64px minmax(180px, 1.6fr) 110px minmax(140px, 0.9fr) minmax(150px, 1fr) 104px",
         minHeight: 70,
         padding: "10px 14px",
       }}
@@ -53,30 +53,38 @@ const RankingBoardRow = ({
         {item.teamName}
       </Text>
 
-      <Tag color="blue" style={{ justifySelf: "start", margin: 0 }}>
-        {item.groupLabel}
-      </Tag>
-
-      <Text strong style={{ fontSize: 18, textAlign: "right" }}>
-        {item.scoreLabel}
-      </Text>
+      <div style={{ textAlign: "right" }}>
+        <Text strong={item.hasScore} type={item.hasScore ? undefined : "secondary"} style={{ display: "block", fontSize: item.hasScore ? 18 : 13 }}>
+          {item.scoreLabel}
+        </Text>
+        {item.totalCriteria > 0 && (
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {item.scoredCriteria}/{item.totalCriteria} tiêu chí
+          </Text>
+        )}
+      </div>
 
       <RankingMovementTag movement={movement} />
 
-      <div>
-        {item.tiebreakRequired && <Tag color="gold">Tiebreak</Tag>}
+      <Space size={[4, 4]} wrap>
+        {item.isScoringIncomplete && <Tag color="orange">Chưa chấm đủ</Tag>}
+        {item.tiebreakRequired && <Tag color="gold">Nguy cơ đồng điểm</Tag>}
         {item.isEliminated && <Tag color="red">ELIMINATED</Tag>}
-        {!item.tiebreakRequired && !item.isEliminated && <Text type="secondary">-</Text>}
-      </div>
+        {!item.isScoringIncomplete && !item.tiebreakRequired && !item.isEliminated && <Text type="secondary">-</Text>}
+      </Space>
 
       <Tooltip title={item.isEliminated ? "Đội đã bị loại" : "Loại đội vi phạm"}>
         <Button
+          type="text"
           danger
-          icon={<Ban size={16} />}
+          size="small"
+          icon={<Ban size={14} />}
           disabled={!canEliminate || item.isEliminated}
           loading={eliminatingTeamId === item.teamId}
           onClick={() => onEliminate(item)}
-        />
+        >
+          Loại đội
+        </Button>
       </Tooltip>
     </motion.div>
   );

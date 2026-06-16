@@ -6,6 +6,9 @@ import axiosClient from '../../../../shared/api/axiosClient';
 import { ENDPOINTS } from '../../../../shared/api/endpoints';
 import { mapStudentTeam } from '../mapper/studentTeam.mapper';
 
+const MY_TEAMS_ENDPOINT = '/api/v1/me/teams';
+const getTeamInvitesEndpoint = (teamId) => `/api/v1/teams/${teamId}/invites`;
+
 const unwrapList = (res) => {
   if (Array.isArray(res)) return res;
   if (Array.isArray(res?.data)) return res.data;
@@ -23,10 +26,24 @@ export const studentTeamService = {
     return items.length > 0 ? items[0] : null;
   },
 
-  getMyTeams: async ({ hackathonId, status } = {}) => {
-    const params = { hackathonId, status };
-    const res = await axiosClient.get(ENDPOINTS.TEAMS.BASE, { params });
-    return unwrapList(res).map(mapStudentTeam).filter(Boolean);
+  getMyTeams: async () => {
+    const res = await axiosClient.get(MY_TEAMS_ENDPOINT);
+    const teamSummaries = unwrapList(res);
+
+    const teams = await Promise.all(
+      teamSummaries.map(async (summary) => {
+        const teamId = summary.teamId ?? summary.id;
+
+        try {
+          const detail = await axiosClient.get(ENDPOINTS.TEAMS.DETAIL(teamId));
+          return mapStudentTeam({ ...unwrapItem(detail), ...summary });
+        } catch {
+          return mapStudentTeam(summary);
+        }
+      })
+    );
+
+    return teams.filter(Boolean);
   },
 
   getTeamDetail: async (teamId) => {
@@ -35,12 +52,12 @@ export const studentTeamService = {
   },
 
   createTeam: async ({ hackathonId, teamName }) => {
-    const res = await axiosClient.post(ENDPOINTS.TEAMS.BASE, { hackathonId, teamName });
+    const res = await axiosClient.post(MY_TEAMS_ENDPOINT, { hackathonId, teamName });
     return mapStudentTeam(unwrapItem(res));
   },
 
   inviteMember: async (teamId, email) => {
-    return axiosClient.post(ENDPOINTS.TEAMS.INVITE_MEMBER(teamId), { email });
+    return axiosClient.post(getTeamInvitesEndpoint(teamId), { email });
   },
 
   cancelPendingInvite: async (teamId, userId) => {

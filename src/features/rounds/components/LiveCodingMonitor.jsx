@@ -82,7 +82,7 @@ const LiveCodingMonitor = ({ activeRound }) => {
     switch (status) {
       case 'WAITING':
         return (
-          <span style={{ ...base, background: '#e6f4ff', color: '#0958d9', border: '1px solid #91caff' }}>
+          <span style={{ ...base, background: 'var(--ant-color-info-bg)', color: 'var(--ant-color-info-text)', border: '1px solid var(--ant-color-info-border)' }}>
             <PlayCircle size={12} />
             {/* Hiện đếm ngược thực đến khi bắt đầu */}
             Bắt đầu sau {chipCountdown}
@@ -90,10 +90,10 @@ const LiveCodingMonitor = ({ activeRound }) => {
         );
       case 'ONGOING':
         return (
-          <span style={{ ...base, background: '#e6f4ff', color: '#0958d9', border: '1px solid #91caff' }}>
+          <span style={{ ...base, background: 'var(--ant-color-info-bg)', color: 'var(--ant-color-info-text)', border: '1px solid var(--ant-color-info-border)' }}>
             <span style={{
               width: 7, height: 7, borderRadius: '50%',
-              background: '#1677ff', flexShrink: 0,
+              background: 'var(--ant-color-primary)', flexShrink: 0,
               animation: 'livePulse 2s infinite',
             }} />
             Đang thi — {hours} tiếng
@@ -101,7 +101,7 @@ const LiveCodingMonitor = ({ activeRound }) => {
         );
       case 'ENDED':
         return (
-          <span style={{ ...base, background: '#fff2f0', color: '#cf1322', border: '1px solid #ffccc7' }}>
+          <span style={{ ...base, background: 'var(--ant-color-error-bg)', color: 'var(--ant-color-error-text)', border: '1px solid var(--ant-color-error-border)' }}>
             <Flag size={12} />
             Đã kết thúc
           </span>
@@ -118,9 +118,9 @@ const LiveCodingMonitor = ({ activeRound }) => {
   }[status];
 
   const boxStyle = {
-    WAITING: { bg: '#e6f4ff', border: '#91caff', labelColor: '#0958d9', digitColor: '#1677ff', sepColor: '#91caff' },
-    ONGOING: { bg: '#e6f4ff', border: '#91caff', labelColor: '#0958d9', digitColor: '#1677ff', sepColor: '#91caff' },
-    ENDED:   { bg: '#fff2f0', border: '#ffccc7', labelColor: '#cf1322', digitColor: '#ff4d4f', sepColor: '#ffccc7' },
+    WAITING: { bg: 'var(--ant-color-info-bg)', border: 'var(--ant-color-info-border)', labelColor: 'var(--ant-color-info-text)', digitColor: 'var(--ant-color-primary)', sepColor: 'var(--ant-color-info-border)' },
+    ONGOING: { bg: 'var(--ant-color-info-bg)', border: 'var(--ant-color-info-border)', labelColor: 'var(--ant-color-info-text)', digitColor: 'var(--ant-color-primary)', sepColor: 'var(--ant-color-info-border)' },
+    ENDED:   { bg: 'var(--ant-color-error-bg)', border: 'var(--ant-color-error-border)', labelColor: 'var(--ant-color-error-text)', digitColor: 'var(--ant-color-error)', sepColor: 'var(--ant-color-error-border)' },
   }[status];
 
   if (!activeRound) return null;
@@ -138,19 +138,19 @@ const LiveCodingMonitor = ({ activeRound }) => {
         style={{
           marginBottom: 24,
           borderRadius: 16,
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          background: 'var(--ant-color-bg-container)',
+          border: '1px solid var(--ant-color-border-secondary)',
+          boxShadow: 'var(--ant-box-shadow-tertiary)',
           overflow: 'hidden',
         }}
         styles={{ body: { padding: 0 } }}
       >
         {/* Progress bar xanh trên cùng */}
-        <div style={{ height: 3, background: '#e6f4ff' }}>
+        <div style={{ height: 3, background: 'var(--ant-color-primary-bg)' }}>
           <div style={{
             height: '100%',
             width: `${progress}%`,
-            background: '#1677ff',
+            background: 'var(--ant-color-primary)',
             borderRadius: '0 2px 2px 0',
             transition: 'width 1s linear',
           }} />
@@ -169,39 +169,38 @@ const LiveCodingMonitor = ({ activeRound }) => {
             {renderStatusChip()}
 
             <div style={{
-              fontSize: 10, color: '#1677ff', fontWeight: 700,
+              fontSize: 10, color: 'var(--ant-color-primary)', fontWeight: 700,
               letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 5,
             }}>
               Màn hình phát đề bài (Live Coding)
             </div>
 
             <Title
-              level={3}
-              style={{ margin: '0 0 20px 0', color: '#1f2937', fontWeight: 800, lineHeight: 1.2 }}
+              style={{ margin: '0 0 20px 0', fontWeight: 800, lineHeight: 1.2 }}
             >
               {activeRound.name}
             </Title>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <Text style={{
-                  fontSize: 10, color: '#6b7280', fontWeight: 700,
+                <Text type="secondary" style={{
+                  fontSize: 10, fontWeight: 700,
                   letterSpacing: 1, textTransform: 'uppercase', display: 'block', marginBottom: 2,
                 }}>
                   Bắt đầu
                 </Text>
-                <Text strong style={{ fontSize: 13, color: '#374151' }}>
+                <Text strong style={{ fontSize: 13 }}>
                   {dayjs(activeRound.exam_at).format('HH:mm · DD/MM/YYYY')}
                 </Text>
               </div>
               <div>
-                <Text style={{
-                  fontSize: 10, color: '#6b7280', fontWeight: 700,
+                <Text type="secondary" style={{
+                  fontSize: 10, fontWeight: 700,
                   letterSpacing: 1, textTransform: 'uppercase', display: 'block', marginBottom: 2,
                 }}>
                   Hạn nộp bài
                 </Text>
-                <Text strong style={{ fontSize: 13, color: '#374151' }}>
+                <Text strong style={{ fontSize: 13 }}>
                   {dayjs(activeRound.submission_deadline).format('HH:mm · DD/MM/YYYY')}
                 </Text>
               </div>
@@ -209,7 +208,7 @@ const LiveCodingMonitor = ({ activeRound }) => {
           </div>
 
           {/* === DIVIDER DỌC === */}
-          <div style={{ height: 110, background: '#e2e8f0', margin: '0 32px' }} />
+          <div style={{ height: 110, background: 'var(--ant-color-border-secondary)', margin: '0 32px' }} />
 
           {/* === CỘT PHẢI 2/3: Countdown có nền xanh === */}
           <div style={{

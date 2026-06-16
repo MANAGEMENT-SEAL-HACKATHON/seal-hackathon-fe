@@ -4,7 +4,7 @@ import RankingBoardRow from "./RankingBoardRow";
 
 const { Text } = Typography;
 
-const columns = ["Rank", "Đội", "Bảng", "Điểm", "Biến động", "Cảnh báo", ""];
+const columns = ["Hạng", "Đội", "Điểm tạm", "Biến động", "Cảnh báo", "Thao tác"];
 
 const RankingTable = ({
   items,
@@ -13,6 +13,7 @@ const RankingTable = ({
   canEliminate = true,
   eliminatingTeamId,
   onEliminate,
+  showGroupDividers = false,
 }) => {
   const { token } = theme.useToken();
 
@@ -38,14 +39,14 @@ const RankingTable = ({
         padding: 12,
       }}
     >
-      <div style={{ minWidth: 920 }}>
+      <div>
         <div
           style={{
             alignItems: "center",
             background: token.colorFillQuaternary,
             display: "grid",
             gap: 14,
-            gridTemplateColumns: "76px minmax(220px, 1.6fr) 116px 120px 150px 132px 56px",
+            gridTemplateColumns: "64px minmax(180px, 1.6fr) 110px minmax(140px, 0.9fr) minmax(150px, 1fr) 104px",
             marginBottom: 10,
             padding: "10px 14px",
             borderRadius: token.borderRadius,
@@ -59,7 +60,7 @@ const RankingTable = ({
                 color: token.colorTextSecondary,
                 fontSize: 12,
                 letterSpacing: 0,
-                textAlign: index === 3 ? "right" : "left",
+                textAlign: index === 2 ? "right" : "left",
                 textTransform: "uppercase",
               }}
             >
@@ -70,16 +71,27 @@ const RankingTable = ({
 
         <motion.div layout style={{ display: "grid", gap: 12 }}>
           <AnimatePresence initial={false}>
-            {items.map((item) => (
-              <RankingBoardRow
-                key={item.teamId}
-                item={item}
-                movement={movements[String(item.teamId)]}
-                canEliminate={canEliminate}
-                eliminatingTeamId={eliminatingTeamId}
-                onEliminate={onEliminate}
-              />
-            ))}
+            {items.map((item, index) => {
+              const showDivider =
+                showGroupDividers && (index === 0 || items[index - 1]?.groupKey !== item.groupKey);
+
+              return (
+                <div key={item.teamId}>
+                  {showDivider && (
+                    <Text strong style={{ display: "block", margin: "8px 2px 10px", color: token.colorPrimary }}>
+                      {item.groupLabel} · xếp hạng độc lập
+                    </Text>
+                  )}
+                  <RankingBoardRow
+                    item={item}
+                    movement={movements[String(item.teamId)]}
+                    canEliminate={canEliminate}
+                    eliminatingTeamId={eliminatingTeamId}
+                    onEliminate={onEliminate}
+                  />
+                </div>
+              );
+            })}
           </AnimatePresence>
         </motion.div>
       </div>

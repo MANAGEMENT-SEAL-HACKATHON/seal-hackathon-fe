@@ -52,16 +52,12 @@ export const useStudentTeam = () => {
         }
       }
 
-      if (!currentHackathonId) {
-        setTeams([]);
-        setSelectedTeamId(null);
-        setIsLoading(false);
-        return;
-      }
-
-      const rawData = await studentTeamService.getMyTeams({ hackathonId: currentHackathonId });
+      const rawData = await studentTeamService.getMyTeams();
       const data = rawData.filter(
-        team => team.currentMember?.isAccepted && team.status !== 'REJECTED' && team.status !== 'ELIMINATED'
+        team =>
+          (!team.currentMember || team.currentMember.isAccepted) &&
+          team.status !== 'REJECTED' &&
+          team.status !== 'ELIMINATED'
       );
       setTeams(data);
       setSelectedTeamId((currentId) =>
@@ -91,7 +87,7 @@ export const useStudentTeam = () => {
       const detail = await studentTeamService.getTeamDetail(teamId);
       replaceTeam(detail);
       return detail;
-    } catch (error) {
+    } catch {
       return null;
     }
   };

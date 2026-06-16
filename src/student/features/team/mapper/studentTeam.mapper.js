@@ -49,6 +49,7 @@ export const mapStudentTeamMember = (member) => {
 export const mapStudentTeam = (team) => {
   if (!team) return null;
 
+  const teamId = team.teamId ?? team.id;
   const currentStudentId = getCurrentStudentId();
   const members = Array.isArray(team.members) ? team.members.map(mapStudentTeamMember).filter(Boolean) : [];
   const acceptedMemberCount = team.acceptedMemberCount ?? members.filter((member) => member.isAccepted).length;
@@ -68,11 +69,15 @@ export const mapStudentTeam = (team) => {
   );
 
   return {
-    key: team.id,
-    id: team.id,
+    key: teamId,
+    id: teamId,
     hackathonId: team.hackathonId,
     hackathonName: team.hackathonName || 'Hackathon',
     teamName: team.teamName || 'N/A',
+    trackId: team.trackId ?? null,
+    trackName: team.trackName ?? null,
+    assignedGroup: team.assignedGroup ?? null,
+    lotteryStatus: team.lotteryStatus ?? null,
     leaderId: team.leaderId,
     leaderName: team.leaderName || 'N/A',
     chapterId: team.chapterId,
@@ -100,6 +105,7 @@ export const mapStudentTeam = (team) => {
     canDisband:
       isCurrentUserLeader &&
       [TEAM_STATUS.PENDING, TEAM_STATUS.ACTIVE].includes(team.status) &&
+      !team.isLocked &&
       !hasMentor,
     isCurrentUserLeader,
     currentMember,
