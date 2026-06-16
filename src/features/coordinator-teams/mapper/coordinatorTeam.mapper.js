@@ -12,6 +12,13 @@ export const mapTeamForCoordinator = (team) => {
 
   const acceptedMemberCount = team.acceptedMemberCount || 0;
   const pendingInviteCount = team.pendingInviteCount || 0;
+  const hasMentor = Boolean(
+    team.hasMentor ||
+      team.hasMentorAssignment ||
+      team.mentorAssigned ||
+      team.mentorCount > 0 ||
+      team.mentorAssignedCount > 0
+  );
 
   return {
     key: team.id,
@@ -28,6 +35,7 @@ export const mapTeamForCoordinator = (team) => {
     memberStats: `${acceptedMemberCount}/5`,
     isInvalidMemberCount: acceptedMemberCount < 3 || acceptedMemberCount > 5,
     hasPendingInvites: pendingInviteCount > 0,
+    hasMentor,
 
     status: team.status,
     statusLabel: TEAM_STATUS_LABELS[team.status] || team.status || 'N/A',

@@ -24,5 +24,11 @@ export const trackService = {
   
   delete: async (id) => {
     return axiosClient.delete(ENDPOINTS.TRACKS.DETAIL(id));
+  },  
+
+  // Dành riêng cho việc gán Topic bằng PATCH
+  updateTopic: async (id, topicStr) => {
+    // API: PATCH /api/v1/tracks/{id} Body: { "topic": "..." }
+    return axiosClient.patch(ENDPOINTS.TRACKS.DETAIL(id), { topic: topicStr });
   }
 };

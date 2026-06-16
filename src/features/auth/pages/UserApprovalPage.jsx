@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Table, Tag, Button, Modal, Form, Input, Select, Space, Card,
-  Typography, Tooltip, Badge, Alert, Empty, message
+  Typography, Tooltip, Badge, Alert, Empty, message, Spin
 } from 'antd';
 import {
   CheckCircleOutlined, CloseCircleOutlined, SyncOutlined,
@@ -22,23 +22,144 @@ const CHAPTERS = {
   4: 'FPT Cần Thơ',
 };
 
+const StudentCardImage = ({ userId }) => {
+  const [loading, setLoading] = useState(false);
+  const [hasCard, setHasCard] = useState(false);
+  const [cloudinaryFailed, setCloudinaryFailed] = useState(false);
+
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'drrd1a7jd';
+  const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/student-cards/student-card-${userId}`;
+  const fallbackUrl = `/api/v1/users/${userId}/student-card`;
+
+  useEffect(() => {
+    let active = true;
+    const loadDetail = async () => {
+      setLoading(true);
+      try {
+        const detail = await userService.getUserDetail(userId);
+        if (active) {
+          const path = detail?.studentCardImagePath;
+          setHasCard(Boolean(path));
+          // If path is already a Cloudinary URL, reset failure state
+          if (path?.startsWith('http')) {
+            setCloudinaryFailed(false);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load student card path:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    loadDetail();
+    return () => { active = false; };
+  }, [userId]);
+
+  if (loading) return <Spin size="small" />;
+  if (!hasCard) return <Text type="secondary">Chưa upload</Text>;
+
+  // Use fallback BE endpoint if Cloudinary failed
+  const displayUrl = cloudinaryFailed ? fallbackUrl : cloudinaryUrl;
+
+  return (
+    <a href={cloudinaryFailed ? fallbackUrl : cloudinaryUrl} target="_blank" rel="noreferrer">
+      <img
+        src={displayUrl}
+        alt="Thẻ sinh viên"
+        style={{
+          width: '60px',
+          height: '40px',
+          objectFit: 'cover',
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb',
+          transition: 'transform 0.2s',
+          cursor: 'zoom-in',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1.0)'; }}
+        onError={() => {
+          if (!cloudinaryFailed) setCloudinaryFailed(true);
+        }}
+      />
+    </a>
+  );
+};
+
+const UserTypeDetails = ({ userId, initialType, initialInstitution }) => {
+  const [loading, setLoading] = useState(false);
+  const [details, setDetails] = useState(null);
+
+  useEffect(() => {
+    if (initialType === 'EXTERNAL') return; // For external, we already have institution from list
+    let active = true;
+    const loadDetail = async () => {
+      setLoading(true);
+      try {
+        const detail = await userService.getUserDetail(userId);
+        if (active) {
+          setDetails({
+            studentCode: detail?.studentCode,
+            chapterId: detail?.chapterId,
+            chapterName: detail?.chapterName,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load student details:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    loadDetail();
+    return () => { active = false; };
+  }, [userId, initialType]);
+
+  if (initialType === 'EXTERNAL') {
+    return (
+      <div>
+        <Tag color="blue" style={{ borderRadius: 6 }}>Trường ngoài</Tag>
+        <div style={{ marginTop: 4, fontSize: '13px', color: '#4b5563' }}>
+          Trường: <strong>{initialInstitution || 'N/A'}</strong>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) return <Spin size="small" />;
+
+  const studentCode = details?.studentCode || 'N/A';
+  const chapterId = details?.chapterId;
+  const chapterName = details?.chapterName || (chapterId ? CHAPTERS[chapterId] : 'Chapter N/A');
+
+  return (
+    <div>
+      <Tag color="cyan" style={{ borderRadius: 6 }}>Nội bộ (FPT)</Tag>
+      <div style={{ marginTop: 4, fontSize: '13px' }}>
+        Mã SV: <strong>{studentCode}</strong>
+      </div>
+      <div style={{ fontSize: '12px', color: '#4b5563' }}>
+        Cơ sở: {chapterName}
+      </div>
+    </div>
+  );
+};
+
 const extractUserArray = (data) => {
   if (Array.isArray(data)) return data;
   if (!data || typeof data !== 'object') return [];
-  
+
   const commonKeys = ['content', 'users', 'list', 'data', 'items', 'results', 'elements'];
   for (const key of commonKeys) {
     if (Array.isArray(data[key])) {
       return data[key];
     }
   }
-  
+
   for (const key in data) {
     if (Array.isArray(data[key])) {
       return data[key];
     }
   }
-  
+
   return [];
 };
 
@@ -47,7 +168,7 @@ const UserApprovalPage = () => {
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('PENDING');
   const [searchText, setSearchText] = useState('');
-  
+
   // Modals state
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -63,7 +184,7 @@ const UserApprovalPage = () => {
       const params = statusFilter === 'ALL' ? {} : { status: statusFilter };
       const data = await userService.getUsers(params);
       console.log('getUsers response data:', data);
-      
+
       const parsedUsers = extractUserArray(data);
       console.log('Parsed users list:', parsedUsers);
       setUsers(parsedUsers);
@@ -175,48 +296,21 @@ const UserApprovalPage = () => {
       title: 'Loại / Tổ chức',
       dataIndex: 'userType',
       key: 'userType',
-      render: (type, record) => {
-        if (type === 'INTERNAL' || record.studentCode) {
-          return (
-            <div>
-              <Tag color="cyan">Nội bộ (FPT)</Tag>
-              <div style={{ marginTop: 4, fontSize: '13px' }}>
-                Mã SV: <strong>{record.studentCode || 'N/A'}</strong>
-              </div>
-              <div style={{ fontSize: '12px', color: '#4b5563' }}>
-                Cơ sở: {CHAPTERS[record.chapterId] || `Chapter #${record.chapterId}`}
-              </div>
-            </div>
-          );
-        } else if (type === 'EXTERNAL' || record.institution) {
-          return (
-            <div>
-              <Tag color="blue">Trường ngoài</Tag>
-              <div style={{ marginTop: 4, fontSize: '13px', color: '#4b5563' }}>
-                Trường: <strong>{record.institution || 'N/A'}</strong>
-              </div>
-            </div>
-          );
-        }
-        return <Tag color="default">Chưa hoàn thiện</Tag>;
-      },
+      render: (type, record) => (
+        <UserTypeDetails
+          userId={record.userId || record.id}
+          initialType={type}
+          initialInstitution={record.institution}
+        />
+      ),
     },
     {
       title: 'Thẻ sinh viên',
       dataIndex: 'studentCardUrl',
       key: 'studentCardUrl',
-      render: (url) => {
-        if (!url) return <Text type="secondary">Chưa upload</Text>;
-        return (
-          <a href={url} target="_blank" rel="noreferrer">
-            <img
-              src={url}
-              alt="Thẻ sinh viên"
-              style={{ width: '60px', height: '40px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #d1d5db' }}
-            />
-          </a>
-        );
-      },
+      render: (_, record) => (
+        <StudentCardImage userId={record.userId || record.id} />
+      ),
     },
     {
       title: 'Trạng thái',

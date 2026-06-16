@@ -87,7 +87,7 @@ const ApprovalTable = ({ hackathonId }) => {
     canReviewTeam(team) && !team.isInvalidMemberCount && !team.hasPendingInvites;
   const canRejectTeam = (team) => canReviewTeam(team);
   const canDisbandTeam = (team) =>
-    team.status === TEAM_STATUS.PENDING || team.status === TEAM_STATUS.ACTIVE;
+    (team.status === TEAM_STATUS.PENDING || team.status === TEAM_STATUS.ACTIVE) && !team.hasMentor;
 
   const getApproveBlockReason = (team) => {
     if (!canReviewTeam(team)) return "Chỉ đội PENDING mới có thể được duyệt.";

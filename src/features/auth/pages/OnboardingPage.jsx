@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Form, Input, Select, Button, Upload, message, Steps, Result, Spin, Tag
+  Form, Input, Select, Button, Upload, message, Steps, Result, Spin, Tag, Modal, theme
 } from 'antd';
 import {
   UserOutlined, IdcardOutlined, BankOutlined, PhoneOutlined,
@@ -11,7 +11,6 @@ import { userService } from '../services/userService';
 import { ROUTES } from '../../../shared/constants/routes';
 
 const { Option } = Select;
-const { Step } = Steps;
 
 const CHAPTERS = [
   { id: 1, name: 'FPT Hà Nội' },
@@ -43,12 +42,21 @@ const getUserInfo = () => {
   }
 };
 
+const generateSHA1 = async (string) => {
+  const buffer = new TextEncoder().encode(string);
+  const hashBuffer = await crypto.subtle.digest('SHA-1', buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
+};
+
 // ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 const OnboardingPage = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const { token } = theme.useToken();
 
   const [currentStep, setCurrentStep] = useState(0); // 0 = profile, 1 = student card, 2 = waiting
   const [userType, setUserType] = useState('INTERNAL');
@@ -56,18 +64,79 @@ const OnboardingPage = () => {
   const [cardLoading, setCardLoading] = useState(false);
   const [hasCard, setHasCard] = useState(false);
   const [fileList, setFileList] = useState([]);
-  const [userInfo] = useState(getUserInfo);
+  const [userInfo, setUserInfo] = useState(getUserInfo);
+  const [checkingStatus, setCheckingStatus] = useState(true);
 
-  // If user is already APPROVED, redirect to dashboard
+  // Sync state on load using real API response to avoid local storage inconsistencies
   useEffect(() => {
-    if (userInfo?.status === 'APPROVED') {
-      navigate(ROUTES.DASHBOARD, { replace: true });
-    }
-    // If user already completed submission, jump to waiting step
-    if (userInfo?.profileCompleted && userInfo?.studentCardUploaded) {
-      setCurrentStep(2);
-    }
-  }, [userInfo, navigate]);
+    let active = true;
+    const fetchFreshStatus = async () => {
+      try {
+        const freshUser = await userService.getMe();
+        if (!active) return;
+        
+        // Sync local storage userInfo with fresh info
+        const stored = getUserInfo() || {};
+        
+        // Detect transition to APPROVED
+        if (stored.status && stored.status !== 'APPROVED' && freshUser.status === 'APPROVED') {
+          Modal.success({
+            title: '🎉 Hồ sơ đã được phê duyệt!',
+            content: 'Tài khoản của bạn vừa được cấp quyền chính thức. Vui lòng đăng nhập lại.',
+            okText: 'Đăng nhập lại ngay',
+            onOk: () => {
+              localStorage.clear();
+              window.location.href = '/login';
+            },
+            keyboard: false,
+            maskClosable: false,
+          });
+          return;
+        }
+
+        const merged = { ...stored, ...freshUser };
+        localStorage.setItem('userInfo', JSON.stringify(merged));
+        window.dispatchEvent(new Event('userInfoUpdated'));
+        setUserInfo(merged);
+
+        // Populate form with existing data
+        form.setFieldsValue({
+          fullName: merged.fullName,
+          userType: merged.userType || 'INTERNAL',
+          chapterId: merged.chapterId || 1,
+          studentCode: merged.studentCode,
+          institution: merged.institution,
+          phone: merged.phone,
+        });
+        if (merged.userType) setUserType(merged.userType);
+
+        if (freshUser.status === 'APPROVED') {
+          setCurrentStep(3);
+        } else {
+          // Determine step using fresh database fields
+          const hasCompletedProfile = Boolean(freshUser.fullName && (freshUser.studentCode || freshUser.institution));
+          const hasUploadedCard = Boolean(freshUser.studentCardImagePath || freshUser.studentCardUrl || freshUser.studentCardUploaded);
+          
+          setHasCard(hasUploadedCard);
+
+          if (hasCompletedProfile && hasUploadedCard) {
+            setCurrentStep(2);
+          } else if (hasCompletedProfile) {
+            setCurrentStep(1);
+          } else {
+            setCurrentStep(0);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync onboarding status:', err);
+      } finally {
+        if (active) setCheckingStatus(false);
+      }
+    };
+
+    fetchFreshStatus();
+    return () => { active = false; };
+  }, [navigate]);
 
   // -------------------------------------------------------------------------
   // Step 1 – Profile
@@ -90,6 +159,7 @@ const OnboardingPage = () => {
       const updated = { ...getUserInfo(), profileCompleted: true };
       localStorage.setItem('userInfo', JSON.stringify(updated));
       window.dispatchEvent(new Event('userInfoUpdated'));
+      setUserInfo(updated);
 
       message.success('Thông tin hồ sơ đã được cập nhật!');
       setCurrentStep(1);
@@ -112,17 +182,63 @@ const OnboardingPage = () => {
     setCardLoading(true);
     try {
       const file = fileList[0].originFileObj || fileList[0];
+      const userId = userInfo?.id || userInfo?.userId;
+
+      if (!userId) {
+        throw new Error('Không xác định được ID người dùng!');
+      }
+
+      // 1. Prepare Cloudinary parameters for signed upload
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const apiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;
+      const apiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
+
+      if (!cloudName || !apiKey || !apiSecret) {
+        throw new Error('Thiếu cấu hình Cloudinary trong environment!');
+      }
+
+      const publicId = `student-cards/student-card-${userId}`;
+      const timestamp = Math.round(new Date().getTime() / 1000);
+
+      // Alphabetical ordering: public_id, timestamp
+      const signatureString = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+      const signature = await generateSHA1(signatureString);
+
+      // 2. Upload to Cloudinary via Fetch API (direct, bypasses global interceptors)
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', file);
+      cloudinaryFormData.append('api_key', apiKey);
+      cloudinaryFormData.append('timestamp', timestamp);
+      cloudinaryFormData.append('public_id', publicId);
+      cloudinaryFormData.append('signature', signature);
+
+      const cloudinaryResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: cloudinaryFormData
+      });
+
+      if (!cloudinaryResponse.ok) {
+        const errorData = await cloudinaryResponse.json();
+        throw new Error(errorData?.error?.message || 'Không thể upload ảnh lên Cloudinary');
+      }
+
+      const cloudinaryData = await cloudinaryResponse.json();
+      console.log('Uploaded to Cloudinary successfully. URL:', cloudinaryData.secure_url);
+
+      // 3. Register image upload on local backend to set studentCardImagePath
       await userService.uploadStudentCard(file);
 
       const updated = { ...getUserInfo(), studentCardUploaded: true };
       localStorage.setItem('userInfo', JSON.stringify(updated));
       window.dispatchEvent(new Event('userInfoUpdated'));
+      setUserInfo(updated);
 
       setHasCard(true);
       message.success('Tải lên thẻ sinh viên thành công!');
       setCurrentStep(2);
     } catch (error) {
-      message.error(resolveUserError(error));
+      console.error('Upload card error:', error);
+      message.error(error.message || resolveUserError(error));
     } finally {
       setCardLoading(false);
     }
@@ -138,12 +254,26 @@ const OnboardingPage = () => {
   // -------------------------------------------------------------------------
   // Render helpers
   // -------------------------------------------------------------------------
+  const dynamicInputStyle = {
+    ...inputStyle,
+    backgroundColor: token.colorFillAlter,
+    borderColor: token.colorBorder,
+    color: token.colorText,
+  };
+
   const renderProfileStep = () => (
     <Form
       form={form}
       layout="vertical"
       onFinish={handleProfileSubmit}
-      initialValues={{ userType: 'INTERNAL', chapterId: 1 }}
+      initialValues={{
+        fullName: userInfo.fullName,
+        userType: userInfo.userType || 'INTERNAL',
+        chapterId: userInfo.chapterId || 1,
+        studentCode: userInfo.studentCode,
+        institution: userInfo.institution,
+        phone: userInfo.phone,
+      }}
       requiredMark={false}
     >
       {/* Email – read-only */}
@@ -152,25 +282,25 @@ const OnboardingPage = () => {
           value={userInfo?.email || ''}
           readOnly
           prefix={<UserOutlined style={iconStyle} />}
-          style={inputStyle}
+          style={dynamicInputStyle}
           className="custom-ob-input"
         />
       </Form.Item>
 
       <Form.Item
-        label={<Label>HỌ VÀ TÊN</Label>}
+        label={<Label token={token}>HỌ VÀ TÊN</Label>}
         name="fullName"
         rules={[{ required: true, message: 'Vui lòng nhập họ tên!' }]}
       >
         <Input
           prefix={<UserOutlined style={iconStyle} />}
           placeholder="Nguyễn Văn A"
-          style={inputStyle}
+          style={dynamicInputStyle}
           className="custom-ob-input"
         />
       </Form.Item>
 
-      <Form.Item label={<Label>ĐỐI TƯỢNG</Label>} name="userType">
+      <Form.Item label={<Label token={token}>ĐỐI TƯỢNG</Label>} name="userType">
         <Select
           onChange={(val) => setUserType(val)}
           className="custom-ob-select"
@@ -184,7 +314,7 @@ const OnboardingPage = () => {
       {userType === 'INTERNAL' && (
         <>
           <Form.Item
-            label={<Label>CƠ SỞ (CHAPTER)</Label>}
+            label={<Label token={token}>CƠ SỞ (CHAPTER)</Label>}
             name="chapterId"
             rules={[{ required: true, message: 'Vui lòng chọn cơ sở!' }]}
           >
@@ -196,14 +326,14 @@ const OnboardingPage = () => {
           </Form.Item>
 
           <Form.Item
-            label={<Label>MÃ SINH VIÊN</Label>}
+            label={<Label token={token}>MÃ SINH VIÊN</Label>}
             name="studentCode"
             rules={[{ required: true, message: 'Vui lòng nhập mã sinh viên!' }]}
           >
             <Input
               prefix={<IdcardOutlined style={iconStyle} />}
               placeholder="VD: SE123456"
-              style={inputStyle}
+              style={dynamicInputStyle}
               className="custom-ob-input"
             />
           </Form.Item>
@@ -212,24 +342,24 @@ const OnboardingPage = () => {
 
       {userType === 'EXTERNAL' && (
         <Form.Item
-          label={<Label>TÊN TRƯỜNG / TỔ CHỨC</Label>}
+          label={<Label token={token}>TÊN TRƯỜNG / TỔ CHỨC</Label>}
           name="institution"
           rules={[{ required: true, message: 'Vui lòng nhập tên trường!' }]}
         >
           <Input
             prefix={<BankOutlined style={iconStyle} />}
             placeholder="Đại học Bách Khoa..."
-            style={inputStyle}
+            style={dynamicInputStyle}
             className="custom-ob-input"
           />
         </Form.Item>
       )}
 
-      <Form.Item label={<Label>SỐ ĐIỆN THOẠI (TÙY CHỌN)</Label>} name="phone">
+      <Form.Item label={<Label token={token}>SỐ ĐIỆN THOẠI (TÙY CHỌN)</Label>} name="phone">
         <Input
           prefix={<PhoneOutlined style={iconStyle} />}
           placeholder="0912345678"
-          style={inputStyle}
+          style={dynamicInputStyle}
           className="custom-ob-input"
         />
       </Form.Item>
@@ -250,7 +380,7 @@ const OnboardingPage = () => {
 
   const renderCardStep = () => (
     <div>
-      <p style={{ color: '#4b5563', marginBottom: 16, lineHeight: 1.6 }}>
+      <p style={{ color: token.colorTextSecondary, marginBottom: 16, lineHeight: 1.6 }}>
         Vui lòng tải lên <strong>ảnh thẻ sinh viên</strong> của bạn.
         Ảnh rõ nét, không bị che khuất để Coordinator có thể kiểm tra.
       </p>
@@ -298,15 +428,25 @@ const OnboardingPage = () => {
         >
           ← Quay lại
         </Button>
-        <Button
-          type="primary"
-          style={{ flex: 2, ...primaryBtnStyle }}
-          onClick={handleCardUpload}
-          loading={cardLoading}
-          disabled={fileList.length === 0}
-        >
-          Tải lên & nộp hồ sơ
-        </Button>
+        {fileList.length > 0 ? (
+          <Button
+            type="primary"
+            style={{ flex: 2, ...primaryBtnStyle }}
+            onClick={handleCardUpload}
+            loading={cardLoading}
+          >
+            Tải lên & nộp hồ sơ
+          </Button>
+        ) : (
+          <Button
+            type="primary"
+            style={{ flex: 2, ...primaryBtnStyle }}
+            onClick={() => setCurrentStep(2)}
+            disabled={!hasCard}
+          >
+            Nộp hồ sơ (Dùng ảnh cũ)
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -316,52 +456,95 @@ const OnboardingPage = () => {
       icon={<ClockCircleOutlined style={{ color: '#0072ff', fontSize: 56 }} />}
       title="Hồ sơ đã được gửi!"
       subTitle={
-        <span style={{ color: '#4b5563' }}>
+        <span style={{ color: token.colorTextSecondary }}>
           Coordinator đang xem xét hồ sơ của bạn. Khi được duyệt, tài khoản của bạn sẽ
           chuyển sang trạng thái Đã phê duyệt.
         </span>
       }
       extra={[
         <Button key="dashboard" type="primary" onClick={() => navigate(ROUTES.DASHBOARD)} style={{ borderRadius: 12, backgroundColor: '#0072ff', borderColor: '#0072ff' }}>
-          Quay lại Trang chủ
+          Về Trang chủ
         </Button>,
-        <Button key="logout" onClick={handleLogout} style={{ borderRadius: 12 }}>
-          Đăng xuất
+        <Button key="edit" onClick={() => setCurrentStep(0)} style={{ borderRadius: 12 }}>
+          Chỉnh sửa hồ sơ
         </Button>,
       ]}
     />
   );
 
+  const renderApprovedStep = () => (
+    <div style={{ textAlign: 'left', marginTop: 16 }}>
+      <Result
+        status="success"
+        icon={<CheckCircleOutlined style={{ color: '#13c2c2', fontSize: 48 }} />}
+        title="Hồ sơ hợp lệ & Đã duyệt"
+        subTitle={<span style={{ color: token.colorTextSecondary }}>Hồ sơ của bạn đã được kiểm duyệt. Các thông tin hiện tại không thể chỉnh sửa để đảm bảo tính minh bạch.</span>}
+        style={{ padding: '0 0 24px 0' }}
+      />
+      <div style={{ background: token.colorFillAlter, padding: 20, borderRadius: 16, border: `1px solid ${token.colorBorder}` }}>
+        <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Họ và tên:</strong> {userInfo.fullName}</p>
+        <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Email:</strong> {userInfo.email}</p>
+        {userInfo.phone && (
+          <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Số điện thoại:</strong> {userInfo.phone}</p>
+        )}
+        <p style={{ margin: '0 0 8px', color: token.colorText }}>
+          <strong>Tổ chức:</strong> {userInfo.userType === 'INTERNAL' ? 'Sinh viên FPT' : (userInfo.institution || 'Sinh viên trường')}
+        </p>
+        {userInfo.studentCode && (
+          <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Mã sinh viên:</strong> {userInfo.studentCode}</p>
+        )}
+        
+      </div>
+      <div style={{ marginTop: 24, textAlign: 'center' }}>
+        <Button type="primary" onClick={() => navigate(ROUTES.DASHBOARD)} style={{ borderRadius: 12, backgroundColor: '#13c2c2', borderColor: '#13c2c2', height: 44, padding: '0 24px' }}>
+          Vào trang chủ thi đấu
+        </Button>
+      </div>
+    </div>
+  );
+
   // -------------------------------------------------------------------------
   // Main render
   // -------------------------------------------------------------------------
+  if (checkingStatus) {
+    return (
+      <div style={{ ...pageStyle, minHeight: '80vh', display: 'flex', flexDirection: 'column', gap: 16, backgroundColor: token.colorBgLayout }}>
+        <Spin size="large" />
+        <span style={{ color: token.colorTextSecondary, fontSize: '14px', fontWeight: 500 }}>
+          Đang tải thông tin hồ sơ...
+        </span>
+      </div>
+    );
+  }
+
   return (
-    <div style={pageStyle}>
-      <div style={cardContainerStyle}>
+    <div style={{ ...pageStyle, backgroundColor: token.colorBgLayout }}>
+      <div style={{ ...cardContainerStyle, backgroundColor: token.colorBgContainer, borderColor: token.colorBorderSecondary, boxShadow: token.boxShadow }}>
         {/* Gradient top bar */}
         <div style={gradientBarStyle} />
 
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <h1 style={titleStyle}>Hoàn thiện hồ sơ</h1>
-          <p style={{ color: '#4b5563', fontSize: 14, margin: 0 }}>
+          <p style={{ color: token.colorTextSecondary, fontSize: 14, margin: 0 }}>
             Bước cuối cùng trước khi tham gia Hackathon
           </p>
         </div>
 
         <Steps
-          current={currentStep}
+          current={currentStep > 2 ? 2 : currentStep}
           size="small"
           style={{ marginBottom: 28 }}
           items={[
             { title: 'Thông tin', icon: <UserOutlined /> },
             { title: 'Thẻ SV', icon: <IdcardOutlined /> },
-            { title: 'Chờ duyệt', icon: <ClockCircleOutlined /> },
+            { title: 'Trạng thái', icon: currentStep > 2 ? <CheckCircleOutlined /> : <ClockCircleOutlined /> },
           ]}
         />
 
         {currentStep === 0 && renderProfileStep()}
         {currentStep === 1 && renderCardStep()}
         {currentStep === 2 && renderWaitingStep()}
+        {currentStep === 3 && renderApprovedStep()}
 
         {currentStep < 2 && (
           <div style={{ textAlign: 'center', marginTop: 16 }}>
@@ -369,7 +552,7 @@ const OnboardingPage = () => {
               onClick={handleLogout}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: '#9ca3af', fontSize: 12,
+                color: token.colorTextQuaternary, fontSize: 12,
               }}
             >
               Đăng xuất
@@ -380,17 +563,17 @@ const OnboardingPage = () => {
 
       <style>{`
         .custom-ob-input { overflow: hidden !important; }
-        .custom-ob-input input::placeholder { color: #9ca3af !important; }
+        .custom-ob-input input::placeholder { color: ${token.colorTextQuaternary} !important; }
         .custom-ob-input input, .custom-ob-input .ant-input-password {
-          background-color: transparent !important; color: #111827 !important; border-radius: 16px !important;
+          background-color: transparent !important; color: ${token.colorText} !important; border-radius: 16px !important;
         }
         .custom-ob-input:hover, .custom-ob-input:focus-within {
           border-color: #0072ff !important;
           box-shadow: 0 0 0 2px rgba(0,114,255,0.1) !important;
         }
         .custom-ob-select .ant-select-selector {
-          background-color: #f9fafb !important; border: 1px solid #e5e7eb !important;
-          color: #111827 !important; height: 48px !important; border-radius: 16px !important;
+          background-color: ${token.colorFillAlter} !important; border: 1px solid ${token.colorBorder} !important;
+          color: ${token.colorText} !important; height: 48px !important; border-radius: 16px !important;
           align-items: center !important;
         }
         .custom-ob-select:hover .ant-select-selector,
@@ -399,6 +582,7 @@ const OnboardingPage = () => {
           box-shadow: 0 0 0 2px rgba(0,114,255,0.1) !important;
         }
         .ant-upload-select { border-radius: 12px !important; }
+        .ant-upload-list-item { border-color: ${token.colorBorder} !important; }
       `}</style>
     </div>
   );
@@ -407,8 +591,8 @@ const OnboardingPage = () => {
 // ---------------------------------------------------------------------------
 // Sub-components & styles
 // ---------------------------------------------------------------------------
-const Label = ({ children }) => (
-  <span style={{ color: '#4b5563', fontSize: 12, fontWeight: 600, letterSpacing: '0.5px' }}>
+const Label = ({ children, token }) => (
+  <span style={{ color: token?.colorTextSecondary || '#4b5563', fontSize: 12, fontWeight: 600, letterSpacing: '0.5px' }}>
     {children}
   </span>
 );

@@ -22,7 +22,17 @@ export const roundService = {
     return axiosClient.delete(ENDPOINTS.ROUNDS.DETAIL(id));
   },
   
+  // ==========================================
+  // BƯỚC 1: API Kích hoạt Vòng thi
+  // ==========================================
   activate: async (id, data = {}) => {
     return axiosClient.patch(ENDPOINTS.ROUNDS.ACTIVATE(id), data);
+  },
+
+  // ==========================================
+  // BƯỚC 8: API Khóa chấm điểm (Dùng endpoint theo logic BE)
+  // ==========================================
+  lockScoring: async (id, payload) => {
+    return axiosClient.patch(`/api/v1/rounds/${id}/lock-scoring`, payload);
   }
 };

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Typography, Row, Col, Card, Statistic, Button, Space, List, Avatar,
-  Tag, Timeline, Empty, message, Alert
+  Typography, Row, Col, Card, Button, Space, Avatar,
+  Tag
 } from 'antd';
 import {
   ArrowUpOutlined,
@@ -13,16 +13,12 @@ import {
   DownloadOutlined,
   MoreOutlined,
   RightOutlined,
-  CheckCircleOutlined,
-  TrophyOutlined,
-  RocketOutlined,
-  ArrowRightOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined
+  RocketOutlined
 } from '@ant-design/icons';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import StudentDashboardPage from '../student/dashboard/pages/StudentDashboardPage';
 import { useAppContext } from './AppContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { ROUTES } from '../shared/constants/routes';
 
 const { Title, Text } = Typography;
@@ -194,167 +190,6 @@ const CoordinatorDashboard = () => {
   );
 };
 
-// ── Student Dashboard View ──────────────────────────────────────────────────
-const StudentDashboard = ({ user }) => {
-  const navigate = useNavigate();
-
-  const hasSubmitted = user.studentCardUrl || user.studentCardUploaded;
-
-  return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
-      {user.status === 'PENDING' && !hasSubmitted && (
-        <Alert
-          message={<strong>Tài khoản chưa xác thực thông tin sinh viên</strong>}
-          description="Hồ sơ của bạn hiện đang ở trạng thái Chờ duyệt. Vui lòng cập nhật thông tin và tải lên thẻ sinh viên để Ban tổ chức phê duyệt tài khoản của bạn."
-          type="warning"
-          showIcon
-          icon={<ExclamationCircleOutlined />}
-          action={
-            <Button size="small" type="primary" style={{ borderRadius: 8, backgroundColor: '#d97706', borderColor: '#d97706' }} onClick={() => navigate(ROUTES.PROFILE)}>
-              Xác minh ngay
-            </Button>
-          }
-          style={{ borderRadius: '16px', marginBottom: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}
-        />
-      )}
-      {/* Hero Header Banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #06b6d4 100%)',
-        borderRadius: '24px',
-        padding: '40px',
-        color: '#ffffff',
-        marginBottom: '32px',
-        boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.3)',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Glow Effects */}
-        <div style={{ position: 'absolute', width: '250px', height: '250px', background: 'rgba(255,255,255,0.08)', borderRadius: '50%', top: '-80px', right: '-80px' }} />
-        <div style={{ position: 'absolute', width: '120px', height: '120px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', bottom: '-40px', right: '120px' }} />
-        
-        <div style={{ position: 'relative', zIndex: 2 }}>
-          <Space align="center" style={{ marginBottom: 12 }}>
-            {user.status === 'APPROVED' ? (
-              <Tag color="success" style={{ borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', border: 'none', color: '#10b981', background: 'rgba(16, 185, 129, 0.15)' }}>
-                <CheckCircleOutlined /> Đã phê duyệt hồ sơ
-              </Tag>
-            ) : (
-              <Tag color="warning" style={{ borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', border: 'none', color: '#d97706', background: 'rgba(217, 119, 6, 0.15)' }}>
-                <ClockCircleOutlined /> Chờ phê duyệt hồ sơ
-              </Tag>
-            )}
-          </Space>
-          <Title level={1} style={{ margin: 0, color: '#ffffff', fontSize: '32px', fontWeight: 800 }}>
-            Chào mừng quay trở lại, {user.fullName || 'Học viên'}! 👋
-          </Title>
-          <p style={{ fontSize: '16px', color: 'rgba(255, 255, 255, 0.85)', marginTop: 8, maxWidth: '650px', lineHeight: 1.6 }}>
-            Chúc bạn có một mùa Hackathon bùng nổ và tạo nên những sản phẩm công nghệ xuất sắc nhất! Hãy chuẩn bị đội thi của mình để bắt đầu.
-          </p>
-        </div>
-      </div>
-
-      <Row gutter={[24, 24]}>
-        {/* Left Column: Quick Actions */}
-        <Col xs={24} md={14}>
-          <Card 
-            title={<strong style={{ fontSize: '18px', color: '#1f2937' }}><RocketOutlined /> Thao tác Đội thi & Sự kiện</strong>}
-            style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', height: '100%' }}
-          >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <Card 
-                hoverable
-                onClick={() => navigate(ROUTES.GLOBAL_TEAMS)}
-                style={{ borderRadius: '12px', border: '1px solid #f3f4f6', backgroundColor: '#fafafa' }}
-                styles={{ body: { padding: '24px 16px', textAlign: 'center' } }}
-              >
-                <TeamOutlined style={{ fontSize: '36px', color: '#3b82f6', marginBottom: '12px' }} />
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: 700 }}>Tham gia Đội</h4>
-                <Text type="secondary" style={{ fontSize: '12px' }}>Tìm kiếm đội hoặc xem lời mời ứng tuyển</Text>
-              </Card>
-
-              <Card 
-                hoverable
-                onClick={() => navigate(ROUTES.HACKATHONS)}
-                style={{ borderRadius: '12px', border: '1px solid #f3f4f6', backgroundColor: '#fafafa' }}
-                styles={{ body: { padding: '24px 16px', textAlign: 'center' } }}
-              >
-                <TrophyOutlined style={{ fontSize: '36px', color: '#eab308', marginBottom: '12px' }} />
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: 700 }}>Xem Sự kiện</h4>
-                <Text type="secondary" style={{ fontSize: '12px' }}>Theo dõi các mốc thời gian của Hackathon</Text>
-              </Card>
-            </div>
-
-            <div style={{ marginTop: '24px' }}>
-              <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#374151', marginBottom: '12px' }}>Thông tin tài khoản sinh viên</h4>
-              <div style={{ backgroundColor: '#f9fafb', borderRadius: '12px', padding: '16px' }}>
-                <Row gutter={[16, 8]}>
-                  <Col span={12}>
-                    <Text type="secondary" style={{ fontSize: '13px' }}>Địa chỉ Email:</Text>
-                    <div style={{ fontWeight: 600, color: '#111827' }}>{user.email}</div>
-                  </Col>
-                  <Col span={12}>
-                    <Text type="secondary" style={{ fontSize: '13px' }}>Vai trò hệ thống:</Text>
-                    <div><Tag color="blue" style={{ borderRadius: '4px', fontWeight: 600 }}>STUDENT</Tag></div>
-                  </Col>
-                </Row>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        {/* Right Column: Event Timeline */}
-        <Col xs={24} md={10}>
-          <Card 
-            title={<strong style={{ fontSize: '18px', color: '#1f2937' }}><CalendarOutlined /> Mốc sự kiện quan trọng</strong>}
-            style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', height: '100%' }}
-          >
-            <Timeline
-              items={[
-                {
-                  color: 'green',
-                  children: (
-                    <div>
-                      <strong style={{ color: '#111827' }}>Đăng ký & Thành lập đội</strong>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>15/05/2026 - 30/05/2026</div>
-                    </div>
-                  ),
-                },
-                {
-                  color: 'blue',
-                  children: (
-                    <div>
-                      <strong style={{ color: '#111827' }}>Khai mạc & Công bố đề bài</strong>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>01/06/2026 08:00</div>
-                    </div>
-                  ),
-                },
-                {
-                  color: 'gray',
-                  children: (
-                    <div>
-                      <strong style={{ color: '#111827' }}>Thời gian làm bài & Nộp bài</strong>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>01/06/2026 - 03/06/2026</div>
-                    </div>
-                  ),
-                },
-                {
-                  color: 'gray',
-                  children: (
-                    <div>
-                      <strong style={{ color: '#111827' }}>Thuyết trình & Đánh giá dự án</strong>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>05/06/2026</div>
-                    </div>
-                  ),
-                },
-              ]}
-            />
-          </Card>
-        </Col>
-      </Row>
-    </div>
-  );
-};
-
 // ── Main Dashboard Selector Component ───────────────────────────────────────
 const Dashboard = () => {
   const [userProfile, setUserProfile] = useState(() => {
@@ -366,33 +201,11 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      import('../features/auth/services/userService')
-        .then(({ userService }) => userService.getMe())
-        .then((res) => {
-          const info = {
-            email: res?.email || res?.data?.email,
-            status: res?.status || res?.data?.status,
-            role: res?.role || res?.data?.role,
-            userId: res?.userId || res?.id || res?.data?.userId || res?.data?.id,
-            fullName: res?.fullName || res?.data?.fullName,
-          };
-          localStorage.setItem('userInfo', JSON.stringify(info));
-          setUserProfile(info);
-        })
-        .catch((err) => {
-          console.error('Failed to sync profile in dashboard:', err);
-        });
-    }
-  }, []);
-
-  useEffect(() => {
     const handleUserInfoUpdated = () => {
       try {
         const info = JSON.parse(localStorage.getItem('userInfo') || '{}');
         setUserProfile(info);
-      } catch (e) {
+      } catch {
         // no-op
       }
     };
@@ -401,7 +214,11 @@ const Dashboard = () => {
   }, []);
 
   if (userProfile.role === 'STUDENT') {
-    return <StudentDashboard user={userProfile} />;
+    return <StudentDashboardPage />;
+  }
+  
+  if (userProfile.role === 'JUDGE' || userProfile.role === 'TEMP_JUDGE') {
+    return <Navigate to={ROUTES.JUDGE_DASHBOARD} replace />;
   }
 
   // Mặc định hiển thị Coordinator Dashboard nếu không phải student

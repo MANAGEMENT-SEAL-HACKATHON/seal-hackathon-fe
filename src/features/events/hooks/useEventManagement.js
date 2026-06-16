@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { message, Modal, notification } from 'antd';
+import { message, notification } from 'antd';
 import dayjs from 'dayjs';
 import { eventService } from '../services/eventService';
 import { hackathonService } from '../../hackathons/services/hackathonService';
-import { roundService } from '../../rounds/services/roundService'; // Thêm service này để lấy thông tin Vòng Chung kết
+import { roundService } from '../../rounds/services/roundService';
 import { mapEventToFE, mapEventToBE } from '../mappers/eventMapper';
 import { mapHackathonToFE } from '../../hackathons/mappers/hackathonMapper';
+import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
+import { EVENT_TYPE_LABELS, UNIQUE_EVENT_TYPES } from '../utils/eventTypeRules';
 
 export const useEventManagement = (hackathonId, addNotification) => {
   const [events, setEvents] = useState([]);
@@ -13,7 +15,6 @@ export const useEventManagement = (hackathonId, addNotification) => {
   const [currentHackathon, setCurrentHackathon] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Gọi API Lấy danh sách Event, Hackathon & Rounds
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -41,27 +42,31 @@ export const useEventManagement = (hackathonId, addNotification) => {
     fetchData();
   }, [fetchData]);
 
-  // Logic Validate Timeline thông minh & Gọi API POST
   const createEvent = async (values, onSuccess) => {
     const eStart = dayjs(values.starts_at);
     const eEnd = values.ends_at ? dayjs(values.ends_at) : null;
     
     const hRegEnd = currentHackathon?.registration_end ? dayjs(currentHackathon.registration_end) : null;
-    const hEvStart = currentHackathon?.event_start ? dayjs(currentHackathon.event_start) : null;
     const hEvEnd = currentHackathon?.event_end ? dayjs(currentHackathon.event_end).endOf('day') : null;
+
+    // Tìm mốc "Ngày thi Hackathon" (exam_at của vòng thi sớm nhất)
+    const firstRound = rounds && rounds.length > 0 
+      ? [...rounds].sort((a, b) => dayjs(a.exam_at || a.examAt).valueOf() - dayjs(b.exam_at || b.examAt).valueOf())[0] 
+      : null;
+    const firstExamDate = firstRound && (firstRound.exam_at || firstRound.examAt) 
+      ? dayjs(firstRound.exam_at || firstRound.examAt).startOf('day') 
+      : (currentHackathon?.event_start ? dayjs(currentHackathon.event_start).startOf('day') : null);
 
     const dateFormat = 'HH:mm DD/MM/YYYY';
 
-    // --- 1. KIỂM TRA TRÙNG LẶP SỰ KIỆN DUY NHẤT (KICKOFF, AWARDS) ---
-    const isOverlap = events.some(e => {
-      if ((values.type === 'KICKOFF' && e.type === 'KICKOFF') || (values.type === 'AWARDS' && e.type === 'AWARDS')) {
-        return true; // Chỉ cho phép 1 sự kiện Kickoff và 1 sự kiện Awards
-      }
-      return false;
-    });
+    // --- 1. Mỗi kỳ chỉ 1 Khai mạc / Workshop / Trao giải ---
+    if (UNIQUE_EVENT_TYPES.includes(values.type) && events.some((e) => e.type === values.type)) {
+      const label = EVENT_TYPE_LABELS[values.type] || values.type;
+      return message.error(`Kỳ thi này đã có ${label}. Mỗi loại chỉ tạo một lần.`);
+    }
 
-    if (isOverlap) {
-      return message.error(`Sự kiện ${values.type === 'KICKOFF' ? 'Khai mạc' : 'Trao giải'} đã tồn tại trong hệ thống. Vui lòng kiểm tra lại.`);
+    if (!events.length && values.type !== 'KICKOFF') {
+      return message.error('Sự kiện đầu tiên phải là Lễ khai mạc.');
     }
 
     // --- 2. QUY TẮC: WORKSHOP ---
@@ -71,8 +76,11 @@ export const useEventManagement = (hackathonId, addNotification) => {
       }
       
       const kickoffEvent = events.find(e => e.type === 'KICKOFF');
-      if (kickoffEvent && eStart.isAfter(dayjs(kickoffEvent.starts_at))) {
-        return message.error(`Workshop phải diễn ra trước sự kiện Khai mạc (Trước ${dayjs(kickoffEvent.starts_at).format(dateFormat)}).`);
+      if (kickoffEvent) {
+        const kickoffDay = dayjs(kickoffEvent.starts_at).startOf('day');
+        if (!eStart.isBefore(kickoffDay)) {
+          return message.error(`Workshop phải diễn ra trước sự kiện Khai mạc ít nhất 1 ngày (Trước ngày ${kickoffDay.format('DD/MM/YYYY')}).`);
+        }
       }
     }
 
@@ -80,24 +88,26 @@ export const useEventManagement = (hackathonId, addNotification) => {
     if (values.type === 'KICKOFF') {
       const workshopEvents = events.filter(e => e.type === 'WORKSHOP');
       if (workshopEvents.length > 0) {
-        // Tìm workshop kết thúc muộn nhất
         const latestWorkshop = workshopEvents.sort((a, b) => dayjs(b.ends_at || b.starts_at).diff(dayjs(a.ends_at || a.starts_at)))[0];
-        const workshopEnd = dayjs(latestWorkshop.ends_at || latestWorkshop.starts_at);
-        if (eStart.isBefore(workshopEnd)) {
-          return message.error(`Sự kiện Khai mạc phải diễn ra sau khi các buổi Workshop kết thúc (Sau ${workshopEnd.format(dateFormat)}).`);
+        const workshopEndDay = dayjs(latestWorkshop.ends_at || latestWorkshop.starts_at).startOf('day');
+        if (!eStart.isAfter(workshopEndDay, 'day')) {
+          return message.error(`Sự kiện Khai mạc phải diễn ra sau Workshop ít nhất 1 ngày (Từ ngày ${workshopEndDay.add(1, 'day').format('DD/MM/YYYY')} trở đi).`);
         }
       }
 
-      if (hEvStart && eStart.isAfter(hEvStart)) {
-        return message.error(`Sự kiện Khai mạc phải diễn ra trước ngày thi chính thức của Hackathon (Trước ${hEvStart.format(dateFormat)}).`);
+      if (firstExamDate) {
+        // Khai mạc bắt buộc phải đúng 1 ngày trước ngày thi
+        const requiredKickoffDate = firstExamDate.subtract(1, 'day').startOf('day');
+        if (!eStart.startOf('day').isSame(requiredKickoffDate)) {
+          return message.error(`Sự kiện Khai mạc (Kick-off) bắt buộc phải diễn ra đúng 1 ngày trước ngày thi chính thức của Hackathon (Bắt buộc phải là ngày ${requiredKickoffDate.format('DD/MM/YYYY')}).`);
+        }
       }
     }
 
-    // --- 4. QUY TẮC: AWARDS (LỄ TRAO GIẢI) ---
+    // --- 4. QUY TẮC: AWARDS ---
     if (values.type === 'AWARDS') {
-      // Tìm hạn chót vòng Chung kết
       const finalRound = rounds.find(r => r.is_final || r.isFinal);
-      if (finalRound && finalRound.submission_deadline || finalRound?.submissionDeadline) {
+      if (finalRound && (finalRound.submission_deadline || finalRound.submissionDeadline)) {
         const finalDeadline = dayjs(finalRound.submission_deadline || finalRound.submissionDeadline);
         if (eStart.isBefore(finalDeadline)) {
           return message.error(`Lễ Trao giải phải diễn ra sau hạn chót nộp bài Vòng Chung kết (Sau ${finalDeadline.format(dateFormat)}).`);
@@ -117,7 +127,6 @@ export const useEventManagement = (hackathonId, addNotification) => {
         await eventService.create(hackathonId, payload);
         message.success('Đã tạo sự kiện thành công!');
         
-        // Push notification UI
         addNotification({
           type: 'REMINDER',
           title: 'Đã lên lịch sự kiện',
@@ -129,10 +138,10 @@ export const useEventManagement = (hackathonId, addNotification) => {
           placement: 'bottomRight',
         });
 
-        fetchData(); // Tải lại danh sách từ server
+        fetchData();
         if (onSuccess) onSuccess();
       } catch (error) {
-        message.error(error.message || 'Có lỗi xảy ra khi tạo sự kiện. Vui lòng thử lại.');
+        message.error(getTeamErrorMessage(error) || 'Có lỗi xảy ra khi tạo sự kiện. Vui lòng thử lại.');
       } finally {
         setIsLoading(false);
       }
@@ -141,8 +150,18 @@ export const useEventManagement = (hackathonId, addNotification) => {
     executeSave();
   };
 
-  // Gọi API Xóa sự kiện
+  // --- LOGIC XÓA CÓ RÀNG BUỘC KÉP ---
   const deleteEvent = async (eventId) => {
+    const eventToDelete = events.find(e => e.id === eventId);
+    
+    // Nếu xóa Khai mạc, phải kiểm tra xem có Workshop không
+    if (eventToDelete && eventToDelete.type === 'KICKOFF') {
+      const hasWorkshop = events.some(e => e.type === 'WORKSHOP');
+      if (hasWorkshop) {
+        return message.error('Lỗi: Bạn phải xóa sự kiện Workshop trước! Vì Khai mạc đang là mốc thời gian để giới hạn cho Workshop.');
+      }
+    }
+
     setIsLoading(true);
     try {
       await eventService.delete(eventId);
@@ -155,5 +174,5 @@ export const useEventManagement = (hackathonId, addNotification) => {
     }
   };
 
-  return { events, currentHackathon, isLoading, createEvent, deleteEvent };
+  return { events, rounds, currentHackathon, isLoading, createEvent, deleteEvent };
 };

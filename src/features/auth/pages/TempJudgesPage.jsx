@@ -21,12 +21,40 @@ const TempJudgesPage = () => {
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
+  // Map userId → { invitationId, expiresAt } — populated from POST response, persisted to localStorage
+  const [invitationMap, setInvitationMap] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('tempJudgeInvitationMap') || '{}');
+    } catch { return {}; }
+  });
+
+  const saveInvitationMap = (map) => {
+    setInvitationMap(map);
+    try { localStorage.setItem('tempJudgeInvitationMap', JSON.stringify(map)); } catch {}
+  };
 
   const fetchTempJudges = async () => {
     setLoading(true);
     try {
       const data = await userService.getTempJudges();
-      setJudges(Array.isArray(data) ? data : data?.content || data?.tempJudges || []);
+      console.log('[TempJudges] raw response:', data);
+      // axiosClient unwraps response.data.data → PageResponse { content, totalElements, ... }
+      let list = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (data?.items && Array.isArray(data.items)) {
+        list = data.items;
+      } else if (data?.content && Array.isArray(data.content)) {
+        list = data.content;
+      } else if (data?.data?.items && Array.isArray(data.data.items)) {
+        list = data.data.items;
+      } else if (data?.data?.content && Array.isArray(data.data.content)) {
+        list = data.data.content;
+      } else if (data?.tempJudges && Array.isArray(data.tempJudges)) {
+        list = data.tempJudges;
+      }
+      console.log('[TempJudges] parsed list:', list);
+      setJudges(list);
     } catch (error) {
       console.error('Fetch temp judges error:', error);
       message.error('Không thể lấy danh sách giám khảo khách mời.');
@@ -42,7 +70,20 @@ const TempJudgesPage = () => {
   const handleCreate = async (values) => {
     setLoading(true);
     try {
-      await userService.createTempJudge(values);
+      const result = await userService.createTempJudge(values);
+      // result = TempJudgeResponse { user: { id, ... }, invitation: { id, expiresAt, ... } }
+      console.log('[TempJudges] create result:', result);
+      if (result?.user?.id && result?.invitation?.id) {
+        const updated = {
+          ...invitationMap,
+          [result.user.id]: {
+            invitationId: result.invitation.id,
+            expiresAt: result.invitation.expiresAt,
+            hackathonId: values.hackathonId,
+          }
+        };
+        saveInvitationMap(updated);
+      }
       message.success('Đã mời giám khảo khách mời thành công!');
       setIsModalOpen(false);
       form.resetFields();
@@ -63,9 +104,12 @@ const TempJudgesPage = () => {
   };
 
   const handleResend = async (record) => {
-    const invitationId = record.invitationId || record.id;
+    const userId = record.id || record.userId;
+    // Look up invitationId from map first (populated on create), then fallback
+    const invInfo = invitationMap[userId];
+    const invitationId = invInfo?.invitationId || record.invitationId;
     if (!invitationId) {
-      message.error('Không tìm thấy ID lời mời.');
+      message.warning('Không tìm thấy ID lời mời. Vui lòng tải lại trang và thử lại.');
       return;
     }
 
@@ -86,36 +130,41 @@ const TempJudgesPage = () => {
 
   // Kiểm tra điều kiện resend có bị cấm hay không (< 48h trước kickoff)
   const isResendDisabled = (record) => {
-    const hackathon = hackathons.find(h => h.id === record.hackathonId);
+    const userId = record.id || record.userId;
+    const invInfo = invitationMap[userId];
+    const hackathonId = record.hackathonId || invInfo?.hackathonId;
+    const hackathon = hackathons.find(h => h.id === hackathonId);
     if (!hackathon || !hackathon.kickoff) return false;
-    
-    // Nếu thời điểm hiện tại tới giờ kickoff còn ít hơn 48 tiếng, disable resend
     const kickoffTime = dayjs(hackathon.kickoff);
     const diffHours = kickoffTime.diff(dayjs(), 'hour');
     return diffHours < 48;
   };
 
   const getInvitationStatusTag = (record) => {
-    // Trạng thái đã đổi mật khẩu (đã kích hoạt tài khoản)
+    // UserSummaryResponse has: status (APPROVED, PENDING, REJECTED), isTempAccount
+    // For temp judges: status=APPROVED means they were created (auto-approved)
+    // We check isTempAccount to confirm it's a temp judge
     if (record.passwordChanged || record.status === 'ACCEPTED') {
       return <Tag color="success" icon={<CheckCircleOutlined />}>Đã đổi MK / Hoạt động</Tag>;
     }
-    // Trạng thái lời mời đã hết hạn
     if (record.isExpired || record.status === 'EXPIRED') {
       return <Tag color="error" icon={<ExclamationCircleOutlined />}>Đã hết hạn</Tag>;
     }
-    // Đang chờ chấp nhận
+    // isTempAccount=true & status=APPROVED = lời mời chưa kích hoạt
+    if (record.isTempAccount && record.status === 'APPROVED') {
+      return <Tag color="processing" icon={<ClockCircleOutlined />}>Đang chờ kích hoạt</Tag>;
+    }
     return <Tag color="processing" icon={<ClockCircleOutlined />}>Đang chờ (Còn hạn)</Tag>;
   };
 
   const columns = [
     {
       title: 'Giám khảo',
-      dataIndex: 'name',
-      key: 'name',
+      dataIndex: 'fullName',
+      key: 'fullName',
       render: (text, record) => (
         <div>
-          <strong style={{ color: '#111827' }}>{text}</strong>
+          <strong style={{ color: '#111827' }}>{text || record.name}</strong>
           <div style={{ fontSize: '12px', color: '#6b7280' }}>
             ID: {record.userId || record.id}
           </div>
@@ -140,11 +189,15 @@ const TempJudgesPage = () => {
       title: 'Sự kiện Hackathon',
       dataIndex: 'hackathonId',
       key: 'hackathonId',
-      render: (hid) => {
-        const hackathon = hackathons.find(h => h.id === hid);
+      render: (hid, record) => {
+        const userId = record.id || record.userId;
+        const invInfo = invitationMap[userId];
+        const hackathonId = hid || invInfo?.hackathonId;
+        const hackathon = hackathons.find(h => h.id === hackathonId);
+        if (!hackathonId) return <Text type="secondary">—</Text>;
         return (
           <div>
-            <strong>{hackathon?.name || hackathon?.hackathonName || `Sự kiện #${hid}`}</strong>
+            <strong>{hackathon?.name || hackathon?.hackathonName || `Sự kiện #${hackathonId}`}</strong>
             {hackathon?.kickoff && (
               <div style={{ fontSize: '11px', color: '#6b7280', marginTop: 2 }}>
                 Khai mạc: {dayjs(hackathon.kickoff).format('DD/MM/YYYY HH:mm')}
@@ -258,7 +311,7 @@ const TempJudgesPage = () => {
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item
-            name="name"
+            name="fullName"
             label="Họ và tên Giám khảo"
             rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
           >
@@ -278,7 +331,8 @@ const TempJudgesPage = () => {
 
           <Form.Item
             name="institution"
-            label="Đơn vị / Tổ chức (Tùy chọn)"
+            label="Đơn vị / Tổ chức"
+            rules={[{ required: true, message: 'Vui lòng nhập đơn vị hoặc tổ chức!' }]}
           >
             <Input prefix={<BankOutlined style={{ color: '#ff4d4f' }} />} placeholder="VD: Đại học Bách Khoa, TechCorp..." style={{ borderRadius: '10px' }} />
           </Form.Item>

@@ -11,13 +11,26 @@ const axiosClient = axios.create({
   },
 });
 
+// Danh sách các endpoint public — KHÔNG đính kèm token
+const PUBLIC_ENDPOINTS = [
+  '/api/v1/auth/login',
+  '/api/v1/auth/register',
+  '/api/v1/auth/oauth',
+];
+
+const isPublicEndpoint = (url = '') =>
+  PUBLIC_ENDPOINTS.some((pub) => url.includes(pub));
+
 // Add a request interceptor
 axiosClient.interceptors.request.use(
   function (config) {
-    // Inject token if needed later
-    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Không gửi token cho các endpoint public (login, register, oauth)
+    // để tránh bị JWT filter từ chối khi token cũ hết hạn
+    if (!isPublicEndpoint(config.url)) {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -25,6 +38,29 @@ axiosClient.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
+// Tránh redirect nhiều lần khi nhiều request cùng nhận 401
+let isSessionExpiredHandled = false;
+
+const handleSessionExpired = () => {
+  if (isSessionExpiredHandled) return;
+  isSessionExpiredHandled = true;
+
+  // Xóa toàn bộ thông tin xác thực
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('token');
+  localStorage.removeItem('userInfo');
+
+  // Redirect về login với thông báo
+  const currentPath = window.location.pathname;
+  if (currentPath !== '/login') {
+    window.location.replace('/login?reason=session_expired');
+  }
+
+  // Reset flag sau 2 giây để tránh block nếu user ở lại trang login
+  setTimeout(() => { isSessionExpiredHandled = false; }, 2000);
+};
 
 // Add a response interceptor
 axiosClient.interceptors.response.use(
@@ -62,6 +98,14 @@ axiosClient.interceptors.response.use(
           case 500: customError.message = 'Lỗi hệ thống backend'; break;
           default: customError.message = 'Lỗi không xác định';
         }
+      }
+
+      // Khi nhận 401 từ protected endpoint → token hết hạn → đá ra login
+      if (
+        error.response.status === 401 &&
+        !isPublicEndpoint(error.config?.url)
+      ) {
+        handleSessionExpired();
       }
     } else if (error.request) {
       customError.message = 'Không thể kết nối đến server';

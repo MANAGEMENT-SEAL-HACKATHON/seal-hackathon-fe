@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Card, Tabs, Typography, Select, Space, Button } from 'antd';
+import React, { useState, useCallback } from 'react';
+import { Card, Tabs, Typography, Select, Space, Button, Alert } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageHeader from '../../../shared/components/ui/PageHeader';
 import TrackManagementPage from '../../tracks/pages/TrackManagementPage';
@@ -13,6 +13,10 @@ import { hackathonService } from '../services/hackathonService';
 import { roundService } from '../../rounds/services/roundService';
 import { mapHackathonToFE } from '../mappers/hackathonMapper';
 import { mapRoundToFE } from '../../rounds/mappers/roundMapper';
+import LotteryManagementPage from '../../teams/pages/LotteryManagementPage';
+
+// 1. IMPORT TRANG ANALYTICS MỚI (CHỈ THÊM DÒNG NÀY)
+import AnalyticsPage from '../../analytics/pages/AnalyticsPage.jsx';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -26,6 +30,15 @@ const HackathonSetupPage = () => {
   const [selectedRoundId, setSelectedRoundId] = useState(null);
   const [activeTab, setActiveTab] = useState('tracks');
   
+  const refreshHackathon = useCallback(async () => {
+    try {
+      const hackData = await hackathonService.getById(hackathonId);
+      setHackathon(mapHackathonToFE(hackData));
+    } catch {
+      // no-op
+    }
+  }, [hackathonId]);
+
   React.useEffect(() => {
     const fetchData = async () => {
       try {
@@ -76,12 +89,23 @@ const HackathonSetupPage = () => {
     {
       key: 'rounds',
       label: 'Vòng thi (Rounds)',
-      children: <RoundManagementPage hackathonId={hackathon.id} hackathon={hackathon} />,
+      children: (
+        <RoundManagementPage
+          hackathonId={hackathon.id}
+          hackathon={hackathon}
+          onHackathonSync={refreshHackathon}
+        />
+      ),
     },
     {
       key: 'tracks',
-      label: 'Bảng đấu (Tracks)',
+      label: 'Bảng đấu',
       children: <TrackManagementPage hackathonId={hackathon.id} />,
+    },
+    {
+      key: 'lottery',
+      label: 'Bốc thăm & Khai mạc',
+      children: <LotteryManagementPage hackathonId={hackathon.id} />,
     },
     {
       key: 'criteria',
@@ -102,6 +126,12 @@ const HackathonSetupPage = () => {
       key: 'review',
       label: 'Đánh giá & Kiểm tra',
       children: activeTab === 'review' ? <ReviewValidatePage hackathonId={hackathon.id} /> : null, 
+    },
+    // 2. TAB ANALYTICS (CHỈ THÊM ĐOẠN NÀY)
+    {
+      key: 'analytics',
+      label: 'Phân tích & Dữ liệu',
+      children: activeTab === 'analytics' ? <AnalyticsPage hackathonId={hackathon.id} hackathon={hackathon} rounds={rounds} /> : null,
     }
   ];
 
@@ -111,6 +141,19 @@ const HackathonSetupPage = () => {
         title={hackathon.name}
         subtitle={`Thiết lập bảng đấu và vòng thi cho mùa ${hackathon.season} ${hackathon.year}`}
         onBack={() => navigate(ROUTES.HACKATHONS)}
+      />
+
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16, borderRadius: 12 }}
+        message="Quy trình chuẩn bị kỳ thi"
+        description={
+          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+            Lần lượt: tạo vòng thi → bảng đấu → tiêu chí chấm (tổng điểm mỗi bảng = 1) → gán mentor & giám khảo theo bảng →
+            lên lịch sự kiện → kiểm tra điều kiện → mở đăng ký. Bốc thăm chỉ làm sau khi đã mở đăng ký và hết hạn đăng ký.
+          </Typography.Text>
+        }
       />
 
       <Card style={{ borderRadius: 12 }}>

@@ -1,11 +1,17 @@
 export const ROUTES = {
   LANDING: '/',
   DASHBOARD: '/dashboard',
+  STUDENT_TEAM: '/student/team',
+  STUDENT_RESULTS: '/student/results',
+  STUDENT_ROUND_RESULTS: '/student/results/:roundId',
   HACKATHONS: '/hackathons',
   HACKATHON_CREATE: '/hackathons/create',
   HACKATHON_SETUP: '/hackathons/:hackathonId/setup',
   TRACKS: '/hackathons/:hackathonId/tracks',
   ROUNDS: '/hackathons/:hackathonId/rounds',
+  ROUND_RANKING_PREVIEW: '/hackathons/:hackathonId/rounds/:roundId/ranking-preview',
+  ROUND_RESULTS: '/hackathons/:hackathonId/rounds/:roundId/results',
+  PUBLIC_ROUND_SCOREBOARD: '/rounds/:roundId/scoreboard',
   CRITERIA: '/hackathons/:hackathonId/criteria/:roundId',
   GLOBAL_TEAMS: '/teams',
   REVIEW_VALIDATE: '/hackathons/:hackathonId/review',
@@ -17,4 +23,12 @@ export const ROUTES = {
   USER_APPROVAL: '/admin/users',
   TEMP_JUDGES: '/admin/temp-judges',
   PROFILE: '/profile',
+  JUDGE_DASHBOARD: '/judge/dashboard',               // Trang Dashboard tổng quan
+  JUDGE_SCORING: '/judging/:assignmentId/scoring',   // Phòng chấm thi trực tiếp
+  JUDGE_CRITERIA: '/judge/criteria',
+  MENTOR_SUPPORT: '/mentor/support',
+  MENTOR_ROUNDS: '/mentor/rounds',
+  STUDENT_SUBMIT: '/student/submit',
+  COORDINATOR_LATE_SUBMISSIONS: '/coordinator/late-submissions',
+  PRESENTATION_QUEUE: '/presentation/queue',
 };

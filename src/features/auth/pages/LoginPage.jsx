@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Form, Input, Button, message, Modal } from 'antd';
 import { MailOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone, ArrowRightOutlined, GithubOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { GoogleSocialButton } from '../components/GoogleSocialButton';
 import { ROUTES } from '../../../shared/constants/routes';
 import { authService, persistAuthTokens } from '../services/authService';
@@ -55,6 +55,17 @@ const LoginPage = () => {
   const [passwordConfirmLoading, setPasswordConfirmLoading] = useState(false);
   const [passwordForm] = Form.useForm();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Hiển thị thông báo khi bị đá ra do token hết hạn
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('reason') === 'session_expired') {
+      message.warning('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+      // Xóa query param khỏi URL để tránh hiển thị lại khi refresh
+      navigate(location.pathname, { replace: true });
+    }
+  }, []);
 
   const runGoogleOAuthLogin = async (tokenValue, existingAccountPassword) => {
     if (!tokenValue) {
