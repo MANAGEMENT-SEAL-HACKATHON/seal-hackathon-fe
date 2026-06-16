@@ -6,7 +6,7 @@ export const hackathonResultsService = {
       const response = await axiosClient.get(`/api/v1/hackathons/${hackathonId}/team-rankings`);
       return Array.isArray(response) ? response : (response?.data || []);
     } catch (e) {
-      return [];
+      throw e;
     }
   },
 
@@ -15,7 +15,7 @@ export const hackathonResultsService = {
       const response = await axiosClient.get(`/api/v1/hackathons/${hackathonId}/chapter-rankings`);
       return Array.isArray(response) ? response : (response?.data || []);
     } catch (e) {
-      return [];
+      throw e;
     }
   },
 
@@ -24,7 +24,7 @@ export const hackathonResultsService = {
       const response = await axiosClient.get(`/api/v1/hackathons/${hackathonId}/individual-rankings`);
       return Array.isArray(response) ? response : (response?.data || []);
     } catch (e) {
-      return [];
+      throw e;
     }
   },
 
@@ -33,7 +33,7 @@ export const hackathonResultsService = {
       const response = await axiosClient.get(`/api/v1/hackathons/${hackathonId}/prizes`);
       return Array.isArray(response) ? response : (response?.data || []);
     } catch (e) {
-      return [];
+      throw e;
     }
   },
 

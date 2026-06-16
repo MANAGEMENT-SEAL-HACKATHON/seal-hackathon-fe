@@ -17,6 +17,7 @@ import LotteryManagementPage from '../../teams/pages/LotteryManagementPage';
 
 // 1. IMPORT TRANG ANALYTICS MỚI (CHỈ THÊM DÒNG NÀY)
 import AnalyticsPage from '../../analytics/pages/AnalyticsPage.jsx';
+import HackathonResultsPage from '../../hackathon-results/pages/HackathonResultsPage';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -132,6 +133,11 @@ const HackathonSetupPage = () => {
       key: 'analytics',
       label: 'Phân tích & Dữ liệu',
       children: activeTab === 'analytics' ? <AnalyticsPage hackathonId={hackathon.id} hackathon={hackathon} rounds={rounds} /> : null,
+    },
+    {
+      key: 'results',
+      label: 'Kết quả chung cuộc',
+      children: activeTab === 'results' ? <HackathonResultsPage /> : null,
     }
   ];
 

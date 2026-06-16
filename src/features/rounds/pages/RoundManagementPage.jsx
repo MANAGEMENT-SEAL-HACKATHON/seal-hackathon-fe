@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal, Alert, Tooltip, Input } from 'antd';
-import { Plus, Edit, Trash2, Calendar, List, BarChart3, PlayCircle, Lock, UserPlus } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, List, BarChart3, PlayCircle, Lock, UserPlus, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import RoundFormModal from '../components/RoundFormModal';
 import { roundService } from '../services/roundService';
@@ -92,8 +92,12 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
     setIsModalVisible(true);
   };
 
-  const handleViewRanking = (roundId) => {
-    navigate(`/hackathons/${hackathonId}/rounds/${roundId}/ranking-preview`);
+  const handleViewRanking = (round) => {
+    if (round.scoring_locked || round.scoringLocked) {
+      navigate(`/hackathons/${hackathonId}/rounds/${round.id}/results`);
+    } else {
+      navigate(`/hackathons/${hackathonId}/rounds/${round.id}/ranking-preview`);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -380,17 +384,21 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       title: 'Thao tác',
       key: 'actions',
       render: (_, record) => {
+        const isEnded = record.submission_deadline && dayjs().isAfter(dayjs(record.submission_deadline));
+        const isLocked = record.scoring_locked || record.scoringLocked;
+
         // Đã khóa chấm thì chỉ cho xem xếp hạng
-        if (record.scoring_locked || record.scoringLocked) {
+        if (isLocked) {
           return (
             <Space size="middle">
-              <Button
-                type="link"
-                icon={<BarChart3 size={16} />}
-                onClick={() => handleViewRanking(record.id)}
-              >
-                Xếp hạng
-              </Button>
+              <Tooltip title="Xếp hạng">
+                <Button
+                  type="text"
+                  style={{ color: 'var(--ant-color-primary)' }}
+                  icon={<Trophy size={16} />}
+                  onClick={() => handleViewRanking(record)}
+                />
+              </Tooltip>
               <Text type="secondary" style={{ fontSize: 13 }}>Đã đóng sổ (Locked)</Text>
             </Space>
           );
@@ -400,18 +408,19 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         if (record.is_active) {
           return (
             <Space size="middle">
-              <Button
-                type="link"
-                icon={<BarChart3 size={16} />}
-                onClick={() => handleViewRanking(record.id)}
-              >
-                Xếp hạng tạm
-              </Button>
+              <Tooltip title="Xếp hạng tạm">
+                <Button
+                  type="text"
+                  style={{ color: 'var(--ant-color-primary)' }}
+                  icon={<BarChart3 size={16} />}
+                  onClick={() => handleViewRanking(record)}
+                />
+              </Tooltip>
 
               <Tooltip title="Phân công Giám khảo">
                 <Button 
                   type="text" 
-                  style={{ color: '#8b5cf6' }} 
+                  style={{ color: 'var(--ant-color-purple)' }} 
                   icon={<UserPlus size={16} />} 
                   onClick={() => {
                     const peopleTab = document.querySelector('.ant-tabs-tab[data-node-key="people"]');
@@ -438,53 +447,58 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         // Nếu vòng thi NGƯNG HOẠT ĐỘNG
         return (
           <Space size="middle">
-            <Button
-              type="link"
-              icon={<BarChart3 size={16} />}
-              onClick={() => handleViewRanking(record.id)}
-            >
-              Xếp hạng tạm
-            </Button>
-
-            <Tooltip title="Sửa vòng thi">
+            <Tooltip title="Xếp hạng tạm">
               <Button
                 type="text"
-                icon={<Edit size={16} />}
-                onClick={() => handleEdit(record)}
+                style={{ color: 'var(--ant-color-primary)' }}
+                icon={<BarChart3 size={16} />}
+                onClick={() => handleViewRanking(record)}
               />
             </Tooltip>
 
-            {/* BƯỚC 1: Nút Play Kích hoạt vòng thi */}
-            <Tooltip title="Kích hoạt Vòng thi">
-              <Button type="text" style={{ color: 'var(--ant-color-success)' }} icon={<PlayCircle size={16} />} onClick={() => handleActivateRound(record)} />
-            </Tooltip>
+            {!isEnded && !isLocked && (
+              <>
+                <Tooltip title="Sửa vòng thi">
+                  <Button
+                    type="text"
+                    icon={<Edit size={16} />}
+                    onClick={() => handleEdit(record)}
+                  />
+                </Tooltip>
 
-            <Tooltip title="Phân công Giám khảo">
-              <Button 
-                type="text" 
-                style={{ color: '#8b5cf6' }} 
-                icon={<UserPlus size={16} />} 
-                onClick={() => {
-                  const peopleTab = document.querySelector('.ant-tabs-tab[data-node-key="people"]');
-                  if (peopleTab) {
-                    peopleTab.click();
-                    message.success(`Đã chuyển sang Tab Nhân sự để phân công Giám khảo.`);
-                  } else {
-                    message.info(`Vui lòng chuyển sang Tab Nhân sự để phân công.`);
-                  }
-                }} 
-              />
-            </Tooltip>
+                {/* BƯỚC 1: Nút Play Kích hoạt vòng thi */}
+                <Tooltip title="Kích hoạt Vòng thi">
+                  <Button type="text" style={{ color: 'var(--ant-color-success)' }} icon={<PlayCircle size={16} />} onClick={() => handleActivateRound(record)} />
+                </Tooltip>
 
-            <Popconfirm
-              title="Xóa vòng thi"
-              description="Bạn có chắc chắn muốn xóa vòng thi này?"
-              onConfirm={() => handleDelete(record.id)}
-              okText="Xóa"
-              cancelText="Hủy"
-            >
-               <Button type="text" danger icon={<Trash2 size={16} />} />
-            </Popconfirm>
+                <Tooltip title="Phân công Giám khảo">
+                  <Button 
+                    type="text" 
+                    style={{ color: 'var(--ant-color-purple)' }} 
+                    icon={<UserPlus size={16} />} 
+                    onClick={() => {
+                      const peopleTab = document.querySelector('.ant-tabs-tab[data-node-key="people"]');
+                      if (peopleTab) {
+                        peopleTab.click();
+                        message.success(`Đã chuyển sang Tab Nhân sự để phân công Giám khảo.`);
+                      } else {
+                        message.info(`Vui lòng chuyển sang Tab Nhân sự để phân công.`);
+                      }
+                    }} 
+                  />
+                </Tooltip>
+
+                <Popconfirm
+                  title="Xóa vòng thi"
+                  description="Bạn có chắc chắn muốn xóa vòng thi này?"
+                  onConfirm={() => handleDelete(record.id)}
+                  okText="Xóa"
+                  cancelText="Hủy"
+                >
+                   <Button type="text" danger icon={<Trash2 size={16} />} />
+                </Popconfirm>
+              </>
+            )}
           </Space>
         );
       },
@@ -588,14 +602,15 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                     </Text>
                   </div>
                   <Space>
-                    <Button
-                      size="small"
-                      type="link"
-                      icon={<BarChart3 size={14} />}
-                      onClick={() => handleViewRanking(round.id)}
-                    >
-                      Xếp hạng tạm
-                    </Button>
+                    <Tooltip title={round.scoring_locked || round.scoringLocked ? "Xếp hạng" : "Xếp hạng tạm"}>
+                      <Button
+                        size="small"
+                        type="text"
+                        style={{ color: 'var(--ant-color-primary)' }}
+                        icon={round.scoring_locked || round.scoringLocked ? <Trophy size={14} /> : <BarChart3 size={14} />}
+                        onClick={() => handleViewRanking(round)}
+                      />
+                    </Tooltip>
                     {!round.is_active && !(round.scoring_locked || round.scoringLocked) && (
                       <Button size="small" icon={<Edit size={14} />} onClick={() => handleEdit(round)}>Sửa</Button>
                     )}

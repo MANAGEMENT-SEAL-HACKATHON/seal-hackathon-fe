@@ -24,7 +24,7 @@ export const studentResultsService = {
       const response = await axiosClient.get(`/api/v1/me/hackathons/${hackathonId}/rankings`);
       return Array.isArray(response) ? response : (response?.items || response?.data || []);
     } catch (e) {
-      return [];
+      throw e;
     }
   },
 
@@ -33,7 +33,7 @@ export const studentResultsService = {
       const response = await axiosClient.get(`/api/v1/me/prizes`);
       return Array.isArray(response) ? response : (response?.data || []);
     } catch (e) {
-      return [];
+      throw e;
     }
   },
 
@@ -42,7 +42,7 @@ export const studentResultsService = {
       const response = await axiosClient.get(`/api/v1/me/certificates`);
       return Array.isArray(response) ? response : (response?.data || []);
     } catch (e) {
-      return [];
+      throw e;
     }
   }
 };
