@@ -4,7 +4,7 @@ export const hackathonResultsService = {
   getTeamRankings: async (hackathonId) => {
     try {
       const response = await axiosClient.get(`/api/v1/hackathons/${hackathonId}/team-rankings`);
-      return Array.isArray(response) ? response : (response?.data || []);
+      return Array.isArray(response) ? response : (response?.items || response?.rankings || response?.data || []);
     } catch (e) {
       throw e;
     }
@@ -13,7 +13,7 @@ export const hackathonResultsService = {
   getChapterRankings: async (hackathonId) => {
     try {
       const response = await axiosClient.get(`/api/v1/hackathons/${hackathonId}/chapter-rankings`);
-      return Array.isArray(response) ? response : (response?.data || []);
+      return Array.isArray(response) ? response : (response?.items || response?.rankings || response?.data || []);
     } catch (e) {
       throw e;
     }
@@ -22,7 +22,7 @@ export const hackathonResultsService = {
   getIndividualRankings: async (hackathonId) => {
     try {
       const response = await axiosClient.get(`/api/v1/hackathons/${hackathonId}/individual-rankings`);
-      return Array.isArray(response) ? response : (response?.data || []);
+      return Array.isArray(response) ? response : (response?.items || response?.rankings || response?.data || []);
     } catch (e) {
       throw e;
     }
@@ -31,7 +31,7 @@ export const hackathonResultsService = {
   getPrizes: async (hackathonId) => {
     try {
       const response = await axiosClient.get(`/api/v1/hackathons/${hackathonId}/prizes`);
-      return Array.isArray(response) ? response : (response?.data || []);
+      return Array.isArray(response) ? response : (response?.items || response?.prizes || response?.data || []);
     } catch (e) {
       throw e;
     }

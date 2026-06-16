@@ -31,7 +31,7 @@ export const studentResultsService = {
   getMyPrizes: async () => {
     try {
       const response = await axiosClient.get(`/api/v1/me/prizes`);
-      return Array.isArray(response) ? response : (response?.data || []);
+      return Array.isArray(response) ? response : (response?.items || response?.prizes || response?.data || []);
     } catch (e) {
       throw e;
     }
@@ -40,7 +40,7 @@ export const studentResultsService = {
   getMyCertificates: async () => {
     try {
       const response = await axiosClient.get(`/api/v1/me/certificates`);
-      return Array.isArray(response) ? response : (response?.data || []);
+      return Array.isArray(response) ? response : (response?.items || response?.certificates || response?.data || []);
     } catch (e) {
       throw e;
     }

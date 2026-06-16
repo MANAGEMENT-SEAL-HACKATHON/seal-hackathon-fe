@@ -85,7 +85,12 @@ export const mapRankingPreviewItem = (item = {}) => {
 };
 
 export const mapRankingPreviewItems = (response) => {
-  const items = Array.isArray(response) ? response : response?.data;
+  let items = [];
+  if (Array.isArray(response)) {
+    items = response;
+  } else if (response) {
+    items = response.items || response.ranking || response.rankings || response.data || [];
+  }
   return (Array.isArray(items) ? items : []).map(mapRankingPreviewItem);
 };
 
