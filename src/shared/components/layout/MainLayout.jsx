@@ -101,7 +101,6 @@ const MainLayout = ({ children }) => {
       { key: ROUTES.HACKATHONS, icon: <Trophy size={18} />, label: 'Cấu hình Sự kiện' },
       { key: ROUTES.GLOBAL_TEAMS, icon: <Users size={18} />, label: 'Quản lý Đội thi' },
       { key: ROUTES.COORDINATOR_LATE_SUBMISSIONS, icon: <ClipboardCheck size={18} />, label: 'Duyệt nộp muộn' },
-      { key: ROUTES.PRESENTATION_QUEUE, icon: <History size={18} />, label: 'Hàng đợi thuyết trình' },
       { key: ROUTES.USER_APPROVAL, icon: <UserCheck size={18} />, label: 'Duyệt tài khoản' },
       { key: ROUTES.TEMP_JUDGES, icon: <UserPlus size={18} />, label: 'Giám khảo khách' },
       { key: 'monitor', icon: <Activity size={18} />, label: 'Giám sát Real-time' },
@@ -115,7 +114,6 @@ const MainLayout = ({ children }) => {
       { key: '/judge/assignments', icon: <ClipboardCheck size={18} />, label: 'Phòng Chấm Thi' },
       { key: ROUTES.JUDGE_CRITERIA, icon: <FileText size={18} />, label: 'Tiêu chí Đánh giá' },
       { key: ROUTES.PROFILE, icon: <User size={18} />, label: 'Trang cá nhân' },
-      { key: ROUTES.PRESENTATION_QUEUE, icon: <History size={18} />, label: 'Hàng đợi thuyết trình' },
     ];
   } else if (userRole === 'MENTOR') {
     menuItems = [

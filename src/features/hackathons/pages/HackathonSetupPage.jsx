@@ -17,6 +17,7 @@ import LotteryManagementPage from '../../teams/pages/LotteryManagementPage';
 
 // 1. IMPORT TRANG ANALYTICS MỚI (CHỈ THÊM DÒNG NÀY)
 import AnalyticsPage from '../../analytics/pages/AnalyticsPage.jsx';
+import FinalRoundConfigPage from '../../coordinator/pages/FinalRoundConfigPage';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -132,6 +133,11 @@ const HackathonSetupPage = () => {
       key: 'analytics',
       label: 'Phân tích & Dữ liệu',
       children: activeTab === 'analytics' ? <AnalyticsPage hackathonId={hackathon.id} hackathon={hackathon} rounds={rounds} /> : null,
+    },
+    {
+      key: 'final-config',
+      label: 'Cấu hình Chung kết',
+      children: null, // rendered outside Card below
     }
   ];
 
@@ -156,9 +162,40 @@ const HackathonSetupPage = () => {
         }
       />
 
-      <Card style={{ borderRadius: 12 }}>
-        <Tabs destroyInactiveTabPane={true} defaultActiveKey="rounds" items={items} onChange={setActiveTab}/>
+      <style>{`
+        .hackathon-setup-tabs .ant-tabs-nav::before {
+          border-bottom: 1px solid #e8edf5 !important;
+        }
+        .hackathon-setup-tabs .ant-tabs-tab {
+          font-size: 13px !important;
+          font-weight: 600 !important;
+          color: #8fa3bf !important;
+        }
+        .hackathon-setup-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+          color: #0f3d8a !important;
+          font-weight: 700 !important;
+        }
+        .hackathon-setup-tabs .ant-tabs-ink-bar {
+          background: #0f3d8a !important;
+        }
+        .hackathon-setup-card.ant-card {
+          border: 1px solid #e8edf5 !important;
+          box-shadow: 0 1px 6px rgba(15,61,138,0.05) !important;
+        }
+        .hackathon-setup-card .ant-card-body {
+          padding: 0 24px !important;
+        }
+      `}</style>
+
+      <Card
+        bordered={false}
+        className="hackathon-setup-card"
+        style={{ borderRadius: 12, border: '1px solid #e8edf5', boxShadow: '0 1px 6px rgba(15,61,138,0.05)', marginBottom: activeTab === 'final-config' ? 0 : undefined }}
+        bodyStyle={{ padding: '0 24px' }}
+      >
+        <Tabs destroyInactiveTabPane={true} defaultActiveKey="rounds" items={items} onChange={setActiveTab} className="hackathon-setup-tabs"/>
       </Card>
+      {activeTab === 'final-config' && <FinalRoundConfigPage />}
     </div>
   );
 };

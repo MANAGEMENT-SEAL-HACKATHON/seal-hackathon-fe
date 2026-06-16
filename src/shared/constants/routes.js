@@ -27,4 +27,6 @@ export const ROUTES = {
   STUDENT_SUBMIT: '/student/submit',
   COORDINATOR_LATE_SUBMISSIONS: '/coordinator/late-submissions',
   PRESENTATION_QUEUE: '/presentation/queue',
+  COORDINATOR_FINAL_CONFIG: '/coordinator/final-config',
 };
+

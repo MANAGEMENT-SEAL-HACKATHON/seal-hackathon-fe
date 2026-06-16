@@ -33,6 +33,8 @@ import MentorRoundsPage from '../features/mentor/pages/MentorRoundsPage';
 import StudentSubmissionPage from '../student/features/submission/pages/StudentSubmissionPage';
 import LateSubmissionReviewPage from '../features/coordinator/pages/LateSubmissionReviewPage';
 import PresentationQueuePage from '../features/presentation/pages/PresentationQueuePage';
+import FinalRoundConfigPage from '../features/coordinator/pages/FinalRoundConfigPage';
+
 
 // THÊM IMPORT TRANG MỚI VÀO ĐÂY
 import ScoringLobbyPage from '../features/judging/pages/ScoringLobbyPage';
@@ -290,8 +292,15 @@ const AppRouter = () => {
             <LateSubmissionReviewPage />
           </ProtectedRoute>
         } />
+        <Route path={ROUTES.COORDINATOR_FINAL_CONFIG} element={
+          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+            <FinalRoundConfigPage />
+          </ProtectedRoute>
+        } />
         <Route path={ROUTES.PRESENTATION_QUEUE} element={
-          <PresentationQueuePage />
+          <ProtectedRoute allowedRoles={['MENTOR']}>
+            <PresentationQueuePage />
+          </ProtectedRoute>
         } />
       </Route>
 
