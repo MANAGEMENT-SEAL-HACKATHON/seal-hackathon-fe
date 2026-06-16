@@ -37,6 +37,8 @@ import PreliminaryResultsPage from '../features/round-results/pages/PreliminaryR
 import StudentRoundLeaderboardPage from '../student/features/results/pages/StudentRoundLeaderboardPage';
 import StudentResultsIndexPage from '../student/features/results/pages/StudentResultsIndexPage';
 import StudentHackathonResultsPage from '../student/features/results/pages/StudentHackathonResultsPage';
+import LateSubmissionReviewPage from '../features/coordinator/pages/LateSubmissionReviewPage';
+import PresentationQueuePage from '../features/presentation/pages/PresentationQueuePage';
 
 const TrackWrapper = () => {
   const { hackathonId } = useParams();
