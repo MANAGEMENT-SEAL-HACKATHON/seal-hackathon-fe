@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Row, Col, Typography, Button, Spin, message } from 'antd';
-import { ArrowLeft } from 'lucide-react';
+import { Row, Col, Typography, Button, Spin, message, Alert, Result, Card } from 'antd';
+import { ArrowLeft, Trophy } from 'lucide-react';
 import { studentResultsService } from '../services/studentResults.service';
 import StudentFinalLeaderboard from '../components/StudentFinalLeaderboard';
 import MyHonorsPanel from '../components/MyHonorsPanel';
@@ -60,9 +60,11 @@ const StudentHackathonResultsPage = () => {
       </Button>
 
       <div style={{ marginBottom: 32 }}>
-        <Title level={2} style={{ margin: 0, fontWeight: 700 }}>Vinh danh Chung cuộc</Title>
-        <Text type="secondary" style={{ fontSize: 16 }}>
-          Hackathon ID: {hackathonId} — Bảng xếp hạng toàn đoàn và giải thưởng cá nhân xuất sắc.
+        <Title level={2} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.5px', color: '#1f2937' }}>
+          Vinh danh Chung cuộc
+        </Title>
+        <Text type="secondary" style={{ fontSize: 16, marginTop: 4, display: 'block' }}>
+          Bảng xếp hạng toàn đoàn và giải thưởng cá nhân xuất sắc.
         </Text>
       </div>
 
@@ -71,15 +73,13 @@ const StudentHackathonResultsPage = () => {
           <Spin size="large" />
         </div>
       ) : errorMsg ? (
-        <div style={{ maxWidth: 800, margin: '40px auto' }}>
-          <Alert
-            type="info"
-            showIcon
-            message={<span style={{ fontWeight: 600, fontSize: 16 }}>Chưa có kết quả</span>}
-            description={errorMsg}
-            style={{ padding: '20px 24px', borderRadius: 12 }}
+        <Card bordered={false} style={{ borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.04)', marginTop: 40, padding: '40px 0' }}>
+          <Result
+            icon={<div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><Trophy size={72} strokeWidth={1.5} color="#d1d5db" /></div>}
+            title={<span style={{ color: '#1f2937', fontWeight: 800, fontSize: 24, letterSpacing: '-0.5px' }}>Đang chờ công bố kết quả</span>}
+            subTitle={<span style={{ fontSize: 16, color: '#6b7280', maxWidth: 500, display: 'inline-block' }}>{errorMsg}</span>}
           />
-        </div>
+        </Card>
       ) : (
         <Row gutter={[24, 24]}>
           {/* Cột trái: Vinh danh & Giải thưởng */}
