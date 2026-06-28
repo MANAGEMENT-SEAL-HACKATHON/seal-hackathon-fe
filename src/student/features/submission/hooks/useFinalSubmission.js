@@ -190,8 +190,10 @@ export const useFinalSubmission = (teamId, hackathonId) => {
       return false;
     }
 
-    if (isLocked) {
-      message.error('Đã hết hạn nộp bài! Hệ thống tự động từ chối (REJECTED).');
+    const isRejectedSubmission =
+      String(existingSubmission?.status || '').toUpperCase() === 'REJECTED';
+    if (isRejectedSubmission) {
+      message.error('Không thể nộp lại bài đã bị từ chối.');
       return false;
     }
 
@@ -217,16 +219,26 @@ export const useFinalSubmission = (teamId, hackathonId) => {
         roundId: finalRound.id,
         repoUrl: payload.repoUrl,
         demoUrl: payload.demoUrl,
+        reportUrl: payload.reportUrl,
         slideFile: payload.slideFile,
         lateReason: payload.lateReason,
       });
+      const data = res?.data || res;
+      const submissionStatus = String(data?.status || '').toUpperCase();
+      if (submissionStatus === 'REJECTED') {
+        message.error('Bài nộp đã bị từ chối (REJECTED) — đã quá hạn nộp Chung kết.');
+        await fetchSubmissionData();
+        return false;
+      }
       const slideSaved = Boolean(
-        res?.slideFile ??
+        data?.slideFile ??
+          data?.slide_file ??
+          data?.slideDownloadPath ??
+          data?.slide_download_path ??
+          res?.slideFile ??
           res?.slide_file ??
           res?.slideDownloadPath ??
-          res?.slide_download_path ??
-          res?.data?.slideFile ??
-          res?.data?.slideDownloadPath
+          res?.slide_download_path
       );
       if (!slideSaved) {
         message.error('Nộp file slide thất bại — vui lòng chọn file PDF và thử lại.');
@@ -242,6 +254,12 @@ export const useFinalSubmission = (teamId, hackathonId) => {
         message.error('Vòng Chung kết chưa mở hoặc đã kết thúc!');
       } else if (code === 'TEAM_NOT_IN_ROUND') {
         message.error('Đội của bạn chưa được xác nhận tham gia Vòng Chung kết.');
+      } else if (code === 'INVALID_STATE') {
+        message.error('Không thể nộp lại bài đã bị từ chối.');
+      } else if (code === 'HACKATHON_NOT_ONGOING') {
+        message.error('Hackathon đang chờ xác nhận kết quả — không thể nộp bài.');
+      } else if (code === 'LATE_PENDING_NOT_ALLOWED') {
+        message.error('Chung kết không hỗ trợ duyệt nộp trễ.');
       } else {
         message.error(
           error?.response?.data?.message || error?.message || 'Lỗi khi nộp bài. Vui lòng thử lại!'

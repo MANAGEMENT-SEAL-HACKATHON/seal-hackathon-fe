@@ -17,9 +17,21 @@ const { Header, Content } = Layout;
 const LiveScoringPage = () => {
   const navigate = useNavigate();
   const { assignmentId } = useParams();
-  const { roundId, trackId, isFinal, assignmentType } = useLocation().state || {};
+  const {
+    roundId,
+    trackId,
+    isFinal,
+    assignmentType,
+    isCalibration,
+    calibrationSessionId,
+    sampleSubmissionId,
+  } = useLocation().state || {};
 
-  const scoringLogic = useLiveScoringV2(assignmentId, roundId, trackId, isFinal, assignmentType);
+  const scoringLogic = useLiveScoringV2(assignmentId, roundId, trackId, isFinal, assignmentType, {
+    isCalibration: Boolean(isCalibration),
+    calibrationSessionId,
+    sampleSubmissionId,
+  });
 
   if (scoringLogic.isLoading) {
     return (
@@ -100,7 +112,14 @@ const LiveScoringPage = () => {
       <Content style={{ padding: '32px', maxWidth: 1600, margin: '0 auto', width: '100%' }}>
         <Row gutter={32} align="stretch">
           <Col xs={24} lg={6} style={{ display: 'flex', flexDirection: 'column' }}>
-             <JudgeSidebarQueue queue={scoringLogic.trackQueue} activeSlot={scoringLogic.activeSlot} isFinal={isFinal} myScores={scoringLogic.myScoredSubmissions} />
+             <JudgeSidebarQueue
+               queue={scoringLogic.trackQueue}
+               activeSlot={scoringLogic.activeSlot}
+               selectedSubmissionId={scoringLogic.selectedSubmissionId}
+               isFinal={isFinal || scoringLogic.isCalibration}
+               myScores={scoringLogic.myScoredSubmissions}
+               onSelectSubmission={scoringLogic.onSelectSubmission}
+             />
           </Col>
 
           <Col xs={24} lg={12} style={{ display: 'flex', flexDirection: 'column' }}>
@@ -108,7 +127,9 @@ const LiveScoringPage = () => {
           </Col>
 
           <Col xs={24} lg={6} style={{ display: 'flex', flexDirection: 'column' }}>
-             <JudgeTimerAndControls logic={scoringLogic} isFinal={isFinal} />
+             {!scoringLogic.isCalibration && (
+               <JudgeTimerAndControls logic={scoringLogic} isFinal={isFinal} />
+             )}
           </Col>
         </Row>
       </Content>

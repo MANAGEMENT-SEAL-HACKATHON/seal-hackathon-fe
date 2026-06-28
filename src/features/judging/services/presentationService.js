@@ -58,6 +58,19 @@ export const presentationService = {
 
   listRoundJudges: (roundId) =>
     axiosClient.get(`/api/v1/rounds/${roundId}/judges`),
+
+  getDuration: (roundId, trackId) =>
+    axiosClient.get(ENDPOINTS.PRESENTATION.DURATION, {
+      params: { roundId, ...(trackId ? { trackId } : {}) },
+    }),
+
+  updateDuration: ({ roundId, presentationMinutes, qaMinutes, trackId }) =>
+    axiosClient.put(ENDPOINTS.PRESENTATION.DURATION, {
+      roundId,
+      presentationMinutes,
+      qaMinutes,
+      ...(trackId ? { trackId } : {}),
+    }),
 };
 
 export const findPresentingItem = (queueData, trackId) => {

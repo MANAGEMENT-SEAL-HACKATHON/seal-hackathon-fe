@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, List, Tag, Typography, Space, Button, Popconfirm } from 'antd';
+import { Card, List, Tag, Typography, Space, Button, Modal } from 'antd';
 import { Gift, Award, Star, Plus, Trash2 } from 'lucide-react';
 import AwardPrizeModal from './AwardPrizeModal';
 
@@ -27,8 +27,20 @@ const getPrizeColor = (type) => {
   }
 };
 
-const PrizeListPanel = ({ data, loading, hackathonId, onRefresh, canRevoke, onRevoke }) => {
+const PrizeListPanel = ({ data, loading, hackathonId, onRefresh, canAward, canRevoke, onRevoke }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
+
+  const confirmRevoke = (prizeId) => {
+    Modal.confirm({
+      title: 'Thu hồi giải thưởng?',
+      content: 'Chỉ thực hiện khi chưa chốt sổ.',
+      okText: 'Thu hồi',
+      cancelText: 'Hủy',
+      okButtonProps: { danger: true, id: 'gd6-revoke-ok' },
+      cancelButtonProps: { id: 'gd6-revoke-cancel' },
+      onOk: () => onRevoke?.(prizeId),
+    });
+  };
 
   return (
     <Card 
@@ -38,13 +50,16 @@ const PrizeListPanel = ({ data, loading, hackathonId, onRefresh, canRevoke, onRe
       title={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>Danh sách Giải thưởng</span>
-          <Button 
-            type="primary" 
-            icon={<Plus size={16} />} 
-            onClick={() => setIsModalVisible(true)}
-          >
-            Trao giải mới
-          </Button>
+          {canAward && (
+            <Button
+              type="primary"
+              icon={<Plus size={16} />}
+              id="gd6-award-trigger"
+              onClick={() => setIsModalVisible(true)}
+            >
+              Trao giải mới
+            </Button>
+          )}
         </div>
       }
     >
@@ -59,18 +74,16 @@ const PrizeListPanel = ({ data, loading, hackathonId, onRefresh, canRevoke, onRe
           return (
           <List.Item
             actions={canRevoke && (item.id ?? item.prizeId) ? [
-              <Popconfirm
+              <Button
                 key="revoke"
-                title="Thu hồi giải thưởng?"
-                description="Chỉ thực hiện khi chưa chốt sổ."
-                onConfirm={() => onRevoke?.(item.id ?? item.prizeId)}
-                okText="Thu hồi"
-                cancelText="Hủy"
+                type="text"
+                danger
+                icon={<Trash2 size={16} />}
+                size="small"
+                onClick={() => confirmRevoke(item.id ?? item.prizeId)}
               >
-                <Button type="text" danger icon={<Trash2 size={16} />} size="small">
-                  Thu hồi
-                </Button>
-              </Popconfirm>,
+                Thu hồi
+              </Button>,
             ] : undefined}
           >
             <List.Item.Meta

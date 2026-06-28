@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { Tabs, Card, Alert, Button, Popconfirm } from 'antd';
+import { Tabs, Card, Alert, Button, Modal, Tooltip } from 'antd';
 import { useHackathonResults } from '../hooks/useHackathonResults';
 import TeamRankingTable from '../components/TeamRankingTable';
 import ChapterRankingTable from '../components/ChapterRankingTable';
@@ -21,6 +21,7 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
     prizes,
     closing,
     exporting,
+    canAwardPrize,
     canConfirm,
     canRevokePrize,
     canExport,
@@ -34,6 +35,23 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
   if (!id) return null;
 
   const status = String(hackathon?.status || '').toUpperCase();
+
+  const openConfirmClosureModal = () => {
+    Modal.confirm({
+      title: 'Xác nhận Chốt Sổ Cuộc Thi?',
+      content: (
+        <div style={{ maxWidth: 300 }}>
+          Hành động này sẽ khóa toàn bộ vòng thi và công bố điểm ngay lập tức cho sinh viên.
+          KHÔNG THỂ HOÀN TÁC! Bạn có chắc chắn giám khảo đã chấm xong và đã trao đủ giải thưởng?
+        </div>
+      ),
+      okText: 'Khóa điểm & Công bố',
+      cancelText: 'Hủy',
+      okButtonProps: { danger: true, id: 'gd6-confirm-ok' },
+      cancelButtonProps: { id: 'gd6-confirm-cancel' },
+      onOk: () => handleConfirmClosure(),
+    });
+  };
 
   const tabItems = [
     {
@@ -65,6 +83,7 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
         loading={loading}
         hackathonId={id}
         onRefresh={refresh}
+        canAward={canAwardPrize}
         canRevoke={canRevokePrize}
         onRevoke={handleRevokePrize}
       />
@@ -86,6 +105,7 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
             <Button
               type="default"
               size="large"
+              id="gd6-export-csv"
               icon={<Download size={18} />}
               loading={exporting}
               onClick={handleExportRankings}
@@ -93,24 +113,25 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
               Xuất CSV xếp hạng
             </Button>
           )}
-          {canConfirm && (
-            <Popconfirm
-              title="Xác nhận Chốt Sổ Cuộc Thi?"
-              description={
-                <div style={{ maxWidth: 300 }}>
-                  Hành động này sẽ khóa toàn bộ vòng thi và công bố điểm ngay lập tức cho sinh viên.
-                  KHÔNG THỂ HOÀN TÁC! Bạn có chắc chắn giám khảo đã chấm xong và đã trao đủ giải thưởng?
-                </div>
-              }
-              onConfirm={handleConfirmClosure}
-              okText="Khóa điểm & Công bố"
-              cancelText="Hủy"
-              okButtonProps={{ danger: true, loading: closing }}
+          {status === 'PENDING_CONFIRM' && canConfirm && (
+            <Button
+              type="primary"
+              danger
+              size="large"
+              icon={<Trophy size={18} />}
+              id="gd6-confirm-trigger"
+              loading={closing}
+              onClick={openConfirmClosureModal}
             >
-              <Button type="primary" danger size="large" icon={<Trophy size={18} />}>
+              Chốt sổ & Công bố kết quả
+            </Button>
+          )}
+          {status === 'PENDING_CONFIRM' && !canConfirm && (
+            <Tooltip title="Cần ghi nhận ít nhất một giải thưởng trước khi chốt sổ.">
+              <Button type="primary" danger size="large" icon={<Trophy size={18} />} disabled>
                 Chốt sổ & Công bố kết quả
               </Button>
-            </Popconfirm>
+            </Tooltip>
           )}
         </div>
       </div>

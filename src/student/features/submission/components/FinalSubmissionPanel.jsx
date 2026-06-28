@@ -77,6 +77,7 @@ const FinalSubmissionForm = ({
   }, [finalRound?.id, isEligible]);
 
   const submissionIncomplete = existingSubmission?.status === 'INCOMPLETE';
+  const isRejected = String(existingSubmission?.status || '').toUpperCase() === 'REJECTED';
   const hasSavedSlide = Boolean(
     existingSubmission?.hasSlide ??
       existingSubmission?.has_slide ??
@@ -85,7 +86,7 @@ const FinalSubmissionForm = ({
       existingSubmission?.slideDownloadPath ??
       existingSubmission?.slide_download_path
   );
-  const isSubmitted = Boolean(existingSubmission && !submissionIncomplete && hasSavedSlide);
+  const isSubmitted = Boolean(existingSubmission && !submissionIncomplete && !isRejected && hasSavedSlide);
   const deadline = finalRound?.submissionDeadline || finalRound?.submission_deadline;
   const submittedSlideName = existingSubmission?.slideFile || existingSubmission?.slide_file || existingSubmission?.slideUrl || existingSubmission?.slide_url || 'slide.pdf';
   const submissionId = existingSubmission?.submissionId ?? existingSubmission?.submission_id ?? existingSubmission?.id ?? null;
@@ -124,6 +125,7 @@ const FinalSubmissionForm = ({
     await submitFinalWork({
       repoUrl: values.repoUrl || '',
       demoUrl: values.demoUrl || '',
+      reportUrl: values.reportUrl || '',
       slideFile: slideFile || undefined,
     });
   };
@@ -132,7 +134,7 @@ const FinalSubmissionForm = ({
     <Card
       style={{
         borderRadius: 16,
-        border: isLocked && !isSubmitted ? '1px solid #ffccc7' : '1px solid #e2e8f0',
+        border: (isLocked || isRejected) && !isSubmitted ? '1px solid #ffccc7' : '1px solid #e2e8f0',
       }}
       styles={{ body: { padding: 32 } }}
     >
@@ -155,13 +157,17 @@ const FinalSubmissionForm = ({
               <Tag color="success" icon={<CheckCircleOutlined />} style={{ fontWeight: 600 }}>
                 ĐÃ NỘP BÀI
               </Tag>
-            ) : isLocked ? (
+            ) : isRejected ? (
               <Tag
                 color="error"
                 icon={<CloseCircleOutlined />}
                 style={{ fontWeight: 600, fontSize: 14, padding: '4px 8px' }}
               >
-                REJECTED (Nộp muộn)
+                REJECTED
+              </Tag>
+            ) : isLocked ? (
+              <Tag color="warning" icon={<ClockCircleOutlined />} style={{ fontWeight: 600 }}>
+                HẾT HẠN
               </Tag>
             ) : (
               <Tag color="processing" style={{ fontWeight: 600 }}>
@@ -202,11 +208,21 @@ const FinalSubmissionForm = ({
         </div>
       </div>
 
-      {isLocked && !isSubmitted && (
+      {isRejected && (
         <Alert
-          message="Đã khóa cổng nộp bài"
-          description="Thời gian nộp bài Chung kết đã kết thúc. Hệ thống đã khóa cứng (Hard-lock) toàn bộ form nộp bài theo quy định. Bài thi không được ghi nhận mang trạng thái REJECTED."
+          message="Bài nộp bị từ chối (REJECTED)"
+          description="Bài nộp Chung kết đã bị hệ thống từ chối do quá hạn (HARD_LOCK). Không thể nộp lại."
           type="error"
+          showIcon
+          style={{ marginBottom: 24, borderRadius: 8 }}
+        />
+      )}
+
+      {isLocked && !isSubmitted && !isRejected && (
+        <Alert
+          message="Đã quá hạn nộp bài"
+          description="Thời gian nộp Chung kết đã kết thúc. Bạn vẫn có thể gửi để hệ thống ghi nhận trạng thái REJECTED (HARD_LOCK)."
+          type="warning"
           showIcon
           style={{ marginBottom: 24, borderRadius: 8 }}
         />
@@ -265,7 +281,7 @@ const FinalSubmissionForm = ({
             form={form}
             layout="vertical"
             onFinish={handleFinish}
-            disabled={isLocked || isSubmitted}
+            disabled={isRejected || isSubmitted}
             initialValues={existingSubmission || {}}
           >
             <Form.Item
@@ -286,9 +302,9 @@ const FinalSubmissionForm = ({
                   return false;
                 }}
                 onRemove={() => setSlideFile(null)}
-                disabled={isLocked || isSubmitted}
+                disabled={isRejected || isSubmitted}
               >
-                <Button icon={<CloudUploadOutlined />} disabled={isLocked || isSubmitted}>Chọn file PDF</Button>
+                <Button icon={<CloudUploadOutlined />} disabled={isRejected || isSubmitted}>Chọn file PDF</Button>
               </Upload>
               
               {(existingSubmission?.slideFile || existingSubmission?.slide_file || hasSavedSlide) && (
@@ -330,22 +346,29 @@ const FinalSubmissionForm = ({
                   />
                 </Form.Item>
               </Col>
+              <Col span={12}>
+                <Form.Item name="reportUrl" label="Link Báo cáo (Nếu có)">
+                  <Input
+                    prefix={<LinkOutlined style={{ color: '#bfbfbf' }} />}
+                    placeholder="https://docs.example.com/final-report"
+                    size="large"
+                    style={{ borderRadius: 8 }}
+                  />
+                </Form.Item>
+              </Col>
             </Row>
-            {!isSubmitted && (
+            {!isSubmitted && !isRejected && (
               <Button
                 type="primary"
                 size="large"
                 htmlType="submit"
                 icon={<CloudUploadOutlined />}
                 loading={isSubmitting}
-                disabled={isLocked}
                 style={{
                   width: 200,
                   height: 48,
                   borderRadius: 12,
                   fontWeight: 700,
-                  background: isLocked ? '#d9d9d9' : '#1677ff',
-                  borderColor: isLocked ? '#d9d9d9' : '#1677ff',
                 }}
               >
                 Gửi Bài Dự Thi

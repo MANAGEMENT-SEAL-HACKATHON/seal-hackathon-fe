@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 // Import Components phụ
 import PresentationControllerCard from '../components/PresentationControllerCard';
 import PresentationReadinessPanel from '../components/PresentationReadinessPanel';
+import FinalPresentationDurationCard from '../components/FinalPresentationDurationCard';
 
 const { Title, Text } = Typography;
 
@@ -198,6 +199,15 @@ const PresentationQueuePage: React.FC = () => {
 
   const teamsList = activeTrackData?.items || [];
   const isShuffled = Boolean(activeTrackData?.shuffled);
+  const timerStarted = useMemo(() => {
+    const items = teamsList || [];
+    return items.some((item: any) => {
+      const status = String(item?.status || '').toUpperCase();
+      if (status === 'PRESENTING') return true;
+      const phase = String(item?.timer?.phase || '').toUpperCase();
+      return ['PRESENTING', 'QA', 'PAUSED', 'ENDED'].includes(phase);
+    });
+  }, [teamsList]);
 
   const totalTeamsToRoll = teamsList.length > 0 ? teamsList.length : 6;
 
@@ -421,8 +431,22 @@ const PresentationQueuePage: React.FC = () => {
             </div>
           )}
 
-          {/* Card Tình trạng Bài Nộp (Màn hình Review trễ) */}
-          {isCoordinator && roundId && (
+          {isCoordinator && roundId && isFinalRound && (
+            <FinalPresentationDurationCard roundId={roundId} timerStarted={timerStarted} />
+          )}
+
+          {isCoordinator && roundId && isFinalRound && (
+            <Alert
+              type="info"
+              showIcon
+              message="Chung kết — HARD_LOCK"
+              description="Vòng Chung kết không duyệt nộp trễ. Bài nộp sau deadline sẽ bị REJECTED (HARD_LOCK)."
+              style={{ borderRadius: 16 }}
+            />
+          )}
+
+          {/* Card Tình trạng Bài Nộp (Màn hình Review trễ) — chỉ Sơ loại */}
+          {isCoordinator && roundId && !isFinalRound && (
              <PresentationReadinessPanel 
                 roundId={roundId as any} 
                 trackId={selectedTrackId as any} 

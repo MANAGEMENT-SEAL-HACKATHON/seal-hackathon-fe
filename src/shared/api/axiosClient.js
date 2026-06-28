@@ -69,6 +69,9 @@ const handleSessionExpired = () => {
 // Add a response interceptor
 axiosClient.interceptors.response.use(
   function (response) {
+    if (response.config?.responseType === 'blob') {
+      return response.data;
+    }
     // If backend wraps response in { code, message, data }, we return data
     if (response.data && response.data.data !== undefined) {
       return response.data.data;

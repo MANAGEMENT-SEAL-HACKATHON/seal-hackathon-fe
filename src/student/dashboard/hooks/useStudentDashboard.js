@@ -98,6 +98,10 @@ export const useStudentDashboard = () => {
         const registered = await studentHackathonService.getRegisteredHackathons('ONGOING');
         primaryHackathonId = registered[0]?.id;
       }
+      if (!primaryHackathonId) {
+        const pendingConfirm = await studentHackathonService.getRegisteredHackathons('PENDING_CONFIRM');
+        primaryHackathonId = pendingConfirm[0]?.id;
+      }
 
       if (!primaryHackathonId) {
         setActiveHackathon(null);

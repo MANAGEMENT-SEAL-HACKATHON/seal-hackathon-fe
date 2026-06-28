@@ -55,6 +55,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   const [isLockModalVisible, setIsLockModalVisible] = useState(false);
   const [lockingRound, setLockingRound] = useState(null);
   const [lockReason, setLockReason] = useState('');
+  const [lockRequiresForce, setLockRequiresForce] = useState(false);
   const [isLocking, setIsLocking] = useState(false);
 
   const [isReleaseModalVisible, setIsReleaseModalVisible] = useState(false);
@@ -143,6 +144,66 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   // ==========================================
   // BƯỚC 1: Hàm Kích hoạt Vòng thi
   // ==========================================
+  const ensureFinalRoundReadiness = async () => {
+    const readiness = await hackathonService.getReadiness(hackathonId, 'FINAL_ROUND');
+    const blockers = Array.isArray(readiness?.blockers) ? readiness.blockers : [];
+    if (readiness?.ready === false || blockers.length > 0) {
+      Modal.error({
+        title: 'Chưa thể kích hoạt Chung kết',
+        content: (
+          <div>
+            <p>Readiness FINAL_ROUND chưa đạt. Vui lòng xử lý các blocker sau:</p>
+            <ul style={{ paddingLeft: 18 }}>
+              {blockers.slice(0, 6).map((item, idx) => (
+                <li key={`${item.code || 'BLOCKER'}-${idx}`}>
+                  {item.message || item.code || 'Blocker chưa rõ chi tiết'}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ),
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const finalizeLockScoring = async (round, payload) => {
+    const result = await roundService.lockScoring(round.id, payload);
+    const warnings = result?.warnings || [];
+    const partialWarning = warnings.find((w) => w.code === 'PARTIAL_SCORING_BEFORE_LOCK');
+    if (partialWarning) {
+      message.warning(partialWarning.message || 'Còn bài chưa được chấm điểm.');
+    }
+    message.success(`Đã khóa chấm điểm cho ${round.name}.`);
+    setIsLockModalVisible(false);
+    setLockReason('');
+    setLockRequiresForce(false);
+    await fetchRounds();
+
+    const isFinalLock = Boolean(round.is_final || round.isFinal);
+    if (isFinalLock && hackathonId) {
+      try {
+        const updatedHackathon = await hackathonService.getById(hackathonId);
+        const status = String(updatedHackathon?.status || '').toUpperCase();
+        if (onHackathonSync) {
+          await onHackathonSync();
+        }
+        if (status === 'PENDING_CONFIRM') {
+          Modal.success({
+            title: 'Đã khóa Chung kết — sẵn sàng GĐ6',
+            content:
+              'Hackathon đã chuyển sang trạng thái PENDING_CONFIRM. Tiếp theo: trao giải và chốt sổ kết quả.',
+            okText: 'Mở kết quả & trao giải',
+            onOk: () => navigate(`/hackathons/${hackathonId}/results`),
+          });
+        }
+      } catch {
+        // non-blocking
+      }
+    }
+  };
+
   const handleActivateRound = (round) => {
     Modal.confirm({
       title: 'Xác nhận kích hoạt vòng thi?',
@@ -152,26 +213,8 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       onOk: async () => {
         try {
           if (round.is_final) {
-            const readiness = await hackathonService.getReadiness(hackathonId, 'FINAL_ROUND');
-            const blockers = Array.isArray(readiness?.blockers) ? readiness.blockers : [];
-            if (readiness?.ready === false || blockers.length > 0) {
-              Modal.error({
-                title: 'Chưa thể kích hoạt Chung kết',
-                content: (
-                  <div>
-                    <p>Readiness FINAL_ROUND chưa đạt. Vui lòng xử lý các blocker sau:</p>
-                    <ul style={{ paddingLeft: 18 }}>
-                      {blockers.slice(0, 6).map((item, idx) => (
-                        <li key={`${item.code || 'BLOCKER'}-${idx}`}>
-                          {item.message || item.code || 'Blocker chưa rõ chi tiết'}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ),
-              });
-              return;
-            }
+            const ready = await ensureFinalRoundReadiness();
+            if (!ready) return;
           }
           setLoading(true);
           await roundService.activate(round.id, { note: 'Kích hoạt thủ công' });
@@ -185,48 +228,41 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
     });
   };
 
-  const handleLockScoring = async () => {
-    if (!lockReason.trim()) {
-      return message.warning('Vui lòng nhập lý do khóa chấm điểm.');
+  const handleOpenLockScoring = async (record) => {
+    setLockingRound(record);
+    setLockReason('');
+    setLockRequiresForce(false);
+    try {
+      const progress = await roundService.getScoringProgress(record.id);
+      const pending =
+        progress?.pendingSubmissions ??
+        progress?.data?.pendingSubmissions ??
+        0;
+      if (pending > 0) {
+        setLockRequiresForce(true);
+        setIsLockModalVisible(true);
+        return;
+      }
+      setIsLocking(true);
+      await finalizeLockScoring(record, { force: false });
+    } catch (error) {
+      message.error('Lỗi khi khóa chấm điểm. Vui lòng kiểm tra lại kết nối.');
+    } finally {
+      setIsLocking(false);
     }
-    
+  };
+
+  const handleLockScoring = async () => {
+    if (lockRequiresForce && !lockReason.trim()) {
+      return message.warning('Vui lòng nhập lý do khóa chấm điểm (force lock).');
+    }
+
     setIsLocking(true);
     try {
-      const result = await roundService.lockScoring(lockingRound.id, {
-        force: true,
-        reason: lockReason.trim(),
+      await finalizeLockScoring(lockingRound, {
+        force: lockRequiresForce,
+        reason: lockRequiresForce ? lockReason.trim() : undefined,
       });
-      const warnings = result?.warnings || [];
-      const partialWarning = warnings.find((w) => w.code === 'PARTIAL_SCORING_BEFORE_LOCK');
-      if (partialWarning) {
-        message.warning(partialWarning.message || 'Còn bài chưa được chấm điểm — đã force lock theo lý do.');
-      }
-      message.success(`Đã khóa chấm điểm cho ${lockingRound.name}.`);
-      setIsLockModalVisible(false);
-      setLockReason('');
-      await fetchRounds();
-
-      const isFinalLock = Boolean(lockingRound.is_final || lockingRound.isFinal);
-      if (isFinalLock && hackathonId) {
-        try {
-          const updatedHackathon = await hackathonService.getById(hackathonId);
-          const status = String(updatedHackathon?.status || '').toUpperCase();
-          if (onHackathonSync) {
-            await onHackathonSync();
-          }
-          if (status === 'PENDING_CONFIRM') {
-            Modal.success({
-              title: 'Đã khóa Chung kết — sẵn sàng GĐ6',
-              content:
-                'Hackathon đã chuyển sang trạng thái PENDING_CONFIRM. Tiếp theo: trao giải và chốt sổ kết quả.',
-              okText: 'Mở kết quả & trao giải',
-              onOk: () => navigate(`/hackathons/${hackathonId}/results`),
-            });
-          }
-        } catch {
-          // non-blocking
-        }
-      }
     } catch (error) {
       message.error('Lỗi khi khóa chấm điểm. Vui lòng kiểm tra lại kết nối.');
     } finally {
@@ -297,6 +333,11 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
               title: 'Không thể kích hoạt vòng thi',
               content: `Tổng trọng số các tiêu chí của vòng Chung kết phải bằng 1.0 (100%). Hiện tại đang là: ${(totalWeight * 100).toFixed(1)}%.`,
             });
+            setLoading(false);
+            return;
+          }
+          const ready = await ensureFinalRoundReadiness();
+          if (!ready) {
             setLoading(false);
             return;
           }
@@ -597,11 +638,8 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                 />
               </Tooltip>
 
-              <Tooltip title="Khóa chấm điểm (Force Lock)">
-                <Button type="text" danger icon={<Lock size={16} />} onClick={() => {
-                  setLockingRound(record);
-                  setIsLockModalVisible(true);
-                }} />
+              <Tooltip title="Khóa chấm điểm">
+                <Button type="text" danger icon={<Lock size={16} />} onClick={() => handleOpenLockScoring(record)} />
               </Tooltip>
             </Space>
           );
@@ -822,7 +860,11 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         title={<span><Lock size={18} style={{ color: 'var(--ant-color-error)', marginRight: 8, verticalAlign: 'middle' }}/> Khóa chấm điểm Vòng thi</span>}
         open={isLockModalVisible}
         onOk={handleLockScoring}
-        onCancel={() => setIsLockModalVisible(false)}
+        onCancel={() => {
+          setIsLockModalVisible(false);
+          setLockRequiresForce(false);
+          setLockReason('');
+        }}
         confirmLoading={isLocking}
         okText="Xác nhận Khóa"
         cancelText="Hủy"
@@ -830,9 +872,17 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       >
         <div style={{ marginBottom: 16 }}>
           <Text>Bạn đang thực hiện khóa luồng chấm điểm của vòng: <strong>{lockingRound?.name}</strong>.</Text><br/>
-          <Text type="danger">Lưu ý: Hành động này sẽ chốt sổ điểm, Giám khảo sẽ không thể chỉnh sửa điểm hay comment được nữa.</Text>
+          {lockRequiresForce ? (
+            <>
+              <Text type="danger">Còn bài chưa được chấm điểm — cần force lock kèm lý do.</Text><br/>
+              <Text type="secondary">Giám khảo sẽ không thể chỉnh sửa điểm sau khi khóa.</Text>
+            </>
+          ) : (
+            <Text type="secondary">Tất cả bài đã được chấm — khóa bình thường (không cần lý do).</Text>
+          )}
         </div>
         
+        {lockRequiresForce && (
         <div>
           <Text strong>Lý do khóa (force_lock_reason) <span style={{ color: 'red' }}>*</span></Text>
           <Input.TextArea 
@@ -843,6 +893,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
             style={{ marginTop: 8 }}
           />
         </div>
+        )}
       </Modal>
 
       <Modal

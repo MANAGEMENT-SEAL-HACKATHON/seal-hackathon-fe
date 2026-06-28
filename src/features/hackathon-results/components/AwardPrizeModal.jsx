@@ -98,6 +98,7 @@ const AwardPrizeModal = ({ visible, onClose, onSuccess, hackathonId }) => {
       confirmLoading={loading}
       okText="Lưu giải thưởng"
       cancelText="Hủy"
+      okButtonProps={{ id: 'gd6-award-save' }}
       width={600}
     >
       <Form form={form} layout="vertical" disabled={fetchingData}>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Alert, Button, Card, Col, Form, InputNumber, Row, Space, Tag, Typography, Select, message } from "antd";
 import { ArrowRight, BarChart3, Medal, ShieldCheck, Trophy, Search, ChevronDown } from "lucide-react";
 import { studentTeamService } from "../../team/services/studentTeam.service";
+import { studentHackathonService } from "../../hackathon/services/studentHackathon.service";
 
 const { Text, Title } = Typography;
 
@@ -12,6 +13,7 @@ const StudentResultsIndexPage = () => {
   const [hackathonId, setHackathonId] = useState(null);
   const [myHackathons, setMyHackathons] = useState([]);
   const [loadingHackathons, setLoadingHackathons] = useState(true);
+  const [selectedHackathonStatus, setSelectedHackathonStatus] = useState(null);
 
   useEffect(() => {
     const fetchMyHackathons = async () => {
@@ -45,6 +47,29 @@ const StudentResultsIndexPage = () => {
 
     fetchMyHackathons();
   }, []);
+
+  useEffect(() => {
+    if (!hackathonId) {
+      setSelectedHackathonStatus(null);
+      return;
+    }
+
+    let cancelled = false;
+    studentHackathonService
+      .getHackathonDetail(hackathonId)
+      .then((detail) => {
+        if (!cancelled) {
+          setSelectedHackathonStatus(String(detail?.status || '').toUpperCase() || null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedHackathonStatus(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hackathonId]);
 
   const openLeaderboard = () => {
     if (roundId) navigate(`/student/results/${roundId}`);
@@ -86,9 +111,19 @@ const StudentResultsIndexPage = () => {
         type="info"
         icon={<ShieldCheck size={16} />}
         message="Dữ liệu được bảo mật"
-        description="Mọi kết quả hiển thị đều sử dụng API read-only. Bạn chỉ có thể xem điểm sau khi Ban Tổ Chức đã công bố chính thức."
+        description="Mọi kết quả hiển thị đều sử dụng API read-only. Bảng chung cuộc có thể xem khi Ban Tổ Chức đã khóa Chung kết (PENDING_CONFIRM) hoặc sau khi công bố chính thức (FINISHED)."
         style={{ marginBottom: 24, borderRadius: 12 }}
       />
+
+      {selectedHackathonStatus === 'PENDING_CONFIRM' && (
+        <Alert
+          showIcon
+          type="success"
+          message="Chung kết đã kết thúc — đang chờ công bố giải"
+          description="Ban Tổ Chức đang trao giải và chuẩn bị chốt sổ. Bạn có thể xem bảng xếp hạng chung cuộc ngay bên dưới."
+          style={{ marginBottom: 24, borderRadius: 12 }}
+        />
+      )}
 
       {/* HAI KHỐI TRA CỨU */}
       <Row gutter={[24, 24]}>

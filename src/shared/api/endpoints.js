@@ -91,6 +91,7 @@ export const ENDPOINTS = {
   },
   JUDGE: {
     SUBMISSIONS: '/api/v1/me/judge/submissions',
+    CALIBRATION_SESSIONS: '/api/v1/me/judge/calibration-sessions',
   },
   PRESENTATION: {
     QUEUE: '/api/v1/presentation/queue',
@@ -101,6 +102,7 @@ export const ENDPOINTS = {
     TIMER_RESUME: '/api/v1/presentation/timer/resume',
     TIMER_QA: '/api/v1/presentation/timer/qa',
     TIMER_RESET: '/api/v1/presentation/timer/reset',
+    DURATION: '/api/v1/presentation/duration',
     TRACK_CONTROLLER: (trackId) => `/api/v1/presentation/tracks/${trackId}/controller`,
     ROUND_CONTROLLER: (roundId) => `/api/v1/presentation/rounds/${roundId}/controller`,
   },

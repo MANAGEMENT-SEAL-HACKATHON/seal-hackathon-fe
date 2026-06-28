@@ -1,6 +1,7 @@
-import { Grid, Skeleton, Space, Typography } from 'antd';
+import { Grid, Skeleton, Space, Typography, Alert, Button } from 'antd';
 import { motion } from 'framer-motion';
-import { CalendarClock, CheckCircle2, ClipboardList, ShieldCheck, UsersRound } from 'lucide-react';
+import { CalendarClock, CheckCircle2, ClipboardList, ShieldCheck, UsersRound, Trophy } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useStudentDashboard } from '../hooks/useStudentDashboard';
 import ProfileStatusBanner from '../components/ProfileStatusBanner';
 import HackathonTimeline from '../components/HackathonTimeline';
@@ -57,6 +58,7 @@ const getMissionState = (user, selectedTeam) => {
 };
 
 const StudentDashboardPage = () => {
+  const navigate = useNavigate();
   const screens = Grid.useBreakpoint();
   const {
     user,
@@ -90,6 +92,26 @@ const StudentDashboardPage = () => {
       }}
     >
       <ProfileStatusBanner user={user} />
+
+      {activeHackathon?.status === 'PENDING_CONFIRM' && (
+        <Alert
+          showIcon
+          type="info"
+          icon={<Trophy size={16} />}
+          message="Đang chờ công bố kết quả"
+          description="Ban Tổ Chức đã khóa Chung kết và đang trao giải. Bạn có thể xem bảng xếp hạng sơ bộ hoặc theo dõi giải thưởng tại trang Kết quả."
+          action={
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => navigate(`/student/hackathons/${activeHackathon.id}/results`)}
+            >
+              Xem kết quả
+            </Button>
+          }
+          style={{ borderRadius: 12 }}
+        />
+      )}
 
       {user?.status === 'APPROVED' && (
         <HackathonRegistrationPanel

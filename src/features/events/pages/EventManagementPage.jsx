@@ -21,6 +21,7 @@ import {
   hasEventType,
   isFirstEventCreation,
 } from '../utils/eventTypeRules';
+import { hackathonService } from '../../hackathons/services/hackathonService';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -35,6 +36,19 @@ const EventManagementPage = ({ hackathonId }) => {
   const startsAt = Form.useWatch('starts_at', form);
 
   const { events, rounds, currentHackathon, isLoading, createEvent, deleteEvent } = useEventManagement(hackathonId, addNotification);
+  const [awardsReadiness, setAwardsReadiness] = useState(null);
+
+  useEffect(() => {
+    if (!hackathonId || !hasEventType(events, 'AWARDS')) {
+      setAwardsReadiness(null);
+      return;
+    }
+    let cancelled = false;
+    hackathonService.getReadiness(hackathonId, 'AWARDS')
+      .then((res) => { if (!cancelled) setAwardsReadiness(res?.data ?? res); })
+      .catch(() => { if (!cancelled) setAwardsReadiness(null); });
+    return () => { cancelled = true; };
+  }, [hackathonId, events]);
 
   const creatableEventTypes = useMemo(() => getCreatableEventTypes(events), [events]);
   const isFirstEvent = isFirstEventCreation(events);
@@ -179,6 +193,17 @@ const EventManagementPage = ({ hackathonId }) => {
           Tạo Sự kiện
         </Button>
       </div>
+
+      {awardsReadiness && (
+        <Alert
+          data-testid="gd6-awards-readiness"
+          type={awardsReadiness.ready ? 'success' : 'info'}
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={awardsReadiness.ready ? 'Readiness AWARDS: Sẵn sàng' : 'Readiness AWARDS'}
+          description={`Blockers: ${(awardsReadiness.blockers || []).length}, Warnings: ${(awardsReadiness.warnings || []).length}`}
+        />
+      )}
 
       <Card styles={{ body: { padding: viewMode === 'calendar' ? 0 : 24 } }}>
         {isLoading ? (

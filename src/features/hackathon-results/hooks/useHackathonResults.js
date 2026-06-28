@@ -119,7 +119,9 @@ export function useHackathonResults(hackathonId) {
       const link = document.createElement('a');
       link.href = url;
       link.download = `rankings-hackathon-${hackathonId}.csv`;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       message.success('Đã tải file xếp hạng.');
     } catch (error) {
@@ -130,13 +132,19 @@ export function useHackathonResults(hackathonId) {
   };
 
   const handleRevokePrize = async (prizeId) => {
-    await hackathonResultsService.revokePrize(prizeId);
-    message.success('Đã thu hồi giải thưởng.');
-    await fetchData();
+    try {
+      await hackathonResultsService.revokePrize(prizeId);
+      message.success('Đã thu hồi giải thưởng.');
+      await fetchData();
+    } catch (error) {
+      const msg = error.response?.data?.message || error.message;
+      message.error(msg ? `Không thể thu hồi giải: ${msg}` : 'Lỗi khi thu hồi giải thưởng.');
+    }
   };
 
   const status = String(hackathon?.status || '').toUpperCase();
-  const canConfirm = status === 'PENDING_CONFIRM';
+  const canAwardPrize = status === 'PENDING_CONFIRM';
+  const canConfirm = status === 'PENDING_CONFIRM' && prizes.length > 0;
   const canRevokePrize = status === 'PENDING_CONFIRM';
   const canExport = status === 'FINISHED';
   const showIndividualTab = Boolean(
@@ -152,6 +160,7 @@ export function useHackathonResults(hackathonId) {
     prizes,
     closing,
     exporting,
+    canAwardPrize,
     canConfirm,
     canRevokePrize,
     canExport,

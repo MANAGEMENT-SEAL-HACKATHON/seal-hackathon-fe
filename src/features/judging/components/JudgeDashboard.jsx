@@ -31,6 +31,7 @@ import { motion } from 'framer-motion';
 import { judgeService } from '../services/judgeService';
 import ScoringCountdownCard from '../components/ScoringCountdownCard';
 import CalibrationSessionsPanel from '../components/CalibrationSessionsPanel';
+import { calibrationService } from '../services/calibrationService';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -54,6 +55,7 @@ const JudgeDashboard = ({ user }) => {
   const [searchText, setSearchText] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [hackathonFilter, setHackathonFilter] = useState('ALL');
+  const [calibrationAssignment, setCalibrationAssignment] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -155,6 +157,55 @@ const JudgeDashboard = ({ user }) => {
     fetchDashboardData();
   }, []);
 
+  useEffect(() => {
+    const finals = (data.assignments || []).filter((item) => item.isFinal);
+    if (!finals.length) {
+      setCalibrationAssignment(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const resolveCalibrationAssignment = async () => {
+      const preferred =
+        finals.find((item) => /calibration/i.test(String(item.hackathonName || ''))) || null;
+
+      const ordered = [];
+      if (preferred) ordered.push(preferred);
+      for (const assignment of finals) {
+        if (!ordered.some((item) => item.roundId === assignment.roundId)) {
+          ordered.push(assignment);
+        }
+      }
+
+      for (const assignment of ordered) {
+        try {
+          const response = await calibrationService.listForJudge(assignment.roundId);
+          const items = Array.isArray(response) ? response : response?.items || response?.data || [];
+          const hasOpen = items.some((session) => {
+            const status = String(session.status || session.sessionStatus || '').toUpperCase();
+            return status === 'OPEN' || status === 'ACTIVE';
+          });
+          if (hasOpen && !cancelled) {
+            setCalibrationAssignment(assignment);
+            return;
+          }
+        } catch {
+          // try next final assignment
+        }
+      }
+
+      if (!cancelled) {
+        setCalibrationAssignment(preferred || finals[0]);
+      }
+    };
+
+    resolveCalibrationAssignment();
+    return () => {
+      cancelled = true;
+    };
+  }, [data.assignments]);
+
   if (loading) {
     return (
       <div style={{ padding: '40px' }}>
@@ -169,7 +220,7 @@ const JudgeDashboard = ({ user }) => {
     return !isLocked && a.progress < 100;
   }) || data.assignments?.[0];
   
-  const finalAssignment = data.assignments?.find((item) => item.isFinal);
+  const finalAssignment = calibrationAssignment;
 
   const filteredAssignments = (data.assignments || []).filter(item => {
     const isEventClosed = ['COMPLETED', 'FINISHED', 'CLOSED', 'INACTIVE'].includes(item.hackathonStatus);

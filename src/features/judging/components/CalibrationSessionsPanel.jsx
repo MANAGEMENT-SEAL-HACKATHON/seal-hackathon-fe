@@ -8,29 +8,36 @@ import { ROUTES } from '../../../shared/constants/routes';
 
 const { Text } = Typography;
 
-const CalibrationSessionsPanel = ({ roundId, isFinal, assignmentId, trackId }) => {
+const CalibrationSessionsPanel = ({ roundId, isFinal, assignmentId, trackId, forJudge = true }) => {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     if (!roundId || !isFinal) {
       setSessions([]);
+      setLoadError(null);
       return;
     }
 
     let cancelled = false;
     setLoading(true);
+    setLoadError(null);
 
-    calibrationService
-      .listByRound(roundId)
+    const loader = forJudge ? calibrationService.listForJudge : calibrationService.listByRound;
+
+    loader(roundId)
       .then((data) => {
         if (cancelled) return;
         const items = Array.isArray(data) ? data : data?.items || data?.data || [];
         setSessions(items);
       })
-      .catch(() => {
-        if (!cancelled) setSessions([]);
+      .catch((error) => {
+        if (!cancelled) {
+          setSessions([]);
+          setLoadError(error?.message || 'Không thể tải phiên calibration.');
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -58,7 +65,11 @@ const CalibrationSessionsPanel = ({ roundId, isFinal, assignmentId, trackId }) =
           <Spin />
         </div>
       ) : sessions.length === 0 ? (
-        <Text type="secondary">Chưa có phiên calibration cho vòng Chung kết.</Text>
+        <Text type="secondary">
+          {loadError
+            ? loadError
+            : 'Chưa có phiên calibration cho vòng Chung kết.'}
+        </Text>
       ) : (
         <List
           size="small"

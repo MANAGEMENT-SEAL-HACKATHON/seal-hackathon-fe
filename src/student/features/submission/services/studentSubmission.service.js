@@ -14,6 +14,7 @@ export const studentSubmissionService = {
     roundId,
     repoUrl,
     demoUrl,
+    reportUrl,
     lateReason,
     slideFile,
   }) => {
@@ -23,6 +24,7 @@ export const studentSubmissionService = {
     appendIfPresent(formData, 'roundId', roundId);
     formData.append('repoUrl', repoUrl);
     appendIfPresent(formData, 'demoUrl', demoUrl);
+    appendIfPresent(formData, 'reportUrl', reportUrl);
     appendIfPresent(formData, 'lateReason', lateReason);
     if (slideFile) {
       formData.append('slideFile', slideFile);
