@@ -1,3 +1,4 @@
+// src/features/round-ranking/components/RankingBoardRow.jsx
 import { Button, Space, Tag, Tooltip, Typography, theme } from "antd";
 import { motion } from "framer-motion";
 import { Ban } from "lucide-react";

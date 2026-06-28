@@ -1,3 +1,4 @@
+// src/features/round-results/pages/PreliminaryResultsPage.jsx
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Alert, Button, Card, List, Modal, Space, Tabs, Tag, Tooltip, Typography } from "antd";
@@ -66,13 +67,20 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
             hasAdvanced={results.hasAdvanced}
             isPublished={results.isPublished}
             rosterDecided={results.rosterDecided}
+            wildcardData={results.wildcard}
+            topN={results.ranking.topNAdvance || results.round?.top_n_advance || 0}
           />
         ),
       },
       {
         key: "tiebreak",
         label: `Tiebreak (${results.tiebreaks.length})`,
-        children: <TiebreakPanel items={results.tiebreaks} error={results.errors.tiebreak} />,
+        children: <TiebreakPanel 
+                    items={results.tiebreaks} 
+                    error={results.errors.tiebreak}
+                    isResolving={results.isResolvingTiebreak}
+                    onResolve={results.resolveTiebreak} 
+                  />,
       },
       {
         key: "wildcard",

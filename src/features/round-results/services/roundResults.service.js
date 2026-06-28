@@ -1,3 +1,4 @@
+// src/features/round-results/services/roundResults.service.js
 import axiosClient from "../../../shared/api/axiosClient";
 import {
   mapOfficialRanking,
@@ -13,7 +14,8 @@ export const roundResultsService = {
 
   getTiebreak: async (roundId) => {
     const response = await axiosClient.get(`/api/v1/rounds/${roundId}/tiebreak`);
-    return mapTiebreakItems(response);
+    // Trả về thẳng data thô chứa candidateTeamIds
+    return response?.data !== undefined ? response.data : response;
   },
 
   getWildcardCandidates: async (roundId) => {
@@ -32,5 +34,7 @@ export const roundResultsService = {
 
   advanceTeams: (roundId, payload) =>
     axiosClient.post(`/api/v1/rounds/${roundId}/advance`, payload),
-};
 
+  resolveTiebreak: (roundId, payload) =>
+    axiosClient.post(`/api/v1/rounds/${roundId}/tiebreak/resolve`, payload),
+};

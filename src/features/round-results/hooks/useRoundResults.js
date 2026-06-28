@@ -1,9 +1,10 @@
+// src/features/round-results/hooks/useRoundResults.js
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { message } from "antd";
 import { roundResultsService } from "../services/roundResults.service";
 import { roundService } from "../../rounds/services/roundService";
 import { mapRoundToFE } from "../../rounds/mappers/roundMapper";
-import { enrichWildcardFromRound } from "../mappers/roundResults.mapper";
+import { mapOfficialRanking, enrichWildcardFromRound, enrichTiebreakItems } from "../mappers/roundResults.mapper";
 
 const emptyRanking = { items: [], topNAdvance: 0, isPublished: false, roundName: "Vòng Sơ loại" };
 const emptyWildcard = {
@@ -22,6 +23,7 @@ export const useRoundResults = (roundId) => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [decidingReviewId, setDecidingReviewId] = useState(null);
+  const [isResolvingTiebreak, setIsResolvingTiebreak] = useState(false);
 
   const fetchResults = useCallback(
     async ({ silent = false } = {}) => {
@@ -45,8 +47,13 @@ export const useRoundResults = (roundId) => {
         setRanking(nextRanking);
       } else nextErrors.ranking = rankingResult.reason;
 
-      if (tiebreakResult.status === "fulfilled") setTiebreaks(tiebreakResult.value);
-      else nextErrors.tiebreak = tiebreakResult.reason;
+      if (tiebreakResult.status === "fulfilled") {
+        // Gọi hàm JOIN data truyền kèm nextRanking.items
+        const enrichedTiebreaks = enrichTiebreakItems(tiebreakResult.value, nextRanking.items);
+        setTiebreaks(enrichedTiebreaks);
+      } else {
+        nextErrors.tiebreak = tiebreakResult.reason;
+      }
 
       if (roundResult.status === "fulfilled") {
         nextRound = mapRoundToFE(roundResult.value);
@@ -77,6 +84,27 @@ export const useRoundResults = (roundId) => {
       return false;
     } finally {
       setDecidingReviewId(null);
+    }
+  };
+
+  const resolveTiebreak = async (payload) => {
+    if (!roundId) return false;
+    setIsResolvingTiebreak(true);
+    try {
+      await roundResultsService.resolveTiebreak(roundId, payload);
+      message.success("Đã phân xử đồng điểm thành công! Hệ thống đã tính lại Xếp hạng.");
+      await fetchResults({ silent: true }); // Tải lại toàn bộ dữ liệu
+      return true;
+    } catch (error) {
+      // Bóc tách lỗi chi tiết từ BE
+      const errorMsg = error?.response?.data?.error?.message 
+                    || error?.response?.data?.message 
+                    || error?.message 
+                    || "Lỗi khi phân xử đồng điểm.";
+      message.error(errorMsg);
+      return false;
+    } finally {
+      setIsResolvingTiebreak(false);
     }
   };
 
@@ -113,7 +141,11 @@ export const useRoundResults = (roundId) => {
     const eliminatedTeamIds = allTeamIds.filter((teamId) => !advancedSet.has(teamId));
 
     // Soft guard to satisfy FINAL min team gate from BE.
-    if (minTeamsFinal > 0 && mergedAdvanced.length < minTeamsFinal) {
+    // Chỉ tự động bốc thêm đội nếu chức năng Vé vớt (Wildcard) BỊ TẮT.
+    // Nếu Wildcard đang bật, bắt buộc Coordinator phải duyệt tay bên tab Wildcard!
+    const isWildcardEnabled = wildcard?.config?.roundEnabled || wildcard?.config?.hackathonEnabled;
+    
+    if (!isWildcardEnabled && minTeamsFinal > 0 && mergedAdvanced.length < minTeamsFinal) {
       const fillCandidates = ranking.items
         .map((item) => item.teamId)
         .filter((teamId) => !advancedSet.has(teamId));
@@ -289,11 +321,13 @@ export const useRoundResults = (roundId) => {
     canAdvance,
     publishDisabledReason,
     advanceDisabledReason,
+    isResolvingTiebreak,
     buildAdvancePayload,
     fetchResults,
     decideWildcard,
     publishRound,
     advanceTeams,
+    resolveTiebreak,
   };
 };
 

@@ -177,14 +177,8 @@ export const useLiveScoringV2 = (
 
         if (presenting?.timer) {
           const serverPhase = presenting.timer.phase;
-          let serverSeconds = presenting.timer.remainingSeconds;
-
-          const maxSeconds =
-            serverPhase === 'QA' || timerEngineRef.current.originalPhase === 'QA' ? 10 : 20;
-
-          if (serverSeconds > maxSeconds || serverSeconds < 0) {
-            serverSeconds = maxSeconds;
-          }
+          let serverSeconds = presenting.timer.remainingSeconds || 0;
+          if (serverSeconds < 0) serverSeconds = 0;
 
           const currentEngine = timerEngineRef.current;
 
@@ -216,11 +210,11 @@ export const useLiveScoringV2 = (
     fetchStaticData();
     if (isCalibration) {
       setIsLoading(false);
-    } else {
-      fetchQueue(true);
-      const interval = setInterval(() => fetchQueue(false), 3000);
-      return () => clearInterval(interval);
+      return;
     }
+    fetchQueue(true);
+    const interval = setInterval(() => fetchQueue(false), 1000);
+    return () => clearInterval(interval);
   }, [fetchStaticData, fetchQueue, isCalibration]);
 
   useEffect(() => {
@@ -599,6 +593,10 @@ export const useLiveScoringV2 = (
           const isResume = previousEngineState.phase === 'PAUSED';
           const targetPhase = isResume ? previousEngineState.originalPhase : 'PRESENTING';
 
+          if (!isResume) {
+            currentTick = (activeSlot.timer?.presentationMinutes || 10) * 60;
+          }
+
           applyEngineState(targetPhase, currentTick);
 
           if (isResume) await presentationService.resumeTimer(roundId, timerTrackId);
@@ -607,7 +605,8 @@ export const useLiveScoringV2 = (
           applyEngineState('PAUSED', currentTick);
           await presentationService.pauseTimer(roundId, timerTrackId);
         } else if (actionType === 'QA') {
-          applyEngineState('QA', 10);
+          const qaSecs = (activeSlot.timer?.qaMinutes || 5) * 60;
+          applyEngineState('QA', qaSecs);
           await presentationService.qaTimer(roundId, timerTrackId);
         } else if (actionType === 'NEXT') {
           await presentationService.advanceNext(roundId, timerTrackId, {
@@ -616,9 +615,11 @@ export const useLiveScoringV2 = (
         }
       } catch (error) {
         applyEngineState(previousEngineState.phase, previousEngineState.baseSeconds);
-        message.error(
-          error?.response?.data?.error?.message || error.message || 'Lỗi điều khiển đồng hồ.'
-        );
+        const beMsg =
+          error?.response?.data?.error?.message ||
+          error?.response?.data?.message ||
+          error.message;
+        message.error(beMsg || 'Lỗi điều khiển đồng hồ.');
       } finally {
         setIsTimerActionLoading(false);
         setTimeout(() => {

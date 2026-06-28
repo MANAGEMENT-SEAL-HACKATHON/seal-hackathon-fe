@@ -218,7 +218,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
           }
           setLoading(true);
           await roundService.activate(round.id, { note: 'Kích hoạt thủ công' });
-          message.success(`ROUND_STARTED: ${round.name} đã được kích hoạt thành công!`);
+          message.success(`${round.name} đã được kích hoạt thành công!`);
           fetchRounds();
         } catch (error) {
           message.error(getRoundErrorMessage(error) || 'Lỗi khi kích hoạt vòng thi. Hãy kiểm tra lại tiêu chí và bảng đấu.');

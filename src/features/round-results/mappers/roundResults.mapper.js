@@ -1,9 +1,13 @@
+// src/features/round-results/mappers/roundResults.mapper.js
 const firstDefined = (...values) => values.find((value) => value !== undefined && value !== null);
 
 const asArray = (value, keys = []) => {
-  if (Array.isArray(value)) return value;
+  const source = value?.data !== undefined ? value.data : value;
+
+  if (Array.isArray(source)) return source;
+  
   for (const key of keys) {
-    if (Array.isArray(value?.[key])) return value[key];
+    if (Array.isArray(source?.[key])) return source[key];
   }
   return [];
 };
@@ -68,6 +72,7 @@ export const mapOfficialRankingItem = (item = {}, index = 0) => {
 };
 
 export const mapOfficialRanking = (response) => {
+  const source = response?.data !== undefined ? response.data : response;
   const items = asArray(response, ["rankings", "items", "teams", "leaderboard"])
     .map(mapOfficialRankingItem)
     .sort(
@@ -80,10 +85,10 @@ export const mapOfficialRanking = (response) => {
   return {
     items,
     topNAdvance: Number(
-      firstDefined(response?.topNAdvance, response?.top_n_advance, response?.topN, response?.top_n, 0),
+      firstDefined(source?.topNAdvance, source?.top_n_advance, source?.topN, source?.top_n, 0),
     ),
-    isPublished: Boolean(firstDefined(response?.isPublished, response?.is_published, false)),
-    roundName: firstDefined(response?.roundName, response?.round_name, response?.name, "Vòng Sơ loại"),
+    isPublished: Boolean(firstDefined(source?.isPublished, source?.is_published, false)),
+    roundName: firstDefined(source?.roundName, source?.round_name, source?.name, "Vòng Sơ loại"),
   };
 };
 
@@ -222,4 +227,47 @@ export const enrichWildcardFromRound = (wildcard, round, ranking) => {
       ),
     },
   };
+};
+
+// Bổ sung thông tin chi tiết cho Tiebreak bằng cách đối chiếu với Bảng xếp hạng
+export const enrichTiebreakItems = (rawTiebreaks, rankingItems = []) => {
+  const items = asArray(rawTiebreaks);
+  
+  return items.map((item, index) => {
+    const candidateIds = item.candidateTeamIds || [];
+    
+    // Tìm thông tin chi tiết của đội từ rankingItems dựa vào ID
+    const teams = candidateIds.map(teamId => {
+      const foundTeam = rankingItems.find(r => String(r.teamId) === String(teamId));
+      return foundTeam ? {
+         ...foundTeam,
+         penaltyScore: Number(foundTeam.penaltyScore || foundTeam.penalty_score || 0)
+      } : {
+         key: String(teamId),
+         teamId: teamId,
+         teamName: `Đội #${teamId}`,
+         weightedAvgScore: 0,
+         penaltyScore: 0,
+         groupLabel: "Không rõ"
+      };
+    });
+
+    // Lấy tên Bảng và Điểm ranh giới từ đội đầu tiên
+    const groupLabel = teams.length > 0 && teams[0].groupLabel ? teams[0].groupLabel : item.partitionKey;
+    const cutoffScore = teams.length > 0 ? teams[0].weightedAvgScore : 0;
+
+    // Giả lập trạng thái: Nếu có đội bị phạt điểm (Penalty > 0), nghĩa là đã được BTC phân xử
+    const hasPenalty = teams.some(t => t.penaltyScore > 0);
+
+    return {
+      key: String(item.partitionKey || index),
+      rule: "PENALTY_SCORE",
+      resolved: hasPenalty, 
+      escalationRequired: !hasPenalty, // Chưa có penalty thì cảnh báo đỏ đòi phân xử
+      cutoffScore: cutoffScore,
+      remainingSlots: item.cutoffRank || 1,
+      teams: teams,
+      groupLabel: groupLabel
+    };
+  });
 };

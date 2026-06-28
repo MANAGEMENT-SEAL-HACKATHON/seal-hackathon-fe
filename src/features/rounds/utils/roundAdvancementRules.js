@@ -1,3 +1,4 @@
+// src/features/rounds/utils/roundAdvancementRules.js
 const getTrackId = (team) => team.trackId ?? team.track_id;
 const getAssignedGroup = (team) => team.assignedGroup ?? team.assigned_group ?? null;
 const getTeamName = (team) => team.teamName ?? team.team_name ?? `Đội #${team.id}`;

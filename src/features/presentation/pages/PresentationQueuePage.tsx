@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Typography, Spin, Alert, Segmented, Card, Row, Col, Button, Tag, Space, Divider } from 'antd';
+import { Typography, Spin, Alert, Segmented, Card, Row, Col, Button, Tag, Space, Divider, Modal, Form, InputNumber } from 'antd';
 import { 
   RetweetOutlined, CheckCircleFilled, 
   ClockCircleOutlined, TrophyOutlined, AppstoreOutlined, ArrowLeftOutlined,
@@ -15,6 +15,7 @@ import { personBApi } from '../../../api/personB.api';
 import { roundService } from '../../rounds/services/roundService';
 import { trackService } from '../../tracks/services/trackService';
 import { hackathonService } from '../../hackathons/services/hackathonService';
+import { presentationService } from '../../judging/services/presentationService';
 import toast from 'react-hot-toast';
 
 // Import Components phụ
@@ -28,8 +29,20 @@ const { Title, Text } = Typography;
 const PRIMARY_BLUE = '#2563eb';
 const PRIMARY_BLUE_LIGHT = '#eff6ff';
 
+// HÀM BÓC TÁCH THÔNG BÁO LỖI CHUYÊN NGHIỆP TỪ BE
+const extractErrorMessage = (err: any) => {
+  if (typeof err === 'string') return err;
+  if (err?.response?.data) {
+    const data = err.response.data;
+    if (data?.error?.message) return data.error.message;
+    if (data?.message) return data.message;
+    return JSON.stringify(data);
+  }
+  return err?.message || 'Lỗi hệ thống không xác định.';
+};
+
 // ==========================================
-// COMPONENT: GAME QUAY SỐ (CHÍNH XÁC VÀO SLOT)
+// COMPONENT: GAME QUAY SỐ
 // ==========================================
 const LotteryAnimation = ({ isRolling, onComplete, totalTeams }: { isRolling: boolean, onComplete: () => void, totalTeams: number }) => {
   const [balls, setBalls] = useState<any[]>([]);
@@ -37,25 +50,17 @@ const LotteryAnimation = ({ isRolling, onComplete, totalTeams }: { isRolling: bo
   useEffect(() => {
     if (isRolling && totalTeams > 0) {
       const slotCount = 5; 
-      
       const newBalls = Array.from({ length: totalTeams }).map((_, i) => {
         const startX = 20 + Math.random() * 60; 
         const targetSlot = i % slotCount; 
         const slotWidth = 100 / slotCount;
         const targetX = (targetSlot * slotWidth) + (slotWidth / 2); 
 
-        return {
-          id: i,
-          startX: `${startX}%`,
-          targetX: `${targetX}%`,
-          delay: Math.random() * 2 
-        };
+        return { id: i, startX: `${startX}%`, targetX: `${targetX}%`, delay: Math.random() * 2 };
       });
       setBalls(newBalls);
 
-      const timer = setTimeout(() => {
-        onComplete();
-      }, 4500);
+      const timer = setTimeout(() => { onComplete(); }, 4500);
       return () => clearTimeout(timer);
     } else {
       setBalls([]);
@@ -64,47 +69,17 @@ const LotteryAnimation = ({ isRolling, onComplete, totalTeams }: { isRolling: bo
 
   return (
     <div style={{ height: 280, background: '#0f172a', borderRadius: 24, position: 'relative', overflow: 'hidden', border: '4px solid #1e293b', boxShadow: 'inset 0 10px 30px rgba(0,0,0,0.5)' }}>
-      {Array.from({ length: 40 }).map((_, i) => (
-        <div key={`peg-${i}`} style={{
-          position: 'absolute', width: 6, height: 6, background: '#475569', borderRadius: '50%',
-          top: `${15 + Math.floor(i / 8) * 18}%`, left: `${10 + (i % 8) * 11 + (Math.floor(i / 8) % 2 === 0 ? 5 : 0)}%`,
-          boxShadow: '0 0 5px #000'
-        }} />
-      ))}
-      
-      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: 50, display: 'flex', borderTop: '2px solid #334155' }}>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={`slot-${i}`} style={{ flex: 1, borderRight: i < 4 ? '2px solid #334155' : 'none', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8, background: 'rgba(51, 65, 85, 0.3)' }}>
-            <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: 800, letterSpacing: 1 }}>SLOT {i+1}</Text>
-          </div>
-        ))}
-      </div>
-
       <AnimatePresence>
         {balls.map((ball) => (
-          <motion.div
-            key={`ball-${ball.id}`}
-            initial={{ y: -30, x: ball.startX, opacity: 0 }}
-            animate={{ 
-              y: [0, 80, 140, 200, 240], 
-              x: [
-                ball.startX, 
-                `calc(${ball.startX} + ${Math.random() > 0.5 ? '20px' : '-20px'})`, 
-                `calc(${ball.targetX} + ${Math.random() > 0.5 ? '15px' : '-15px'})`, 
-                ball.targetX, 
-                ball.targetX  
-              ],
-              opacity: [0, 1, 1, 1, 1] 
-            }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 2.5, delay: ball.delay, ease: "easeOut" }}
+          <motion.div key={`ball-${ball.id}`} initial={{ y: -30, x: ball.startX, opacity: 0 }}
+            animate={{ y: [0, 80, 140, 200, 240], x: [ball.startX, ball.startX, ball.targetX, ball.targetX, ball.targetX], opacity: [0, 1, 1, 1, 1] }}
+            exit={{ opacity: 0 }} transition={{ duration: 2.5, delay: ball.delay, ease: "easeOut" }}
             style={{ position: 'absolute', width: 20, height: 20, borderRadius: '50%', background: 'radial-gradient(circle at 30% 30%, #60a5fa, #2563eb)', boxShadow: '0 4px 10px rgba(37,99,235,0.8)', zIndex: 10, transform: 'translateX(-50%)' }}
           >
             <div style={{ color: '#fff', fontSize: 10, fontWeight: 900, textAlign: 'center', lineHeight: '20px' }}>{ball.id + 1}</div>
           </motion.div>
         ))}
       </AnimatePresence>
-      
       {isRolling && (
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.6)', zIndex: 20 }}>
           <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 1 }}>
@@ -113,6 +88,68 @@ const LotteryAnimation = ({ isRolling, onComplete, totalTeams }: { isRolling: bo
         </div>
       )}
     </div>
+  );
+};
+
+// ==========================================
+// COMPONENT: MODAL CẤU HÌNH THỜI LƯỢNG (DURATION)
+// ==========================================
+const DurationSettingsModal = ({ visible, onClose, roundId, trackId, isFinalRound }: any) => {
+  const [form] = Form.useForm();
+  
+  const { data: durationData, isLoading, refetch } = useQuery({
+    queryKey: ['presentationDuration', roundId, trackId],
+    queryFn: () => presentationService.getDuration(roundId, isFinalRound ? undefined : trackId),
+    enabled: visible && !!roundId,
+  });
+
+  useEffect(() => {
+    if (visible && durationData?.data) {
+      form.setFieldsValue({
+        presentationMinutes: durationData.data.presentationMinutes || durationData.data.effectivePresentationMinutes || 10,
+        qaMinutes: durationData.data.qaMinutes || durationData.data.effectiveQaMinutes || 5,
+      });
+    }
+  }, [visible, durationData, form]);
+
+  const updateMutation = useMutation({
+    mutationFn: (values: any) => presentationService.updateDuration({
+      roundId, trackId: isFinalRound ? undefined : trackId,
+      presentationMinutes: values.presentationMinutes,
+      qaMinutes: values.qaMinutes
+    }),
+    onSuccess: () => { toast.success('Đã lưu cấu hình thời gian!'); onClose(); refetch(); },
+    onError: (err: any) => { toast.error(extractErrorMessage(err)); }
+  });
+
+  const clearOverrideMutation = useMutation({
+    mutationFn: () => presentationService.clearTrackOverride(roundId, trackId),
+    onSuccess: () => { toast.success('Đã gỡ cấu hình riêng, quay về mặc định của Vòng thi.'); refetch(); },
+  });
+
+  return (
+    <Modal title="Cài đặt Thời lượng Thuyết trình & Q&A" open={visible} onCancel={onClose}
+      footer={[
+        !isFinalRound && durationData?.data?.scope === 'TRACK' && (
+          <Button key="clear" danger onClick={() => clearOverrideMutation.mutate()} style={{ float: 'left' }}>Xóa Cài đặt Riêng (Dùng Mặc định)</Button>
+        ),
+        <Button key="cancel" onClick={onClose}>Hủy</Button>,
+        <Button key="submit" type="primary" loading={updateMutation.isPending} onClick={() => form.submit()}>Lưu Cấu Hình</Button>
+      ]}
+    >
+      <Spin spinning={isLoading}>
+        <Alert type="info" showIcon style={{ marginBottom: 16 }} message={`Đang cấu hình cho: ${isFinalRound ? 'Toàn bộ Vòng Chung Kết' : 'Riêng Bảng đấu này'}`} 
+               description="Lưu ý: Chỉ được phép thay đổi khi chưa có đội nào đang thuyết trình (Chưa Start Timer)." />
+        <Form form={form} layout="vertical" onFinish={(values) => updateMutation.mutate(values)}>
+          <Form.Item name="presentationMinutes" label="Thời gian Thuyết trình (Phút)" rules={[{ required: true, message: 'Vui lòng nhập số phút!' }]}>
+            <InputNumber min={1} max={60} style={{ width: '100%' }} size="large" />
+          </Form.Item>
+          <Form.Item name="qaMinutes" label="Thời gian Q&A (Phút)" rules={[{ required: true, message: 'Vui lòng nhập số phút!' }]}>
+            <InputNumber min={1} max={60} style={{ width: '100%' }} size="large" />
+          </Form.Item>
+        </Form>
+      </Spin>
+    </Modal>
   );
 };
 
@@ -132,6 +169,7 @@ const PresentationQueuePage: React.FC = () => {
   const [roundId, setRoundId] = useState<number | null>(roundIdFromUrl ? Number(roundIdFromUrl) : null);
   const [selectedTrackId, setSelectedTrackId] = useState<number | null>(trackIdFromUrl ? Number(trackIdFromUrl) : null);
   const [isRolling, setIsRolling] = useState(false);
+  const [isDurationModalOpen, setIsDurationModalOpen] = useState(false);
 
   useEffect(() => {
     if (!roundIdFromUrl) personBApi.resolveActiveRoundId().then((id: number | null) => { if (id) setRoundId(id); });
@@ -209,6 +247,11 @@ const PresentationQueuePage: React.FC = () => {
     });
   }, [teamsList]);
 
+  const hasActiveOrDoneTeams = teamsList.some((t: any) =>
+    ['PRESENTING', 'DONE', 'QA', 'PAUSED'].includes(t.status || t.queueStatus || t.timer?.phase)
+  );
+  const showQueueDirectly = isShuffled || hasActiveOrDoneTeams;
+
   const totalTeamsToRoll = teamsList.length > 0 ? teamsList.length : 6;
 
   // ── MUTATIONS ──
@@ -217,21 +260,9 @@ const PresentationQueuePage: React.FC = () => {
       const trackIdsArg = isFinalRound || !selectedTrackId ? undefined : [selectedTrackId];
       return personBApi.shufflePresentationQueue(roundId as number, trackIdsArg);
     },
-    onSuccess: () => { 
-      toast.success('Hệ thống đã phân bổ thứ tự thành công!'); 
-      refetchQueue(); 
-    },
-    onError: (err: any) => toast.error(err?.message || 'Có lỗi xảy ra khi tạo hàng đợi.')
+    onSuccess: () => { toast.success('Hệ thống đã phân bổ thứ tự thành công!'); refetchQueue(); },
+    onError: (err: any) => toast.error(extractErrorMessage(err))
   });
-
-  const handleStartLottery = () => {
-    setIsRolling(true);
-  };
-
-  const onLotteryComplete = () => {
-    setIsRolling(false);
-    shuffleMutation.mutate();
-  };
 
   const handleTrackChange = (val: number | string) => {
     const numVal = Number(val);
@@ -264,8 +295,8 @@ const PresentationQueuePage: React.FC = () => {
 
   return (
     <div style={{ padding: '24px 32px', maxWidth: 1440, margin: '0 auto', display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
+      <DurationSettingsModal visible={isDurationModalOpen} onClose={() => setIsDurationModalOpen(false)} roundId={roundId} trackId={selectedTrackId} isFinalRound={isFinalRound} />
       
-      {/* ── HEADER CÓ NÚT BACK ── */}
       <div style={{ marginBottom: 24 }}>
         <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ padding: 0, marginBottom: 12, color: '#64748b', fontWeight: 600 }}>
           Quay lại Cấu hình Sự kiện
@@ -273,18 +304,23 @@ const PresentationQueuePage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
           <div>
             <Title level={2} style={{ margin: 0, fontWeight: 800, color: '#1e293b' }}>
-              <SettingOutlined style={{ color: PRIMARY_BLUE, marginRight: 12 }} />
-              Điều Phối Lịch Trình Thuyết Trình
+              <SettingOutlined style={{ color: PRIMARY_BLUE, marginRight: 12 }} /> Điều Phối Lịch Trình Thuyết Trình
             </Title>
             <Text type="secondary" style={{ fontSize: 16 }}>Thiết lập thứ tự lên sân khấu và phân công quyền điều khiển cho Giám Khảo.</Text>
           </div>
-          <Button onClick={handleRefreshAll} size="large" style={{ borderRadius: '8px', fontWeight: 600, borderColor: '#cbd5e1' }}>
-            <RetweetOutlined /> Cập nhật Đồng bộ
-          </Button>
+          <Space>
+            {isCoordinator && (
+              <Button onClick={() => setIsDurationModalOpen(true)} size="large" icon={<ClockCircleOutlined />} style={{ borderRadius: '8px', fontWeight: 600, borderColor: '#cbd5e1' }}>
+                Cài đặt Thời lượng
+              </Button>
+            )}
+            <Button onClick={handleRefreshAll} size="large" style={{ borderRadius: '8px', fontWeight: 600, borderColor: '#cbd5e1' }}>
+              <RetweetOutlined /> Cập nhật Đồng bộ
+            </Button>
+          </Space>
         </div>
       </div>
 
-      {/* ── INFO CARD TỔNG QUAN ── */}
       <Card style={{ borderRadius: 16, border: `1px solid ${PRIMARY_BLUE}40`, background: '#fff', marginBottom: 24, boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '16px 24px' } }}>
         <Row align="middle" justify="space-between">
           <Col>
@@ -312,37 +348,26 @@ const PresentationQueuePage: React.FC = () => {
         </Row>
       </Card>
 
-      {scoringLocked && (
-        <Alert type="error" message="Vòng thi này đã chốt sổ điểm!" description="Mọi thiết lập về hàng đợi và chấm điểm đã bị đóng băng." showIcon style={{ marginBottom: 24, fontWeight: 600, borderRadius: 12, fontSize: 15 }} />
-      )}
+      {scoringLocked && <Alert type="error" message="Vòng thi này đã chốt sổ điểm!" description="Mọi thiết lập về hàng đợi và chấm điểm đã bị đóng băng." showIcon style={{ marginBottom: 24, fontWeight: 600, borderRadius: 12, fontSize: 15 }} />}
 
-      {/* ========================================================================= */}
-      {/* KHU VỰC CHÍNH: CHIA 2 CỘT (DANH SÁCH & PHÂN CÔNG) */}
-      {/* ========================================================================= */}
       <Row gutter={32} align="stretch" style={{ flex: 1, paddingBottom: 40 }}>
-        
         {/* CỘT TRÁI: HÀNG ĐỢI & GAME QUAY SỐ */}
         <Col xs={24} lg={15} style={{ display: 'flex', flexDirection: 'column' }}>
-          <Card 
-            title={<span style={{ display: 'flex', alignItems: 'center', fontSize: 20, fontWeight: 800, color: '#1e293b' }}><ThunderboltOutlined style={{ marginRight: 12, color: PRIMARY_BLUE, fontSize: 24 }} /> Thứ Tự Lên Sân Khấu</span>} 
-            extra={isShuffled && <Tag color="blue" style={{ fontWeight: 800, fontSize: 15, padding: '4px 16px', borderRadius: 20 }}>Có {teamsList.length} Đội tham gia</Tag>}
+          <Card title={<span style={{ display: 'flex', alignItems: 'center', fontSize: 20, fontWeight: 800, color: '#1e293b' }}><ThunderboltOutlined style={{ marginRight: 12, color: PRIMARY_BLUE, fontSize: 24 }} /> Thứ Tự Lên Sân Khấu</span>} 
+            extra={showQueueDirectly && <Tag color="blue" style={{ fontWeight: 800, fontSize: 15, padding: '4px 16px', borderRadius: 20 }}>Có {teamsList.length} Đội tham gia</Tag>}
             style={{ borderRadius: 24, boxShadow: '0 4px 24px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0', flex: 1, display: 'flex', flexDirection: 'column' }} 
             styles={{ body: { padding: 0, flex: 1, display: 'flex', flexDirection: 'column' } }}
           >
-            {!isShuffled ? (
-              // ── MÀN HÌNH CHƯA XÁO TRỘN (KÈM GAME) ──
+            {!showQueueDirectly ? (
               <div style={{ flex: 1, padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <Title level={3} style={{ color: '#1e293b', marginBottom: 12, fontWeight: 900, textAlign: 'center' }}>Bốc Thăm Phân Bổ Ngẫu Nhiên</Title>
                 <Text style={{ fontSize: 16, color: '#475569', display: 'block', maxWidth: 600, margin: '0 auto 32px', lineHeight: 1.6, textAlign: 'center' }}>
-                  Thay vì sắp xếp thủ công, hệ thống SEAL sẽ dùng thuật toán quay số để phân bổ các đội thi vào các khung giờ thuyết trình hoàn toàn ngẫu nhiên và minh bạch.
+                  Hệ thống sẽ dùng thuật toán quay số để phân bổ các đội thi vào các khung giờ thuyết trình hoàn toàn ngẫu nhiên và minh bạch.
                 </Text>
-
-                <LotteryAnimation isRolling={isRolling} onComplete={onLotteryComplete} totalTeams={totalTeamsToRoll} />
-
+                <LotteryAnimation isRolling={isRolling} onComplete={() => { setIsRolling(false); shuffleMutation.mutate(); }} totalTeams={totalTeamsToRoll} />
                 <div style={{ textAlign: 'center', marginTop: 32 }}>
-                  <Button 
-                    type="primary" size="large" icon={<RetweetOutlined />} loading={isRolling || shuffleMutation.isPending} 
-                    onClick={handleStartLottery} 
+                  <Button type="primary" size="large" icon={<RetweetOutlined />} loading={isRolling || shuffleMutation.isPending} 
+                    onClick={() => setIsRolling(true)} 
                     style={{ height: 64, padding: '0 40px', borderRadius: 16, fontSize: 18, fontWeight: 900, background: PRIMARY_BLUE, boxShadow: `0 12px 24px ${PRIMARY_BLUE}40` }}
                   >
                     {isRolling ? 'Hệ thống đang thả bóng...' : 'Khởi Động Máy Quay Số'}
@@ -350,24 +375,19 @@ const PresentationQueuePage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              // ── DANH SÁCH ĐÃ XÁO TRỘN ──
               <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 24 }}>
                 <div style={{ background: '#f8fafc', padding: '12px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between' }}>
                   <Text strong style={{ color: '#64748b' }}>SLOT / ĐỘI THI</Text>
                   <Text strong style={{ color: '#64748b' }}>TRẠNG THÁI</Text>
                 </div>
                 {teamsList.map((team: any, idx: number) => {
-                  // --- LOGIC PHÂN BIỆT TRẠNG THÁI CHUẨN XÁC ---
                   const isCurrentSlot = team.status === 'PRESENTING' || team.queueStatus === 'PRESENTING';
                   const isDone = team.status === 'DONE' || team.queueStatus === 'DONE';
                   const timerPhase = team.timer?.phase || 'IDLE';
 
-                  // Chỉ thực sự LIVE khi đồng hồ đang chạy (hoặc Pause/QA/Ended)
                   const isActuallyLive = isCurrentSlot && ['PRESENTING', 'PAUSED', 'QA', 'ENDED'].includes(timerPhase);
-                  // Đang ở Slot hiện tại nhưng Trưởng ban chưa bấm Start
                   const isPreparing = isCurrentSlot && ['IDLE', 'SETUP'].includes(timerPhase);
                   
-                  // Phối màu động theo trạng thái
                   const rowBg = isActuallyLive ? PRIMARY_BLUE_LIGHT : (isPreparing ? '#fffbeb' : (isDone ? '#f8fafc' : '#fff'));
                   const rowBorder = isActuallyLive ? `6px solid ${PRIMARY_BLUE}` : (isPreparing ? `6px solid #f59e0b` : '6px solid transparent');
                   const orderBg = isActuallyLive ? PRIMARY_BLUE : (isPreparing ? '#f59e0b' : (isDone ? '#e2e8f0' : '#f1f5f9'));
@@ -376,10 +396,7 @@ const PresentationQueuePage: React.FC = () => {
 
                   return (
                     <div key={team.submissionId || idx} style={{
-                      padding: '24px', borderBottom: '1px solid #f1f5f9',
-                      background: rowBg,
-                      borderLeft: rowBorder,
-                      transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                      padding: '24px', borderBottom: '1px solid #f1f5f9', background: rowBg, borderLeft: rowBorder, transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                     }}>
                       <Space size="large">
                         <div style={{ width: 56, height: 56, borderRadius: 16, background: orderBg, color: orderColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 24 }}>
@@ -395,15 +412,8 @@ const PresentationQueuePage: React.FC = () => {
                         </div>
                       </Space>
                       <div>
-                        {/* THẺ ĐANG THI CHÍNH THỨC */}
-                        {isActuallyLive && (
-                          <Tag color="blue" icon={<PlayCircleOutlined />} style={{ padding: '8px 16px', borderRadius: 12, fontWeight: 800, fontSize: 14, border: `2px solid ${PRIMARY_BLUE}` }}>ĐANG TRÌNH BÀY</Tag>
-                        )}
-                        {/* THẺ ĐANG CHUẨN BỊ (IDLE/SETUP) */}
-                        {isPreparing && (
-                          <Tag color="orange" icon={<LoadingOutlined />} style={{ padding: '8px 16px', borderRadius: 12, fontWeight: 800, fontSize: 14, border: `2px solid #f59e0b` }}>ĐANG CHUẨN BỊ</Tag>
-                        )}
-                        {/* THỂ ĐÃ XONG VÀ CHỜ */}
+                        {isActuallyLive && <Tag color="blue" icon={<PlayCircleOutlined />} style={{ padding: '8px 16px', borderRadius: 12, fontWeight: 800, fontSize: 14, border: `2px solid ${PRIMARY_BLUE}` }}>ĐANG TRÌNH BÀY</Tag>}
+                        {isPreparing && <Tag color="orange" icon={<LoadingOutlined />} style={{ padding: '8px 16px', borderRadius: 12, fontWeight: 800, fontSize: 14, border: `2px solid #f59e0b` }}>ĐANG CHUẨN BỊ</Tag>}
                         {isDone && <Text type="secondary" style={{ fontSize: 15, fontWeight: 600 }}><CheckCircleFilled style={{ color: '#94a3b8', marginRight: 6 }}/> Đã bảo vệ xong</Text>}
                         {team.status === 'WAITING' && <Text type="secondary" style={{ fontSize: 15, fontWeight: 600, color: '#64748b' }}><ClockCircleOutlined style={{ marginRight: 6 }}/> Chờ tới lượt</Text>}
                       </div>
@@ -415,10 +425,8 @@ const PresentationQueuePage: React.FC = () => {
           </Card>
         </Col>
 
-        {/* CỘT PHẢI (ZONE 3): CẤU HÌNH & GÁN QUYỀN GIÁM KHẢO TRƯỞNG */}
+        {/* CỘT PHẢI: GÁN QUYỀN TRƯỞNG BAN & BÀI NỘP TRỄ */}
         <Col xs={24} lg={9} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          
-          {/* Card Phân Công Trưởng Ban Giám Khảo */}
           {isCoordinator && roundId && (
             <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
               <div style={{ background: '#f8fafc', padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
@@ -430,7 +438,6 @@ const PresentationQueuePage: React.FC = () => {
               </div>
             </div>
           )}
-
           {isCoordinator && roundId && isFinalRound && (
             <FinalPresentationDurationCard roundId={roundId} timerStarted={timerStarted} />
           )}
@@ -448,17 +455,12 @@ const PresentationQueuePage: React.FC = () => {
           {/* Card Tình trạng Bài Nộp (Màn hình Review trễ) — chỉ Sơ loại */}
           {isCoordinator && roundId && !isFinalRound && (
              <PresentationReadinessPanel 
-                roundId={roundId as any} 
-                trackId={selectedTrackId as any} 
-                trackName={activeTrackData?.trackName} 
-                canReviewLate={true} 
-                onReviewSuccess={() => refetchQueue()} 
+                roundId={roundId as any} trackId={selectedTrackId as any} trackName={activeTrackData?.trackName} 
+                canReviewLate={true} onReviewSuccess={() => refetchQueue()} 
              />
           )}
-
         </Col>
       </Row>
-
     </div>
   );
 };

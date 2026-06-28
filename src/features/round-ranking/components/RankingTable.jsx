@@ -1,3 +1,4 @@
+// src/features/round-ranking/components/RankingTable.jsx
 import { Empty, Spin, Typography, theme } from "antd";
 import { AnimatePresence, motion } from "framer-motion";
 import RankingBoardRow from "./RankingBoardRow";

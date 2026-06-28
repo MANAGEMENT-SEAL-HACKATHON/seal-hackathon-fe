@@ -1,3 +1,4 @@
+// src/features/round-results/components/OfficialRankingPanel.jsx
 import { useMemo, useState } from "react";
 import { Alert, Card, Empty, Segmented, Space, Table, Tag, Typography } from "antd";
 import { TrophyOutlined } from "@ant-design/icons";
@@ -15,6 +16,8 @@ const OfficialRankingPanel = ({
   hasAdvanced,
   isPublished,
   rosterDecided,
+  wildcardData,
+  topN,         
 }) => {
   const [selectedGroup, setSelectedGroup] = useState("all");
   const previewSet = useMemo(
@@ -98,48 +101,52 @@ const OfficialRankingPanel = ({
     {
       title: "Trạng thái",
       key: "result",
-      width: 190,
+      width: 220,
       render: (_, item) => {
+        // Đã chốt chính thức lên BE
         if (item.isAdvanced || item.qualificationStatus === "ADVANCED" || item.participationStatus === "ADVANCED") {
-          return (
-            <Tag color="success" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>
-              Vào Chung kết
-            </Tag>
-          );
+          return <Tag color="success" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Vào Chung kết</Tag>;
         }
         if (item.participationStatus === "ELIMINATED" || item.isEliminated) {
-          return (
-            <Tag color="default" style={{ padding: "4px 12px", borderRadius: 4 }}>
-              Bị loại
-            </Tag>
-          );
+          return <Tag color="default" style={{ padding: "4px 12px", borderRadius: 4 }}>Bị loại</Tag>;
         }
-        if (isPublished && previewSet.has(item.teamId)) {
-          return (
-            <Tag color="processing" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>
-              Đề xuất vào chung kết
-            </Tag>
-          );
-        }
-        if (isPublished && rosterDecided) {
-          if (rejectedWildcardSet.has(item.teamId)) {
-            return (
-              <Tag color="error" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>
-                Wild Card từ chối
-              </Tag>
-            );
+
+        // Đang trong giai đoạn Preview (Chờ chốt)
+        if (isPublished) {
+          const isProposed = previewSet.has(item.teamId);
+          const isTopN = item.rank <= topN;
+          
+          // Kiểm tra xem đội này có nằm trong danh sách Wildcard không
+          const wildcardItem = wildcardData?.items?.find(w => w.teamId === item.teamId);
+
+          if (isProposed) {
+            // Nếu được đề xuất và nằm trong Top N -> Đi thẳng
+            if (isTopN) {
+               return <Tag color="processing" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Đề xuất vào Chung kết</Tag>;
+            }
+            // Nếu được đề xuất nhưng KHÔNG thuộc Top N -> Chắc chắn là do duyệt Vé vớt
+            return <Tag color="purple" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Vào CK (Vé vớt)</Tag>;
           }
-          return (
-            <Tag color="default" style={{ padding: "4px 12px", borderRadius: 4 }}>
-              Bị loại
-            </Tag>
-          );
+
+          // Nếu KHÔNG được đề xuất vào CK
+          if (wildcardItem) {
+             if (wildcardItem.coordinatorApproved === false) {
+                 return <Tag color="error" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Wild Card từ chối</Tag>;
+             }
+             if (wildcardItem.coordinatorApproved === null || wildcardItem.coordinatorApproved === undefined) {
+                 return <Tag color="warning" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Đang chờ xét Vé vớt</Tag>;
+             }
+          }
+
+          // Nếu mọi quyết định đã chốt mà vẫn không có tên -> Bị loại
+          if (rosterDecided) {
+             return <Tag color="default" style={{ padding: "4px 12px", borderRadius: 4 }}>Bị loại</Tag>;
+          }
+
+          return <Tag style={{ padding: "4px 12px", borderRadius: 4 }}>Chờ chốt danh sách</Tag>;
         }
-        return (
-          <Tag style={{ padding: "4px 12px", borderRadius: 4 }}>
-            Chờ chốt danh sách
-          </Tag>
-        );
+
+        return <Tag style={{ padding: "4px 12px", borderRadius: 4 }}>Chưa công bố</Tag>;
       },
     },
   ];

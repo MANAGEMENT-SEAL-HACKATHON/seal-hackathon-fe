@@ -71,6 +71,11 @@ export const presentationService = {
       qaMinutes,
       ...(trackId ? { trackId } : {}),
     }),
+
+  clearTrackOverride: (roundId, trackId) =>
+    axiosClient.delete(ENDPOINTS.PRESENTATION.DURATION, {
+      params: { roundId, trackId },
+    }),
 };
 
 export const findPresentingItem = (queueData, trackId) => {

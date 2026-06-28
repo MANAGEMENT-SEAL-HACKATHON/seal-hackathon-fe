@@ -1,3 +1,4 @@
+// src/features/round-ranking/service/rankingPreviewMapper.js
 const DEFAULT_STATUS = "ACTIVE";
 
 const toNumber = (value, fallback = 0) => {
