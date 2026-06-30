@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { message } from 'antd';
 import { judgeService } from '../services/judgeService';
 import { criteriaService } from '../../criteria/services/criteriaService';
-import { presentationService } from '../services/presentationService';
+import { presentationService, getQueueBucket } from '../services/presentationService';
 import { roundService } from '../../rounds/services/roundService';
 
 const getErrorCode = (error) =>
@@ -11,6 +11,25 @@ const getErrorCode = (error) =>
 
 const getSubmissionId = (item) =>
   item?.submissionId ?? item?.submission_id ?? item?.id;
+
+const getTimerPresentationMinutes = (timer) => {
+  if (!timer) return null;
+  const raw = timer.presentationMinutes ?? timer.presentation_minutes;
+  return raw != null ? Number(raw) : null;
+};
+
+const getTimerQaMinutes = (timer) => {
+  if (!timer) return null;
+  const raw = timer.qaMinutes ?? timer.qa_minutes;
+  return raw != null ? Number(raw) : null;
+};
+
+const resolvePresentationSeconds = (timer, remainingSeconds = 0) => {
+  const minutes = getTimerPresentationMinutes(timer);
+  if (minutes != null) return minutes * 60;
+  if (remainingSeconds > 0) return remainingSeconds;
+  return 600;
+};
 
 export const useLiveScoringV2 = (
   assignmentId,
@@ -29,7 +48,6 @@ export const useLiveScoringV2 = (
   const [queueData, setQueueData] = useState(null);
   const [submissionsData, setSubmissionsData] = useState([]);
   const [criteria, setCriteria] = useState([]);
-  const [selectedSubmissionId, setSelectedSubmissionId] = useState(null);
 
   const [scoreState, setScoreState] = useState({ submissionId: null, scores: {}, comment: '' });
 
@@ -43,10 +61,25 @@ export const useLiveScoringV2 = (
 
   const isActionPendingRef = useRef(false);
 
-  const isController = useMemo(() => {
-    const role = String(initialAssignmentType || '').toUpperCase();
-    return role.includes('HEAD') || role.includes('FINAL_EXTERNAL');
-  }, [initialAssignmentType]);
+  const [isController, setIsController] = useState(false);
+  const [presentationScoringStatus, setPresentationScoringStatus] = useState(null);
+
+  const refreshPresentationStatus = useCallback(async () => {
+    if (isCalibration || !roundId) return;
+    try {
+      const res = await judgeService.getPresentationScoringStatus(
+        roundId,
+        isFinal ? undefined : trackId,
+      );
+      const data = res?.data || res;
+      setPresentationScoringStatus(data);
+      if (data?.canControlPresentation != null) {
+        setIsController(Boolean(data.canControlPresentation));
+      }
+    } catch {
+      // non-blocking — giữ trạng thái controller hiện tại
+    }
+  }, [roundId, trackId, isFinal, isCalibration]);
 
   const [localTimerPhase, setLocalTimerPhase] = useState('IDLE');
   const [localRemainingSeconds, setLocalRemainingSeconds] = useState(0);
@@ -168,17 +201,21 @@ export const useLiveScoringV2 = (
         const qData = qRes?.data || qRes;
         setQueueData(qData);
 
-        const track = isFinal
-          ? qData.groups?.[0]
-          : qData.tracks?.find((t) => t.trackId === Number(trackId));
+        const track = getQueueBucket(qData, { isFinal, trackId });
         const presenting = (track?.items || track?.teams || []).find(
           (item) => item.status === 'PRESENTING'
         );
 
         if (presenting?.timer) {
           const serverPhase = presenting.timer.phase;
-          let serverSeconds = presenting.timer.remainingSeconds || 0;
+          let serverSeconds = presenting.timer.remainingSeconds ?? 0;
           if (serverSeconds < 0) serverSeconds = 0;
+          if (
+            (serverPhase === 'IDLE' || serverPhase === 'SETUP') &&
+            serverSeconds === 0
+          ) {
+            serverSeconds = resolvePresentationSeconds(presenting.timer, 0);
+          }
 
           const currentEngine = timerEngineRef.current;
 
@@ -213,9 +250,13 @@ export const useLiveScoringV2 = (
       return;
     }
     fetchQueue(true);
-    const interval = setInterval(() => fetchQueue(false), 1000);
+    refreshPresentationStatus();
+    const interval = setInterval(() => {
+      fetchQueue(false);
+      refreshPresentationStatus();
+    }, 1000);
     return () => clearInterval(interval);
-  }, [fetchStaticData, fetchQueue, isCalibration]);
+  }, [fetchStaticData, fetchQueue, refreshPresentationStatus, isCalibration]);
 
   useEffect(() => {
     return () => {
@@ -225,7 +266,7 @@ export const useLiveScoringV2 = (
     };
   }, []);
 
-  const { trackQueue, activeSlot, sidebarQueue } = useMemo(() => {
+  const { trackQueue, activeSlot: presentingSlot, sidebarQueue } = useMemo(() => {
     if (isCalibration && sampleSubmissionId) {
       const sub = submissionsData.find(
         (s) => String(getSubmissionId(s)) === String(sampleSubmissionId)
@@ -246,9 +287,7 @@ export const useLiveScoringV2 = (
       return { trackQueue: [], activeSlot: null, sidebarQueue: [] };
     }
 
-    const track = isFinal
-      ? queueData?.groups?.[0]
-      : queueData?.tracks?.find((t) => t.trackId === Number(trackId));
+    const track = getQueueBucket(queueData, { isFinal, trackId });
     let queueItems = track?.items || track?.teams || [];
 
     queueItems = queueItems.map((item) => {
@@ -267,63 +306,26 @@ export const useLiveScoringV2 = (
 
     const presenting = queueItems.find((item) => item.status === 'PRESENTING');
 
-    if (isFinal) {
-      const queueSubIds = new Set(queueItems.map((i) => String(getSubmissionId(i))));
-      const extraFromSubs = submissionsData
-        .filter((s) => {
-          const id = getSubmissionId(s);
-          if (!id || queueSubIds.has(String(id))) return false;
-          const status = String(s.status || s.submissionStatus || 'SUBMITTED').toUpperCase();
-          return status === 'SUBMITTED' || status === 'ON_TIME';
-        })
-        .map((s, idx) => ({
-          submissionId: getSubmissionId(s),
-          teamName: s.teamName || s.team_name || `Đội #${getSubmissionId(s)}`,
-          status: 'SUBMITTED',
-          order: queueItems.length + idx + 1,
-          slideFile: s.slideFile,
-          repoUrl: s.repoUrl,
-          demoUrl: s.demoUrl || s.demo_url,
-          outsideQueue: true,
-        }));
-
-      const merged = [...queueItems, ...extraFromSubs];
-      return {
-        trackQueue: merged,
-        activeSlot: presenting,
-        sidebarQueue: merged,
-      };
-    }
-
     return { trackQueue: queueItems, activeSlot: presenting, sidebarQueue: queueItems };
   }, [queueData, submissionsData, trackId, isFinal, isCalibration, sampleSubmissionId]);
+
+  const hasPresentationQueue = !isCalibration && sidebarQueue.length > 0;
+  const isLivePresentation = hasPresentationQueue;
 
   const scoringTarget = useMemo(() => {
     if (isCalibration && sampleSubmissionId) {
       return sidebarQueue[0] || { submissionId: Number(sampleSubmissionId) };
     }
-    if (isFinal) {
-      if (selectedSubmissionId) {
-        const found = sidebarQueue.find(
-          (i) => String(getSubmissionId(i)) === String(selectedSubmissionId)
-        );
-        if (found) return found;
-      }
-      if (activeSlot) return activeSlot;
-      const firstUnscored = sidebarQueue.find(
-        (i) => !myScoredSubmissions[String(getSubmissionId(i))]
-      );
-      return firstUnscored || sidebarQueue[0] || null;
+    if (!hasPresentationQueue) {
+      return null;
     }
-    return activeSlot;
+    return presentingSlot;
   }, [
     isCalibration,
     sampleSubmissionId,
-    isFinal,
-    selectedSubmissionId,
+    hasPresentationQueue,
     sidebarQueue,
-    activeSlot,
-    myScoredSubmissions,
+    presentingSlot,
   ]);
 
   const scoringTargetId = getSubmissionId(scoringTarget);
@@ -334,14 +336,29 @@ export const useLiveScoringV2 = (
 
   const isAllDone =
     !isCalibration &&
-    !isFinal &&
+    isLivePresentation &&
     trackQueue.length > 0 &&
     trackQueue.every((item) => item.status === 'DONE');
 
   const hasScoredCurrentTeam = useMemo(() => {
     if (!scoringTargetId) return false;
-    return !!myScoredSubmissions[String(scoringTargetId)];
-  }, [scoringTargetId, myScoredSubmissions]);
+    const subIdStr = String(scoringTargetId);
+    if (isFinal && !isCalibration) {
+      const statusSubId = presentationScoringStatus?.submissionId;
+      if (
+        statusSubId != null &&
+        String(statusSubId) === subIdStr &&
+        presentationScoringStatus.myConfirmed
+      ) {
+        return true;
+      }
+      return false;
+    }
+    if (isCalibration) {
+      return !!myScoredSubmissions[subIdStr];
+    }
+    return !!myScoredSubmissions[subIdStr];
+  }, [scoringTargetId, presentationScoringStatus, isFinal, isCalibration, myScoredSubmissions]);
 
   useEffect(() => {
     if (!scoringTargetId) {
@@ -404,23 +421,44 @@ export const useLiveScoringV2 = (
     );
   }, [scoreState, assignmentId]);
 
+  const hasAllCriteriaFilled = useMemo(
+    () =>
+      criteria.length > 0 &&
+      criteria.every(
+        (c) => currentScores[c.id] !== undefined && currentScores[c.id] !== null,
+      ),
+    [criteria, currentScores],
+  );
+
   const canScore = !scoringLocked && Boolean(scoringTarget);
   const canSubmitFinalScore = useMemo(() => {
     if (scoringLocked || !scoringTarget || hasScoredCurrentTeam) return false;
-    if (isCalibration || isFinal) return true;
-    return ['QA', 'ENDED'].includes(localTimerPhase);
+    if (isCalibration) return hasAllCriteriaFilled;
+    if (!hasPresentationQueue) return false;
+    if (!['QA', 'ENDED'].includes(localTimerPhase)) return false;
+    if (!hasAllCriteriaFilled) return false;
+    return true;
   }, [
     scoringLocked,
     scoringTarget,
     hasScoredCurrentTeam,
     isCalibration,
-    isFinal,
+    hasPresentationQueue,
     localTimerPhase,
+    hasAllCriteriaFilled,
   ]);
 
-  const handleSelectSubmission = useCallback((submissionId) => {
-    setSelectedSubmissionId(submissionId);
-  }, []);
+  const canAdvanceToNext = useMemo(() => {
+    if (isCalibration || !hasPresentationQueue) return false;
+    if (isFinal && !['QA', 'ENDED'].includes(localTimerPhase)) return false;
+    return Boolean(presentationScoringStatus?.canAdvanceQueue);
+  }, [
+    isCalibration,
+    isFinal,
+    hasPresentationQueue,
+    localTimerPhase,
+    presentationScoringStatus,
+  ]);
 
   const handleScoreChange = useCallback((criteriaId, value) => {
     setScoreState((prev) => ({
@@ -492,12 +530,24 @@ export const useLiveScoringV2 = (
         });
         setMyScoredSubmissions((prev) => ({ ...prev, [String(scoringTargetId)]: finalTotal }));
 
+        if (!isCalibration && isFinal) {
+          setPresentationScoringStatus((prev) => ({
+            ...prev,
+            submissionId: scoringTargetId,
+            myConfirmed: true,
+            myScored: true,
+          }));
+          refreshPresentationStatus();
+        }
+
         message.success(
           isCalibration
             ? 'Chấm calibration thành công!'
             : isAutoSubmit
               ? 'Đã hết giờ Q&A! Hệ thống tự động nộp bài.'
-              : 'Chốt điểm thành công! Form đã được khóa.'
+              : isFinal
+                ? 'Chốt điểm thành công! Vui lòng chờ điều phối timer chuyển đội tiếp theo.'
+                : 'Chốt điểm thành công! Form đã được khóa.'
         );
 
         localStorage.setItem(
@@ -512,6 +562,7 @@ export const useLiveScoringV2 = (
           setTimeout(async () => {
             await fetchStaticData();
             await fetchQueue(true);
+            await refreshPresentationStatus();
           }, 2000);
         }
       } catch (error) {
@@ -544,15 +595,17 @@ export const useLiveScoringV2 = (
       calculateTotal,
       fetchStaticData,
       fetchQueue,
+      refreshPresentationStatus,
       assignmentId,
       isCalibration,
       calibrationSessionId,
+      isFinal,
     ]
   );
 
   useEffect(() => {
-    if (isFinal || isCalibration) return;
-    if (localTimerPhase === 'QA' && localRemainingSeconds === 0 && activeSlot && !hasScoredCurrentTeam) {
+    if (isCalibration || !hasPresentationQueue) return;
+    if (localTimerPhase === 'QA' && localRemainingSeconds === 0 && presentingSlot && !hasScoredCurrentTeam) {
       if (!isActionPendingRef.current && !isSubmitting) {
         isActionPendingRef.current = true;
         submitScore(true).finally(() => {
@@ -563,17 +616,18 @@ export const useLiveScoringV2 = (
   }, [
     localTimerPhase,
     localRemainingSeconds,
-    activeSlot,
+    presentingSlot,
     hasScoredCurrentTeam,
     isSubmitting,
     submitScore,
-    isFinal,
+    isLivePresentation,
+    hasPresentationQueue,
     isCalibration,
   ]);
 
   const handleTimerAction = useCallback(
     async (actionType) => {
-      if (isCalibration || !isController || !activeSlot) return;
+      if (isCalibration || !isController || !presentingSlot) return;
 
       isActionPendingRef.current = true;
       setIsTimerActionLoading(true);
@@ -594,7 +648,10 @@ export const useLiveScoringV2 = (
           const targetPhase = isResume ? previousEngineState.originalPhase : 'PRESENTING';
 
           if (!isResume) {
-            currentTick = (activeSlot.timer?.presentationMinutes || 10) * 60;
+            currentTick = resolvePresentationSeconds(
+              presentingSlot?.timer,
+              localRemainingSeconds,
+            );
           }
 
           applyEngineState(targetPhase, currentTick);
@@ -605,13 +662,16 @@ export const useLiveScoringV2 = (
           applyEngineState('PAUSED', currentTick);
           await presentationService.pauseTimer(roundId, timerTrackId);
         } else if (actionType === 'QA') {
-          const qaSecs = (activeSlot.timer?.qaMinutes || 5) * 60;
+          const qaSecs =
+            (getTimerQaMinutes(presentingSlot?.timer) ?? 5) * 60;
           applyEngineState('QA', qaSecs);
           await presentationService.qaTimer(roundId, timerTrackId);
         } else if (actionType === 'NEXT') {
           await presentationService.advanceNext(roundId, timerTrackId, {
-            currentSubmissionId: activeSlot.submissionId,
+            currentSubmissionId: presentingSlot.submissionId,
           });
+          await refreshPresentationStatus();
+          await fetchStaticData();
         }
       } catch (error) {
         applyEngineState(previousEngineState.phase, previousEngineState.baseSeconds);
@@ -628,7 +688,7 @@ export const useLiveScoringV2 = (
         }, 1000);
       }
     },
-    [isCalibration, isController, activeSlot, roundId, trackId, isFinal, fetchQueue, applyEngineState]
+    [isCalibration, isController, presentingSlot, roundId, trackId, isFinal, fetchQueue, fetchStaticData, refreshPresentationStatus, applyEngineState, localRemainingSeconds]
   );
 
   return {
@@ -643,9 +703,11 @@ export const useLiveScoringV2 = (
     isSubmitting,
     trackQueue: sidebarQueue,
     activeSlot: scoringTarget,
+    presentingSlot,
     scoringTarget,
-    selectedSubmissionId: selectedSubmissionId || scoringTargetId,
-    onSelectSubmission: handleSelectSubmission,
+    isLivePresentation,
+    hasPresentationQueue,
+    selectedSubmissionId: scoringTargetId,
     localTimerPhase,
     localRemainingSeconds,
     canScore,
@@ -655,9 +717,12 @@ export const useLiveScoringV2 = (
     isTimerActionLoading,
     myScoredSubmissions,
     hasScoredCurrentTeam,
+    canAdvanceToNext,
+    presentationScoringStatus,
     isAllDone,
     scoringLocked,
     isFinal,
     isCalibration,
+    hasPresentationQueue,
   };
 };

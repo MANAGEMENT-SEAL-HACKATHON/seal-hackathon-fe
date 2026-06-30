@@ -8,17 +8,31 @@ import {
 } from '@ant-design/icons';
 import { judgeService } from '../services/judgeService';
 import toast from 'react-hot-toast';
+import { formatJudgeQueueTeamLabel } from '../utils/liveScoringUtils';
 
 const { Title, Text } = Typography;
 
 const JudgeTimerAndControls = ({ logic, isFinal }) => {
-  const { activeSlot, localTimerPhase, localRemainingSeconds, isController, handleTimerAction, isTimerActionLoading, hasScoredCurrentTeam } = logic;
+  const { activeSlot, presentingSlot, isLivePresentation, localTimerPhase, localRemainingSeconds, isController, handleTimerAction, isTimerActionLoading, canAdvanceToNext, presentationScoringStatus } = logic;
+  const timerSlot = presentingSlot || activeSlot;
+  const teamLabel = formatJudgeQueueTeamLabel(timerSlot);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
 
   const formatTimeMinutes = (secs) => Math.floor(Math.max(0, secs) / 60).toString().padStart(2, '0');
   const formatTimeSeconds = (secs) => (Math.max(0, secs) % 60).toString().padStart(2, '0');
+
+  const displaySeconds =
+    localTimerPhase === 'IDLE' || localTimerPhase === 'SETUP'
+      ? localRemainingSeconds > 0
+        ? localRemainingSeconds
+        : (() => {
+            const t = timerSlot?.timer;
+            const mins = t?.presentationMinutes ?? t?.presentation_minutes;
+            return (mins != null ? Number(mins) : 10) * 60;
+          })()
+      : localRemainingSeconds;
 
   const getTimerStyles = () => {
     switch(localTimerPhase) {
@@ -33,11 +47,11 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
   const timerStyle = getTimerStyles();
 
   const handleViewPdf = async () => {
-    if (!activeSlot?.submissionId) return;
+    if (!timerSlot?.submissionId) return;
     setPdfModalOpen(true);
     setLoadingPdf(true);
     try {
-      const blob = await judgeService.getSubmissionSlide(activeSlot.submissionId);
+      const blob = await judgeService.getSubmissionSlide(timerSlot.submissionId);
       const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
       setPdfUrl(url);
     } catch (error) {
@@ -59,21 +73,21 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
         </Space>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
           <div style={{ background: '#fff', padding: '16px 0', borderRadius: 16, border: `1px solid ${timerStyle.border}`, width: 85, boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-            <div style={{ fontSize: 38, fontWeight: 900, fontFamily: 'monospace', color: timerStyle.color, lineHeight: 1 }}>{formatTimeMinutes(localRemainingSeconds)}</div>
+            <div style={{ fontSize: 38, fontWeight: 900, fontFamily: 'monospace', color: timerStyle.color, lineHeight: 1 }}>{formatTimeMinutes(displaySeconds)}</div>
             <div style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', marginTop: 8 }}>PHÚT</div>
           </div>
           <div style={{ background: '#fff', padding: '16px 0', borderRadius: 16, border: `1px solid ${timerStyle.border}`, width: 85, boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-            <div style={{ fontSize: 38, fontWeight: 900, fontFamily: 'monospace', color: timerStyle.color, lineHeight: 1 }}>{formatTimeSeconds(localRemainingSeconds)}</div>
+            <div style={{ fontSize: 38, fontWeight: 900, fontFamily: 'monospace', color: timerStyle.color, lineHeight: 1 }}>{formatTimeSeconds(displaySeconds)}</div>
             <div style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', marginTop: 8 }}>GIÂY</div>
           </div>
         </div>
       </Card>
 
       {/* ĐIỀU KHIỂN CỦA TRƯỞNG BAN */}
-      {isController && activeSlot && (
+      {isController && presentingSlot && (
         <Card style={{ borderRadius: 20, border: '2px solid #bae0ff', background: '#e6f4ff', boxShadow: '0 8px 24px rgba(22, 119, 255, 0.08)' }} styles={{ body: { padding: 20 } }}>
           <Text style={{ color: '#0958d9', fontSize: 12, fontWeight: 800, letterSpacing: 1, display: 'block', marginBottom: 16, textAlign: 'center' }}>
-            ĐIỀU KHIỂN TRƯỞNG BAN
+            ĐIỀU KHIỂN TIMER
           </Text>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             
@@ -95,18 +109,34 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
               </Button>
             )}
 
+            {localTimerPhase === 'PRESENTING' && localRemainingSeconds > 0 && (
+              <Button type="primary" icon={<MessageOutlined />} onClick={() => handleTimerAction('QA')} loading={isTimerActionLoading} style={{ color: '#fff', background: '#dc2626', borderColor: '#dc2626', fontWeight: 800, minHeight: 48, borderRadius: 10, fontSize: 15 }}>
+                Kết thúc sớm thuyết trình
+              </Button>
+            )}
+
             {localTimerPhase === 'PRESENTING' && localRemainingSeconds === 0 && (
               <Button type="primary" icon={<MessageOutlined />} onClick={() => handleTimerAction('QA')} loading={isTimerActionLoading} style={{ color: '#fff', background: '#d97706', borderColor: '#d97706', fontWeight: 800, minHeight: 48, borderRadius: 10, fontSize: 15 }}>
                 Chuyển sang Hỏi Đáp
               </Button>
             )}
 
-            {hasScoredCurrentTeam && (
+            {canAdvanceToNext && (
               <Popconfirm title="Chốt sổ và gọi đội kế tiếp?" onConfirm={() => handleTimerAction('NEXT')} okText="Chuyển đội" cancelText="Hủy" okButtonProps={{ danger: true }}>
                 <Button type="primary" danger icon={<StepForwardOutlined />} loading={isTimerActionLoading} style={{ fontWeight: 800, width: '100%', marginTop: 8, minHeight: 48, borderRadius: 10, fontSize: 15 }}>
                   Kết Thúc & Gọi Đội Kế Tiếp
                 </Button>
               </Popconfirm>
+            )}
+
+            {!canAdvanceToNext &&
+              (presentationScoringStatus?.judgesAssigned ?? 0) >= 2 &&
+              (localTimerPhase === 'QA' || localTimerPhase === 'ENDED') && (
+              <Text type="secondary" style={{ display: 'block', textAlign: 'center', fontSize: 12, lineHeight: 1.5 }}>
+                Chờ tất cả giám khảo Chốt điểm (
+                {presentationScoringStatus?.judgesConfirmed ?? 0}/{presentationScoringStatus?.judgesAssigned})
+                trước khi chuyển đội tiếp theo.
+              </Text>
             )}
 
           </div>
@@ -115,12 +145,12 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
 
       {/* THÔNG TIN DỰ ÁN */}
       <Card title={<><TeamOutlined /> Thông Tin Dự Án</>} style={{ borderRadius: 20, flex: 1, boxShadow: '0 8px 24px rgba(0,0,0,0.02)', border: '1px solid #e2e8f0' }} styles={{ header: { background: '#f8fafc', borderTopLeftRadius: 20, borderTopRightRadius: 20 }}}>
-        {activeSlot ? (
+        {timerSlot ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ background: '#f1f5f9', padding: '16px', borderRadius: 12 }}>
               <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.5 }}>Mã Ẩn Danh</Text>
               <Title level={4} style={{ margin: '4px 0 0 0', color: '#0f172a' }}>
-                {isFinal ? activeSlot.teamName : `TEAM-SBM#${activeSlot.submissionId}`}
+                {teamLabel}
               </Title>
             </div>
             
@@ -134,19 +164,19 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
             <Button 
               block 
               icon={<GlobalOutlined />} 
-              disabled={!activeSlot.demoUrl} 
-              onClick={() => window.open(activeSlot.demoUrl, '_blank')} 
+              disabled={!timerSlot.demoUrl} 
+              onClick={() => window.open(timerSlot.demoUrl, '_blank')} 
               style={{ 
                 minHeight: 44, height: 'auto', whiteSpace: 'normal', borderRadius: 10, fontWeight: 700, 
-                background: activeSlot.demoUrl ? '#0284c7' : '#f1f5f9', 
-                color: activeSlot.demoUrl ? '#fff' : '#94a3b8', 
+                background: timerSlot.demoUrl ? '#0284c7' : '#f1f5f9', 
+                color: timerSlot.demoUrl ? '#fff' : '#94a3b8', 
                 border: 'none' 
               }}
             >
-              {activeSlot.demoUrl ? 'Xem Bản Demo (Live)' : 'Không Có Bản Demo'}
+              {timerSlot.demoUrl ? 'Xem Bản Demo (Live)' : 'Không Có Bản Demo'}
             </Button>
 
-            <Button block icon={<GithubOutlined />} disabled={!activeSlot.repoUrl} onClick={() => window.open(activeSlot.repoUrl, '_blank')} style={{ minHeight: 44, height: 'auto', whiteSpace: 'normal', borderRadius: 10, fontWeight: 700, background: '#0f172a', color: '#fff', border: 'none' }}>
+            <Button block icon={<GithubOutlined />} disabled={!timerSlot.repoUrl} onClick={() => window.open(timerSlot.repoUrl, '_blank')} style={{ minHeight: 44, height: 'auto', whiteSpace: 'normal', borderRadius: 10, fontWeight: 700, background: '#0f172a', color: '#fff', border: 'none' }}>
               Xem Source Code (GitHub)
             </Button>
 

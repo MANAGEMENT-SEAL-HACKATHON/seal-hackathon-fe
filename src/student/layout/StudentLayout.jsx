@@ -55,6 +55,11 @@ const StudentLayout = ({ children }) => {
         label: 'Tổng quan',
       },
       {
+        key: ROUTES.STUDENT_HACKATHON_HISTORY,
+        icon: <Trophy size={18} />,
+        label: 'Cuộc thi đã tham gia',
+      },
+      {
         key: ROUTES.STUDENT_TEAM,
         icon: <UsersRound size={18} />,
         label: 'Quản lý đội',
@@ -105,6 +110,7 @@ const StudentLayout = ({ children }) => {
 
     if (
       key === ROUTES.DASHBOARD ||
+      key === ROUTES.STUDENT_HACKATHON_HISTORY ||
       key === ROUTES.STUDENT_TEAM ||
       key === ROUTES.STUDENT_SUBMIT ||
       key === ROUTES.STUDENT_RESULTS ||

@@ -1,4 +1,12 @@
 // src/features/judging/utils/liveScoringUtils.js
+const getSubmissionId = (item) => item?.submissionId ?? item?.submission_id ?? item?.id;
+
+// Chỉ hiện tên thật khi coordinator/offline — judge live luôn TEAM-SBM#.
+export const formatJudgeQueueTeamLabel = (item) => {
+  const subId = item?.submissionId ?? item?.submission_id ?? item?.id;
+  return subId ? `TEAM-SBM#${subId}` : item?.displayCode || 'N/A';
+};
+
 /**
  * Sắp xếp danh sách bài nộp judge theo thứ tự hàng đợi Coordinator đã xáo trộn.
  */

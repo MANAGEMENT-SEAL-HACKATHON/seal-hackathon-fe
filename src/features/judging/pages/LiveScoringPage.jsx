@@ -103,7 +103,7 @@ const LiveScoringPage = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Text style={{ fontSize: 10, lineHeight: 1, fontWeight: 800, color: scoringLogic.isController ? '#d97706' : '#2563eb', textTransform: 'uppercase' }}>Vai Trò Hội Đồng</Text>
             <Text strong style={{ fontSize: 14, lineHeight: 1, color: scoringLogic.isController ? '#92400e' : '#1e40af' }}>
-              {scoringLogic.isController ? 'Trưởng Ban' : 'Giám Khảo'}
+              {scoringLogic.isController ? 'Điều phối Timer' : 'Giám Khảo'}
             </Text>
           </div>
         </div>
@@ -114,11 +114,9 @@ const LiveScoringPage = () => {
           <Col xs={24} lg={6} style={{ display: 'flex', flexDirection: 'column' }}>
              <JudgeSidebarQueue
                queue={scoringLogic.trackQueue}
-               activeSlot={scoringLogic.activeSlot}
+               activeSlot={scoringLogic.presentingSlot || scoringLogic.activeSlot}
                selectedSubmissionId={scoringLogic.selectedSubmissionId}
-               isFinal={isFinal || scoringLogic.isCalibration}
                myScores={scoringLogic.myScoredSubmissions}
-               onSelectSubmission={scoringLogic.onSelectSubmission}
              />
           </Col>
 

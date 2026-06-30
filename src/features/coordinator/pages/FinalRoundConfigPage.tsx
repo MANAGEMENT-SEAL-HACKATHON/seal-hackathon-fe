@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Divider, List, Space, Spin, Tag, Typography, message } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import FinalRoundCalibrationSection from '../components/FinalRoundCalibrationSection';
 import { hackathonService } from '../../hackathons/services/hackathonService';
 import { roundService } from '../../rounds/services/roundService';
@@ -10,7 +10,14 @@ import { ROUTES } from '../../../shared/constants/routes';
 
 const { Title, Text } = Typography;
 
-const FinalRoundConfigPage: React.FC = () => {
+type FinalRoundConfigPageProps = {
+  /** Khi mở từ tab setup hackathon — bắt buộc truyền để readiness khớp GĐ4 vừa advance */
+  hackathonId?: number | string;
+};
+
+const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId: hackathonIdProp }) => {
+  const { hackathonId: hackathonIdFromRoute } = useParams<{ hackathonId?: string }>();
+  const resolvedHackathonId = hackathonIdProp ?? hackathonIdFromRoute;
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [hackathon, setHackathon] = useState<any>(null);
@@ -18,15 +25,17 @@ const FinalRoundConfigPage: React.FC = () => {
   const [readiness, setReadiness] = useState<any>(null);
   const navigate = useNavigate();
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-      let currentHackathon = null;
-      if (userInfo?.hackathonId) {
+      let currentHackathon: any = null;
+      if (resolvedHackathonId) {
+        currentHackathon = await hackathonService.getById(resolvedHackathonId);
+      } else if (userInfo?.hackathonId) {
         currentHackathon = await hackathonService.getById(userInfo.hackathonId);
       } else {
-        const list = await hackathonService.search({ size: 20 });
+        const list: any = await hackathonService.search({ size: 20 });
         const items = Array.isArray(list) ? list : list?.items || list?.content || [];
         currentHackathon =
           items.find((item: any) => ['ONGOING', 'DRAFT'].includes(String(item.status).toUpperCase())) ||
@@ -45,18 +54,19 @@ const FinalRoundConfigPage: React.FC = () => {
         reviewService.checkReadiness(currentHackathon.id, 'FINAL_ROUND'),
       ]);
       setHackathon(currentHackathon);
-      setRounds(Array.isArray(roundList) ? roundList : roundList?.items || []);
+      const roundItems: any = roundList;
+      setRounds(Array.isArray(roundItems) ? roundItems : roundItems?.items || []);
       setReadiness(readinessResult?.data || readinessResult);
     } catch (error: any) {
       message.error(error?.message || 'Không tải được cấu hình Chung kết.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [resolvedHackathonId]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const finalRound = useMemo(
     () => rounds.find((round) => Boolean(round?.isFinal ?? round?.is_final)) || null,
@@ -105,7 +115,9 @@ const FinalRoundConfigPage: React.FC = () => {
               Cấu hình Chung kết (GĐ4 → GĐ5)
             </Title>
             <Text type="secondary">
-              Màn này đã bỏ hoàn toàn mock/local-only, chỉ hiển thị dữ liệu thật từ BE.
+              {hackathon?.name
+                ? `Hackathon: ${hackathon.name}${hackathon.slug ? ` (${hackathon.slug})` : ''}`
+                : 'Màn này chỉ hiển thị dữ liệu thật từ BE.'}
             </Text>
           </div>
           <Button icon={<ReloadOutlined />} onClick={loadData}>

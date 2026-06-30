@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card, Typography, List, Tag } from 'antd';
 import { PlayCircleOutlined, CheckCircleFilled, ClockCircleOutlined } from '@ant-design/icons';
+import { formatJudgeQueueTeamLabel } from '../utils/liveScoringUtils';
 
 const { Text } = Typography;
 
@@ -11,15 +12,13 @@ const JudgeSidebarQueue = ({
   queue,
   activeSlot,
   selectedSubmissionId,
-  isFinal,
   myScores = {},
-  onSelectSubmission,
 }) => {
   return (
     <Card
       title={
         <span style={{ fontSize: 16 }}>
-          <ClockCircleOutlined /> {isFinal ? 'Bài chấm' : 'Lịch trình'} ({queue?.length || 0})
+          <ClockCircleOutlined /> Lịch trình ({queue?.length || 0})
         </span>
       }
       style={{
@@ -47,30 +46,19 @@ const JudgeSidebarQueue = ({
           const subId = getSubmissionId(item);
           const isSelected =
             String(subId) === String(selectedSubmissionId || getSubmissionId(activeSlot));
-          const isPresenting = item.status === 'PRESENTING' && !isFinal;
+          const isPresenting = item.status === 'PRESENTING';
           const isDone = item.status === 'DONE';
           const myPersonalScore = myScores[String(subId)];
-          const clickable = isFinal && onSelectSubmission;
+          const teamLabel = formatJudgeQueueTeamLabel(item);
 
           return (
             <div
-              role={clickable ? 'button' : undefined}
-              tabIndex={clickable ? 0 : undefined}
-              onClick={clickable ? () => onSelectSubmission(subId) : undefined}
-              onKeyDown={
-                clickable
-                  ? (e) => {
-                      if (e.key === 'Enter' || e.key === ' ') onSelectSubmission(subId);
-                    }
-                  : undefined
-              }
               style={{
                 padding: '16px 20px',
                 borderBottom: '1px solid #f1f5f9',
                 background: isSelected ? '#eff6ff' : isDone ? '#f8fafc' : '#fff',
                 borderLeft: isSelected ? '4px solid #2563eb' : '4px solid transparent',
                 transition: 'all 0.3s ease',
-                cursor: clickable ? 'pointer' : 'default',
               }}
             >
               <div
@@ -99,7 +87,7 @@ const JudgeSidebarQueue = ({
                       textDecoration: isDone ? 'line-through' : 'none',
                     }}
                   >
-                    {item.order}. {isFinal ? item.teamName : `TEAM-SBM#${subId}`}
+                    {item.order}. {teamLabel}
                   </Text>
                 </div>
 
@@ -129,8 +117,6 @@ const JudgeSidebarQueue = ({
                     </Tag>
                   ) : isDone ? (
                     <CheckCircleFilled style={{ color: '#10b981', fontSize: 16 }} />
-                  ) : item.outsideQueue ? (
-                    <Tag style={{ margin: 0, fontSize: 11 }}>Ngoài queue</Tag>
                   ) : (
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       <ClockCircleOutlined /> Chờ

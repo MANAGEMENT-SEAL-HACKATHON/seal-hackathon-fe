@@ -9,15 +9,27 @@ import {
   countGradableSubmissions,
   getSubmissionStatusMeta,
 } from '../utils/presentationSubmissionUtils';
+import { getEligibleTeamStatusLabel } from '../utils/presentationQueueUtils';
 import toast from 'react-hot-toast';
 
 const { Text } = Typography;
+
+interface EligibleTeamItem {
+  teamId: number;
+  teamName: string;
+  gradable: boolean;
+  submissionStatus?: string | null;
+}
 
 interface PresentationReadinessPanelProps {
   roundId: number | null;
   trackId?: number | null;
   trackName?: string;
   canReviewLate?: boolean;
+  isFinalRound?: boolean;
+  eligibleTeams?: EligibleTeamItem[];
+  participatingCount?: number;
+  gradableCount?: number;
   onReviewSuccess?: () => void;
 }
 
@@ -26,14 +38,19 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
   trackId,
   trackName,
   canReviewLate = false,
+  isFinalRound = false,
+  eligibleTeams = [],
+  participatingCount,
+  gradableCount: gradableCountProp,
   onReviewSuccess,
 }) => {
+  const showPanel = canReviewLate || isFinalRound;
   const [rejectingId, setRejectingId] = useState<number | null>(null);
 
   const { data: submissions = [], isLoading, refetch } = useQuery<RoundSubmissionItem[]>({
     queryKey: ['roundSubmissions', roundId],
     queryFn: () => personBApi.getRoundSubmissions(roundId!),
-    enabled: roundId != null && canReviewLate,
+    enabled: roundId != null && showPanel && !isFinalRound,
   });
 
   const scopedSubmissions = useMemo(() => {
@@ -41,7 +58,12 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
     return submissions.filter((s) => s.track_id === trackId);
   }, [submissions, trackId]);
 
-  const gradableCount = countGradableSubmissions(scopedSubmissions);
+  const gradableCount = isFinalRound
+    ? (gradableCountProp ?? eligibleTeams.filter((t) => t.gradable).length)
+    : countGradableSubmissions(scopedSubmissions);
+  const totalParticipating = isFinalRound
+    ? (participatingCount ?? eligibleTeams.length)
+    : scopedSubmissions.length;
   const pendingLate = scopedSubmissions.filter((s) => s.status === 'LATE_PENDING');
 
   const approveMutation = useMutation({
@@ -71,7 +93,7 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
     },
   });
 
-  if (!canReviewLate || !roundId) return null;
+  if (!showPanel || !roundId) return null;
 
   return (
     <div
@@ -94,27 +116,101 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
       >
         <div>
           <Text strong style={{ fontSize: '14px', display: 'block' }}>
-            Tình trạng bài nộp{trackName ? ` — ${trackName}` : ''}
+            {isFinalRound
+              ? 'Đội tham gia Chung kết'
+              : `Tình trạng bài nộp${trackName ? ` — ${trackName}` : ''}`}
           </Text>
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            Chỉ bài <Text strong>đúng hạn / đã duyệt trễ</Text> mới vào hàng đợi khi xáo trộn.
+            {isFinalRound
+              ? 'Chỉ đội đã nộp bài đúng hạn (HARD_LOCK) mới vào hàng đợi khi bốc thăm.'
+              : (
+                <>
+                  Chỉ bài <Text strong>đúng hạn / đã duyệt trễ</Text> mới vào hàng đợi khi xáo trộn.
+                </>
+              )}
           </Text>
         </div>
-        <Link to={ROUTES.COORDINATOR_LATE_SUBMISSIONS} style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
-          Màn duyệt trễ →
-        </Link>
+        {!isFinalRound && (
+          <Link to={ROUTES.COORDINATOR_LATE_SUBMISSIONS} style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+            Màn duyệt trễ →
+          </Link>
+        )}
       </div>
 
-      {isLoading ? (
+      {isLoading && !isFinalRound ? (
         <div style={{ textAlign: 'center', padding: '16px 0' }}>
           <Spin size="small" />
         </div>
+      ) : isFinalRound && eligibleTeams.length === 0 ? (
+        <Alert
+          type="info"
+          showIcon
+          message="Chưa có đội vào vòng Chung kết"
+          description="Cần chốt danh sách ADVANCED từ vòng Sơ loại trước."
+        />
+      ) : isFinalRound ? (
+        <>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+            <Tag color="green">Sẵn sàng: {gradableCount}/{totalParticipating}</Tag>
+            <Tag color="default">Tổng đội CK: {totalParticipating}</Tag>
+            {totalParticipating > gradableCount && (
+              <Tag color="orange">Chưa nộp: {totalParticipating - gradableCount}</Tag>
+            )}
+          </div>
+
+          {gradableCount < totalParticipating && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: '12px' }}
+              message={`${totalParticipating - gradableCount} đội chưa nộp bài Chung kết`}
+              description="Chỉ đội đã nộp đúng hạn mới vào hàng đợi khi bốc thăm (HARD_LOCK)."
+            />
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {eligibleTeams.map((team) => {
+              const meta = getEligibleTeamStatusLabel(team);
+              return (
+                <div
+                  key={team.teamId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    border: '1px solid #F3F4F6',
+                    borderRadius: '8px',
+                    background: team.gradable ? '#F0FDF4' : '#FFFBEB',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Text strong style={{ fontSize: '13px', display: 'block' }}>
+                      {team.teamName}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                      Đội #{team.teamId}
+                    </Text>
+                  </div>
+                  <Tag color={meta.color}>{meta.label}</Tag>
+                  <Tag color={team.gradable ? 'success' : 'default'}>
+                    {team.gradable ? '✓ Queue' : '✗ Queue'}
+                  </Tag>
+                </div>
+              );
+            })}
+          </div>
+        </>
       ) : scopedSubmissions.length === 0 ? (
         <Alert
           type="info"
           showIcon
-          message="Chưa có bài nộp nào trên track này"
-          description="Đội chưa nộp sẽ không xuất hiện khi xáo trộn."
+          message={isFinalRound ? 'Chưa có bài nộp Chung kết' : 'Chưa có bài nộp nào trên track này'}
+          description={
+            isFinalRound
+              ? 'Đội đã vào vòng CK nhưng chưa nộp bài sẽ không có trong hàng đợi.'
+              : 'Đội chưa nộp sẽ không xuất hiện khi xáo trộn.'
+          }
         />
       ) : (
         <>
@@ -132,7 +228,11 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
               showIcon
               style={{ marginBottom: '12px' }}
               message={`${scopedSubmissions.length - gradableCount} bài chưa đủ điều kiện xáo trộn`}
-              description="Duyệt bài nộp trễ (LATE_PENDING) hoặc yêu cầu đội nộp lại trước khi xáo trộn."
+              description={
+                isFinalRound
+                  ? 'Vòng CK không duyệt nộp trễ — yêu cầu đội nộp đúng hạn trước khi bốc thăm.'
+                  : 'Duyệt bài nộp trễ (LATE_PENDING) hoặc yêu cầu đội nộp lại trước khi xáo trộn.'
+              }
             />
           )}
 
@@ -166,7 +266,7 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
                   <Tag color={meta.gradable ? 'success' : 'default'}>
                     {meta.gradable ? '✓ Queue' : '✗ Queue'}
                   </Tag>
-                  {isPending && (
+                  {isPending && canReviewLate && !isFinalRound && (
                     <Space size={4}>
                       <Button
                         type="primary"

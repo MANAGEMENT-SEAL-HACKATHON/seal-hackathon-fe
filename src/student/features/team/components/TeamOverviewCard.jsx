@@ -111,10 +111,15 @@ const TeamOverviewCard = ({ team, onConfirmFormation, actionLoading = false }) =
         <Title level={3} style={{ margin: 0 }}>{team.teamName}</Title>
         <Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 14 }}>{team.hackathonName}</Text>
 
-        <Space style={{ marginTop: 16 }}>
+        <Space style={{ marginTop: 16 }} wrap>
           <Tag color={team.statusColor} style={{ borderRadius: 12, padding: '2px 12px', border: 0, fontWeight: 600 }}>
             {team.statusLabel}
           </Tag>
+          {team.participationLabel && (
+            <Tag color={team.participationColor} style={{ borderRadius: 12, padding: '2px 12px', border: 0, fontWeight: 700 }}>
+              {team.participationLabel}
+            </Tag>
+          )}
           {formationSubmitted && (
             <Tag color="green" icon={<CheckCircleOutlined />} style={{ borderRadius: 12, padding: '2px 12px', border: 0 }}>
               Đã xác nhận roster
@@ -131,6 +136,25 @@ const TeamOverviewCard = ({ team, onConfirmFormation, actionLoading = false }) =
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>
+        {team.isEliminatedFromFinal && (
+          <Alert
+            type="error"
+            showIcon
+            style={{ marginBottom: 16, borderRadius: 12 }}
+            message="Đội đã bị loại tại Vòng Sơ loại"
+            description={`Đội của bạn không được chọn vào Vòng Chung kết của ${team.hackathonName || 'cuộc thi này'}. Bạn vẫn có thể xem lại kết quả và hành trình thi đấu tại mục «Cuộc thi đã tham gia».`}
+          />
+        )}
+        {team.isAdvanced && (
+          <Alert
+            type="success"
+            showIcon
+            style={{ marginBottom: 16, borderRadius: 12 }}
+            message="Chúc mừng — Đội vào Vòng Chung kết"
+            description="Đội của bạn đã được chọn vào Chung kết. Theo dõi mục «Nộp bài thi» khi Coordinator kích hoạt vòng CK."
+          />
+        )}
+
         {team.isInFormationGracePeriod && (
           <Alert
             type="warning"

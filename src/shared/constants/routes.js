@@ -1,6 +1,7 @@
 export const ROUTES = {
   LANDING: '/',
   DASHBOARD: '/dashboard',
+  STUDENT_HACKATHON_HISTORY: '/student/hackathons',
   STUDENT_TEAM: '/student/team',
   STUDENT_MATCHMAKING: '/student/matchmaking',
   STUDENT_RESULTS: '/student/results',

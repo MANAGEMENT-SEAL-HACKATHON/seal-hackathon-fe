@@ -214,7 +214,7 @@ const HackathonSetupPage = () => {
           className="hackathon-setup-tabs"
         />
       </Card>
-      {activeTab === 'final-config' && <FinalRoundConfigPage />}
+      {activeTab === 'final-config' && <FinalRoundConfigPage hackathonId={hackathon.id} />}
     </div>
   );
 };

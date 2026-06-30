@@ -22,7 +22,9 @@ interface ControllerInfo {
   judge_id?: number;
   judgeName?: string;
   judge_name?: string;
-  judgeFullName?: string; // Dựa theo API bạn vừa cung cấp
+  judgeFullName?: string;
+  isDeptHead?: boolean;
+  is_dept_head?: boolean;
   source?: string;
   data?: any; 
 }
@@ -34,19 +36,22 @@ const resolveControllerLabel = (controller: ControllerInfo | null | undefined, m
 
   const safeController = controller.data || controller;
   
-  // Bóc tách tên Trưởng ban đương nhiệm
   const judgeName = safeController.judgeFullName || safeController.judgeName || safeController.judge_name || 'Giám khảo';
   const judgeId = safeController.judgeId ?? safeController.judge_id;
   const source = safeController.source;
+  const isDeptHead = Boolean(safeController.isDeptHead ?? safeController.is_dept_head);
 
   if (judgeName && judgeId) {
-    if (source === 'HEAD_DEFAULT') {
-      return `${judgeName} (Trưởng ban mặc định)`;
-    }
     if (source === 'OVERRIDE') {
-      return `${judgeName}`;
+      return `${judgeName} (Coordinator chỉ định)`;
     }
-    return `${judgeName} (ID: ${judgeId})`;
+    if (source === 'AUTO_DEFAULT' || source === 'HEAD_DEFAULT') {
+      if (isDeptHead) {
+        return `${judgeName} (Trưởng ban — mặc định timer)`;
+      }
+      return `${judgeName} (Mặc định — judge gán sớm nhất)`;
+    }
+    return judgeName;
   }
 
   if (source === 'UNASSIGNED') {
@@ -55,7 +60,7 @@ const resolveControllerLabel = (controller: ControllerInfo | null | undefined, m
       : 'Chưa phân công — Vui lòng gán quyền ở dưới.';
   }
 
-  return 'Chưa có Trưởng ban điều hành.';
+  return 'Chưa có người điều phối timer.';
 };
 
 const PresentationControllerCard: React.FC<PresentationControllerCardProps> = ({
@@ -125,7 +130,7 @@ const PresentationControllerCard: React.FC<PresentationControllerCardProps> = ({
       return presentationService.setTrackController(scopeId, judgeId);
     },
     onSuccess: async () => {
-      toast.success('Đã cập nhật quyền Giám Khảo Trưởng thành công.');
+      toast.success('Đã cập nhật người điều phối timer.');
       await queryClient.invalidateQueries({ queryKey: ['presentationController', mode, scopeId] });
     },
     onError: (err: any) => {
@@ -147,7 +152,7 @@ const PresentationControllerCard: React.FC<PresentationControllerCardProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: showJudgePicker ? 20 : 0, background: '#f8fafc', padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0' }}>
           <Avatar size={40} style={{ background: '#2563eb' }} icon={<CrownOutlined />} />
           <div style={{ flex: 1 }}>
-             <Text style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Trưởng Ban Đương Nhiệm</Text>
+             <Text style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Người Điều Phối Timer</Text>
              <Text strong style={{ fontSize: 16, color: '#0f172a' }}>{controllerLabel}</Text>
           </div>
         </div>

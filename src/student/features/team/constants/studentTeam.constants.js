@@ -34,6 +34,21 @@ export const TEAM_STATUS_META = {
   [TEAM_STATUS.ELIMINATED]: { label: 'Bị loại', color: 'default' },
 };
 
+/** Trạng thái sau chốt chuyển vòng GĐ4 (từ lotteryStatus / participationStatus API) */
+export const PARTICIPATION_STATUS = {
+  ADVANCED: 'ADVANCED',
+  ELIMINATED: 'ELIMINATED',
+  PARTICIPATING: 'PARTICIPATING',
+  PENDING: 'PENDING',
+};
+
+export const PARTICIPATION_STATUS_META = {
+  [PARTICIPATION_STATUS.ADVANCED]: { label: 'ADVANCED — Vào Chung kết', color: 'success' },
+  [PARTICIPATION_STATUS.ELIMINATED]: { label: 'Bị loại — Không vào CK', color: 'error' },
+  [PARTICIPATION_STATUS.PARTICIPATING]: { label: 'Đang thi Sơ loại', color: 'processing' },
+  [PARTICIPATION_STATUS.PENDING]: { label: 'Chờ bốc thăm', color: 'default' },
+};
+
 export const MEMBER_ROLE_META = {
   [MEMBER_ROLE.LEADER]: { label: 'Trưởng nhóm', color: 'blue' },
   [MEMBER_ROLE.MEMBER]: { label: 'Thành viên', color: 'default' },

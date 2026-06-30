@@ -9,6 +9,7 @@ import {
   TEAM_MEMBER_LIMITS,
   TEAM_STATUS,
   TEAM_STATUS_META,
+  PARTICIPATION_STATUS_META,
 } from '../constants/studentTeam.constants';
 
 export const getCurrentStudentId = () => {
@@ -61,6 +62,10 @@ export const mapStudentTeam = (team) => {
   const pendingInviteCount = team.pendingInviteCount ?? members.filter((member) => member.isPending).length;
   const { minTeamSize, maxTeamSize } = resolveTeamSizeLimits(team);
   const statusMeta = TEAM_STATUS_META[team.status] || { label: team.status || 'N/A', color: 'default' };
+  const participationRaw = String(
+    team.participationStatus ?? team.lotteryStatus ?? team.lottery_status ?? '',
+  ).toUpperCase();
+  const participationMeta = PARTICIPATION_STATUS_META[participationRaw] || null;
   const acceptedMembers = members.filter((member) => member.isAccepted);
   const currentMember = members.find((member) => toNumber(member.userId) === toNumber(currentStudentId));
   const isCurrentUserLeader = toNumber(team.leaderId) === toNumber(currentStudentId);
@@ -103,6 +108,11 @@ export const mapStudentTeam = (team) => {
     trackName: team.trackName ?? null,
     assignedGroup: team.assignedGroup ?? null,
     lotteryStatus: team.lotteryStatus ?? null,
+    participationStatus: participationRaw || null,
+    participationLabel: participationMeta?.label ?? null,
+    participationColor: participationMeta?.color ?? null,
+    isAdvanced: participationRaw === 'ADVANCED',
+    isEliminatedFromFinal: participationRaw === 'ELIMINATED',
     leaderId: team.leaderId,
     leaderName: team.leaderName || 'N/A',
     chapterId: team.chapterId,

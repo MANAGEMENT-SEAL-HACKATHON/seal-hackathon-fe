@@ -30,6 +30,7 @@ import JudgeCriteriaViewPage from '../features/judging/pages/JudgeCriteriaViewPa
 import RoundRankingPreviewPage from '../features/round-ranking/pages/RoundRankingPreviewPage';
 import MentorSupportPage from '../features/mentor/pages/MentorSupportPage';
 import MentorRoundsPage from '../features/mentor/pages/MentorRoundsPage';
+import StudentHackathonHistoryPage from '../student/features/hackathon/pages/StudentHackathonHistoryPage';
 import StudentSubmissionPage from '../student/features/submission/pages/StudentSubmissionPage';
 import ScoringLobbyPage from '../features/judging/pages/ScoringLobbyPage';
 import HackathonResultsPage from '../features/hackathon-results/pages/HackathonResultsPage';
@@ -212,6 +213,11 @@ const AppRouter = () => {
       {/* Protected Routes inside role-aware layout */}
       <Route element={<AppLayoutWrapper />}>
         <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+        <Route path={ROUTES.STUDENT_HACKATHON_HISTORY} element={
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <StudentHackathonHistoryPage />
+          </ProtectedRoute>
+        } />
         <Route path={ROUTES.STUDENT_TEAM} element={
           <ProtectedRoute allowedRoles={['STUDENT']}>
             <StudentTeamPage />

@@ -46,6 +46,8 @@ const JudgeScoringWorkspace = ({ logic }) => {
     scoringLocked,
     isFinal,
     isCalibration,
+    isLivePresentation,
+    hasPresentationQueue,
   } = logic;
 
   if (scoringLocked) {
@@ -118,12 +120,14 @@ const JudgeScoringWorkspace = ({ logic }) => {
         <div style={{ textAlign: 'center' }}>
           <LockOutlined style={{ fontSize: 48, color: '#cbd5e1', marginBottom: 16 }} />
           <Title level={4} style={{ color: '#475569' }}>
-            {isFinal ? 'Chưa chọn bài chấm' : 'Sân khấu đang trống'}
+            {!hasPresentationQueue && isFinal
+              ? 'Chưa mở lịch trình thuyết trình'
+              : 'Sân khấu đang trống'}
           </Title>
           <Text style={{ color: '#94a3b8', fontSize: 14 }}>
-            {isFinal
-              ? 'Chọn một đội từ danh sách bên trái để bắt đầu chấm.'
-              : 'Vui lòng chờ Trưởng ban gọi đội lên sân khấu.'}
+            {!hasPresentationQueue && isFinal
+              ? 'Coordinator cần bốc thăm và gọi đội lên sân khấu trước khi bạn chấm điểm.'
+              : 'Vui lòng chờ điều phối timer gọi đội lên sân khấu.'}
           </Text>
         </div>
       </Card>
@@ -131,7 +135,7 @@ const JudgeScoringWorkspace = ({ logic }) => {
   }
 
   const isSetup =
-    !isFinal && !isCalibration && (localTimerPhase === 'SETUP' || localTimerPhase === 'IDLE');
+    isLivePresentation && (localTimerPhase === 'SETUP' || localTimerPhase === 'IDLE');
   const finalCalculatedScore = hasScoredCurrentTeam
     ? myScoredSubmissions[String(activeSlot?.submissionId)]
     : calculateTotal();
@@ -141,10 +145,8 @@ const JudgeScoringWorkspace = ({ logic }) => {
     : canSubmitFinalScore
       ? isCalibration
         ? 'Sẵn sàng chấm calibration'
-        : isFinal
-          ? 'Có thể chốt điểm (Chung kết)'
-          : 'Đã cho phép Chốt Điểm'
-      : isFinal || isCalibration
+        : 'Đã cho phép Chốt Điểm'
+      : isCalibration
         ? 'Đang chấm...'
         : 'Đang trong thời gian thuyết trình...';
 
@@ -203,7 +205,7 @@ const JudgeScoringWorkspace = ({ logic }) => {
               Đội đang Chuẩn bị (Set-up)
             </Title>
             <Text style={{ color: '#d97706', fontSize: 14, marginTop: 8, display: 'block' }}>
-              Form chấm điểm sẽ mở khóa ngay khi Trưởng ban bấm &quot;Bắt Đầu Tính Giờ&quot;.
+              Form chấm điểm sẽ mở khóa ngay khi người điều phối timer bấm &quot;Bắt Đầu Tính Giờ&quot;.
             </Text>
           </div>
         </div>
@@ -368,7 +370,11 @@ const JudgeScoringWorkspace = ({ logic }) => {
               {isCalibration ? 'Đã chấm calibration' : 'Đã Chốt Điểm Thành Công'}
             </Title>
             <Text style={{ color: '#047857', fontSize: 13 }}>
-              Dữ liệu điểm đã được lưu vào hệ thống an toàn và không thể chỉnh sửa.
+              {isCalibration
+                ? 'Dữ liệu điểm đã được lưu vào hệ thống an toàn và không thể chỉnh sửa.'
+                : isFinal
+                  ? 'Bạn đã hoàn tất cho đội này. Chỉ điều phối timer mới chuyển sang đội tiếp theo.'
+                  : 'Dữ liệu điểm đã được lưu vào hệ thống an toàn và không thể chỉnh sửa.'}
             </Text>
           </div>
         ) : (
@@ -389,8 +395,7 @@ const JudgeScoringWorkspace = ({ logic }) => {
                   Chưa thể nộp điểm
                 </Title>
                 <Text type="secondary" style={{ fontSize: 13 }}>
-                  Nút chốt điểm sẽ mở khóa ngay khi Trưởng ban chuyển sang phần Q&A hoặc Kết thúc giờ
-                  thi.
+                  Chốt điểm chỉ mở khi đã sang Q&A hoặc hết giờ thuyết trình, và bạn đã nhập đủ tất cả tiêu chí.
                 </Text>
               </>
             ) : (

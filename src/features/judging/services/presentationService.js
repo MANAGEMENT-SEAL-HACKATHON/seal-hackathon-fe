@@ -78,11 +78,20 @@ export const presentationService = {
     }),
 };
 
+export const getQueueBucket = (queueData, { isFinal, trackId } = {}) => {
+  if (!queueData) return null;
+  const tracks = queueData.tracks || queueData.groups || [];
+  if (isFinal) {
+    return tracks[0] || null;
+  }
+  const tid = Number(trackId);
+  return tracks.find((t) => Number(t.trackId ?? t.id) === tid) || null;
+};
+
 export const findPresentingItem = (queueData, trackId) => {
-  const tracks = queueData?.tracks || [];
   const track = trackId
-    ? tracks.find((t) => t.trackId === trackId)
-    : tracks[0];
+    ? getQueueBucket(queueData, { isFinal: false, trackId })
+    : getQueueBucket(queueData, { isFinal: true });
 
   if (!track) {
     return { trackQueue: null, presentingItem: null };
