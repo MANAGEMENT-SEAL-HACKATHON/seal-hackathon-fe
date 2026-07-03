@@ -1,5 +1,5 @@
 // src/features/teams/pages/LotteryManagementPage.jsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, Table, Button, Space, Select, Typography, Tag, Modal, Input, Form, Alert, theme, message } from 'antd';
 import { Shuffle, Edit, Repeat, LayoutGrid } from 'lucide-react';
 import { useLotteryManagement } from '../hooks/useLotteryManagement';

@@ -3,16 +3,40 @@ import React from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Row, Col, Typography, Button, Spin, Layout, Space, Tag, Avatar } from 'antd';
 import { 
-  ArrowLeftOutlined, TrophyOutlined, AppstoreOutlined, CrownOutlined, UserOutlined, WifiOutlined 
+  ArrowLeftOutlined, TrophyOutlined, AppstoreOutlined, CrownOutlined, UserOutlined
 } from '@ant-design/icons';
 import { useLiveScoringV2 } from '../hooks/useLiveScoringV2';
 
 import JudgeSidebarQueue from '../components/JudgeSidebarQueue';
 import JudgeScoringWorkspace from '../components/JudgeScoringWorkspace';
 import JudgeTimerAndControls from '../components/JudgeTimerAndControls';
+import JudgeScoringChecklist from '../components/JudgeScoringChecklist';
+import LiveRecordIndicator from '../../../shared/components/ui/LiveRecordIndicator';
 
 const { Title, Text } = Typography;
 const { Header, Content } = Layout;
+
+const STICKY_TOP = 160;
+const stickyColumnStyle = {
+  position: 'sticky',
+  top: STICKY_TOP,
+  alignSelf: 'flex-start',
+  maxHeight: `calc(100vh - ${STICKY_TOP + 16}px)`,
+  overflowY: 'auto',
+};
+
+const timerPinnedStyle = {
+  position: 'sticky',
+  top: STICKY_TOP,
+  zIndex: 20,
+  flexShrink: 0,
+};
+
+const checklistScrollStyle = {
+  marginTop: 16,
+  maxHeight: `calc(100vh - ${STICKY_TOP + 220}px)`,
+  overflowY: 'auto',
+};
 
 const LiveScoringPage = () => {
   const navigate = useNavigate();
@@ -53,13 +77,13 @@ const LiveScoringPage = () => {
         alignItems: 'center', 
         justifyContent: 'space-between', 
         borderBottom: '1px solid #e2e8f0', 
-        height: 72, // Cố định chiều cao
+        height: 72,
         maxHeight: 72,
-        lineHeight: 1, // Reset dòng thừa
+        lineHeight: 1,
         boxShadow: '0 4px 20px rgba(0,0,0,0.03)', 
         position: 'sticky', 
-        top: 0, 
-        zIndex: 100
+        top: 72,
+        zIndex: 100,
       }}>
         {/* KHU VỰC BÊN TRÁI: Nút Back + Tiêu đề */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, overflow: 'hidden' }}>
@@ -71,10 +95,25 @@ const LiveScoringPage = () => {
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
             <Space align="center" size="small">
               <Title level={4} style={{ margin: 0, lineHeight: 1, color: '#0f172a', fontWeight: 800, whiteSpace: 'nowrap' }}>
-                Phòng Chấm Thi Trực Tiếp
+                Phòng chấm thi trực tiếp
               </Title>
-              <Tag color="cyan" style={{ borderRadius: 6, fontWeight: 800, margin: 0, border: 'none', background: '#e0f2fe', color: '#0284c7', padding: '2px 8px', fontSize: 11 }}>
-                <WifiOutlined /> LIVE
+              <Tag
+                style={{
+                  borderRadius: 6,
+                  fontWeight: 800,
+                  margin: 0,
+                  border: 'none',
+                  background: '#fef2f2',
+                  color: '#b91c1c',
+                  padding: '2px 10px',
+                  fontSize: 11,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <LiveRecordIndicator size={8} />
+                Đang diễn ra
               </Tag>
             </Space>
             <Space size="small" style={{ lineHeight: 1 }}>
@@ -111,7 +150,7 @@ const LiveScoringPage = () => {
 
       <Content style={{ padding: '32px', maxWidth: 1600, margin: '0 auto', width: '100%' }}>
         <Row gutter={32} align="stretch">
-          <Col xs={24} lg={6} style={{ display: 'flex', flexDirection: 'column' }}>
+          <Col xs={24} lg={6} style={{ display: 'flex', flexDirection: 'column', ...stickyColumnStyle }}>
              <JudgeSidebarQueue
                queue={scoringLogic.trackQueue}
                activeSlot={scoringLogic.presentingSlot || scoringLogic.activeSlot}
@@ -124,10 +163,23 @@ const LiveScoringPage = () => {
              <JudgeScoringWorkspace logic={scoringLogic} />
           </Col>
 
-          <Col xs={24} lg={6} style={{ display: 'flex', flexDirection: 'column' }}>
-             {!scoringLogic.isCalibration && (
-               <JudgeTimerAndControls logic={scoringLogic} isFinal={isFinal} />
-             )}
+          <Col xs={24} lg={6} style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start' }}>
+            <div style={timerPinnedStyle}>
+              <JudgeTimerAndControls logic={scoringLogic} isFinal={isFinal} />
+            </div>
+            <div style={checklistScrollStyle}>
+              <JudgeScoringChecklist
+                criteria={scoringLogic.criteria}
+                currentScores={scoringLogic.currentScores}
+                hasScoredCurrentTeam={scoringLogic.hasScoredCurrentTeam}
+                trackQueue={scoringLogic.trackQueue}
+                myScoredSubmissions={scoringLogic.myScoredSubmissions}
+                isFinal={isFinal}
+                isCalibration={scoringLogic.isCalibration}
+                localTimerPhase={scoringLogic.localTimerPhase}
+                canSubmitFinalScore={scoringLogic.canSubmitFinalScore}
+              />
+            </div>
           </Col>
         </Row>
       </Content>

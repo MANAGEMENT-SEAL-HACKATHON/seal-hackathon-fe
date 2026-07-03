@@ -1,4 +1,6 @@
 // src/features/presentation/utils/presentationWorkflow.js
+// Timer advance: FE uses PATCH /api/v1/presentation/queue/next (canonical).
+// POST /api/v1/presentation/timer/next is not wired — avoid duplicate control paths.
 export const COORD_TIMER_WARN_KEY = 'seal_coord_timer_warn_ack';
 
 export const getPresentationRoleHints = ({ role, isController, scoringLocked }) => {

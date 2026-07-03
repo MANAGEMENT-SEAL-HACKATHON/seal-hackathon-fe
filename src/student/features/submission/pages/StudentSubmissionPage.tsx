@@ -86,7 +86,7 @@ const SuccessView: React.FC<{ submissionData: any; submittedSlideName: string; o
       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", bounce: 0.5 }}>
         <CheckCircleFilled style={{ fontSize: 72, color: '#52c41a', marginBottom: 16 }} />
       </motion.div>
-      <Title level={2} style={{ color: '#237804', margin: 0, fontWeight: 800 }}>Nộp Bài Thành Công!</Title>
+      <Title level={2} style={{ color: '#237804', margin: 0, fontWeight: 800 }}>Nộp bài thành công!</Title>
       <Text style={{ color: '#389e0d', fontSize: 16 }}>Sản phẩm của đội bạn đã được lưu trữ an toàn và đóng dấu thời gian trên hệ thống.</Text>
     </div>
 
@@ -276,7 +276,7 @@ const StudentSubmissionPage: React.FC = () => {
       
       <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <Title level={2} style={{ margin: 0, fontWeight: 800, color: '#0f172a' }}>Cổng Nộp Bài Dự Thi</Title>
+          <Title level={2} style={{ margin: 0, fontWeight: 800, color: '#0f172a' }}>Cổng nộp bài dự thi</Title>
           <Text type="secondary" style={{ fontSize: 15 }}>Hoàn thiện mã nguồn và tài liệu trình bày cho vòng thi hiện tại.</Text>
         </div>
         <div>
@@ -346,7 +346,7 @@ const StudentSubmissionPage: React.FC = () => {
                   <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <Title level={3} style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>
-                        {isSubmitted ? 'Cập Nhật Biểu Mẫu' : 'Biểu Mẫu Nộp Bài'}
+                        {isSubmitted ? 'Cập nhật biểu mẫu' : 'Biểu mẫu nộp bài'}
                       </Title>
                       <Text type="secondary" style={{ fontSize: 15 }}>
                         {isSubmitted ? 'Chỉnh sửa liên kết hoặc tải lên file PDF mới để thay thế bản cũ.' : 'Cập nhật cẩn thận các liên kết, bạn có thể nộp lại nhiều lần trước hạn chót.'}

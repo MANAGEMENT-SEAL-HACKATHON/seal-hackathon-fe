@@ -1,6 +1,6 @@
 // src/features/presentation/components/PresentationControllerCard.tsx
 import React, { useEffect, useState } from 'react';
-import { Select, Spin, Typography, Avatar } from 'antd';
+import { Select, Spin, Typography, Avatar, Button, Popconfirm } from 'antd';
 import { CrownOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { presentationService } from '../../judging/services/presentationService';
@@ -138,6 +138,24 @@ const PresentationControllerCard: React.FC<PresentationControllerCardProps> = ({
     },
   });
 
+  const revokeMutation = useMutation({
+    mutationFn: async () => {
+      if (!scopeId) throw new Error('Thiếu thông tin bảng đấu hoặc vòng thi');
+      if (mode === 'round') {
+        return presentationService.clearRoundController(scopeId);
+      }
+      return presentationService.clearTrackController(scopeId);
+    },
+    onSuccess: async () => {
+      toast.success('Đã gỡ quyền điều phối timer.');
+      setSelectedJudgeId(null);
+      await queryClient.invalidateQueries({ queryKey: ['presentationController', mode, scopeId] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Không thể gỡ quyền.');
+    },
+  });
+
   if (!enabled) return null;
 
   const controllerLabel = resolveControllerLabel(controllerResponse, mode);
@@ -164,8 +182,9 @@ const PresentationControllerCard: React.FC<PresentationControllerCardProps> = ({
           <Text strong style={{ display: 'block', marginBottom: 8, color: '#334155' }}>
             Cập nhật lại quyền điều khiển:
           </Text>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Select
-            style={{ width: '100%', height: 48 }}
+            style={{ flex: 1, minWidth: 220, height: 48 }}
             placeholder={mode === 'track' ? 'Chọn Giám khảo trong Hội đồng...' : 'Chọn Giám khảo Chung kết...'}
             loading={loadingJudges || grantMutation.isPending}
             value={selectedJudgeId ?? undefined}
@@ -200,6 +219,18 @@ const PresentationControllerCard: React.FC<PresentationControllerCardProps> = ({
               );
             })}
           </Select>
+          <Popconfirm
+            title="Gỡ quyền điều phối timer?"
+            onConfirm={() => revokeMutation.mutate()}
+            okText="Gỡ"
+            cancelText="Hủy"
+            disabled={!selectedJudgeId}
+          >
+            <Button danger loading={revokeMutation.isPending} disabled={!selectedJudgeId}>
+              Gỡ quyền
+            </Button>
+          </Popconfirm>
+          </div>
         </div>
       )}
     </div>

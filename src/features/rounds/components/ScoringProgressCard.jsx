@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Card, Progress, Space, Typography, Spin } from 'antd';
+import { Card, Progress, Space, Typography, Spin, Tag } from 'antd';
 import { roundService } from '../services/roundService';
+import { useScoringProgressSocket } from '../../../shared/hooks/useScoringProgressSocket';
 
 const { Text } = Typography;
 
@@ -23,12 +24,20 @@ const ScoringProgressCard = ({ round }) => {
     }
   }, [round?.id, round?.scoring_locked, round?.scoringLocked]);
 
+  useScoringProgressSocket(round?.id, (payload) => {
+    if (payload && typeof payload === 'object') {
+      setProgress((prev) => ({ ...prev, ...payload }));
+    } else {
+      fetchProgress();
+    }
+  });
+
   useEffect(() => {
     fetchProgress();
     if (!round?.id || round.scoring_locked || round.scoringLocked) {
       return undefined;
     }
-    const interval = setInterval(fetchProgress, 15000);
+    const interval = setInterval(fetchProgress, 60000);
     return () => clearInterval(interval);
   }, [fetchProgress, round?.id, round?.scoring_locked, round?.scoringLocked]);
 
@@ -42,7 +51,7 @@ const ScoringProgressCard = ({ round }) => {
   const percent = total > 0 ? Math.round((scored / total) * 100) : 0;
 
   return (
-    <Card size="small" style={{ marginBottom: 16 }} title="Tiến độ chấm điểm">
+    <Card size="small" style={{ marginBottom: 16 }} title="Tiến độ chấm điểm" extra={<Tag color="blue">Live WS</Tag>}>
       {loading && !progress ? (
         <Spin size="small" />
       ) : (

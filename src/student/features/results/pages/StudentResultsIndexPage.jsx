@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Alert, Button, Card, Col, Form, InputNumber, Row, Space, Tag, Typography, Select, message } from "antd";
+import { Alert, Button, Card, Col, Form, InputNumber, Row, Space, Tag, Typography, Select } from "antd";
 import { ArrowRight, BarChart3, Medal, ShieldCheck, Trophy, Search, ChevronDown } from "lucide-react";
 import { studentTeamService } from "../../team/services/studentTeam.service";
 import { studentHackathonService } from "../../hackathon/services/studentHackathon.service";
@@ -98,7 +98,7 @@ const StudentResultsIndexPage = () => {
             Tra cứu kết quả
           </Tag>
           <Title level={2} style={{ color: "#fff", margin: 0 }}>
-            Hệ thống Điểm số & Vinh danh
+            Hệ thống điểm số & vinh danh
           </Title>
           <Text style={{ color: "rgba(255,255,255,.8)", fontSize: 16 }}>
             Nơi theo dõi hành trình thi đấu, tra cứu điểm số vòng loại và bảng vàng vinh danh chung cuộc.
@@ -140,7 +140,7 @@ const StudentResultsIndexPage = () => {
                 <BarChart3 size={28} color="#fff" />
               </div>
               <div>
-                <Title level={4} style={{ margin: 0, marginBottom: 4 }}>Bảng điểm Vòng thi</Title>
+                <Title level={4} style={{ margin: 0, marginBottom: 4 }}>Bảng điểm vòng thi</Title>
                 <Text type="secondary" style={{ fontSize: 13 }}>
                   Dành cho các vòng Sơ loại, Bán kết. Xem điểm số và thứ hạng hiện tại của đội.
                 </Text>
@@ -188,7 +188,7 @@ const StudentResultsIndexPage = () => {
                 <Trophy size={28} color="#fff" />
               </div>
               <div>
-                <Title level={4} style={{ margin: 0, marginBottom: 4 }}>Chung cuộc & Giải thưởng</Title>
+                <Title level={4} style={{ margin: 0, marginBottom: 4 }}>Chung cuộc & giải thưởng</Title>
                 <Text type="secondary" style={{ fontSize: 13 }}>
                   Vinh danh các đội xuất sắc, xem giải thưởng và tải giấy chứng nhận điện tử.
                 </Text>

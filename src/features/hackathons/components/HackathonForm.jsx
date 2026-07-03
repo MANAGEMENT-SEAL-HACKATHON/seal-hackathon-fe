@@ -1,4 +1,3 @@
-import React from 'react';
 import { Form, Input, DatePicker, Select, Switch, Row, Col, Typography } from 'antd';
 import dayjs from 'dayjs';
 import HackathonBannerUpload from './HackathonBannerUpload';
@@ -28,6 +27,36 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
         event_end: initialValues?.event_end ? dayjs(initialValues.event_end) : null,
       }}
     >
+      <Row gutter={24}>
+        <Col span={12}>
+          <Form.Item
+            name="season"
+            label="Mùa (FPT)"
+            rules={[{ required: true, message: 'Vui lòng chọn mùa' }]}
+          >
+            <Select placeholder="Chọn mùa">
+              <Option value="Spring">Spring — Xuân</Option>
+              <Option value="Summer">Summer — Hạ</Option>
+              <Option value="Fall">Fall — Thu</Option>
+            </Select>
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item
+            name="year"
+            label="Năm"
+            rules={[{ required: true, message: 'Vui lòng nhập năm' }]}
+          >
+            <Input
+              type="number"
+              readOnly
+              placeholder="Ví dụ: 2026"
+              style={{ backgroundColor: '#fafafa', cursor: 'not-allowed' }}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
       <Row gutter={24}>
         <Col span={14}>
           <Form.Item
@@ -74,31 +103,6 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
             ]}
           >
             <Input placeholder="Ví dụ: seal-xuan-2026" />
-          </Form.Item>
-        </Col>
-      </Row>
-
-      <Row gutter={24}>
-        <Col span={12}>
-          <Form.Item
-            name="season"
-            label="Mùa (FPT)"
-            rules={[{ required: true, message: 'Vui lòng chọn mùa' }]}
-          >
-            <Select placeholder="Chọn mùa">
-              <Option value="Spring">Spring — Xuân</Option>
-              <Option value="Summer">Summer — Hạ</Option>
-              <Option value="Fall">Fall — Thu</Option>
-            </Select>
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item
-            name="year"
-            label="Năm"
-            rules={[{ required: true, message: 'Vui lòng nhập năm' }]}
-          >
-            <Input type="number" placeholder="Ví dụ: 2026" />
           </Form.Item>
         </Col>
       </Row>

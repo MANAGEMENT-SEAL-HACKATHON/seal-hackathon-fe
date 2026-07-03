@@ -1,7 +1,6 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import {
   Typography,
-  Tag,
   Alert,
   Spin,
   message,
@@ -18,6 +17,7 @@ import { reviewService } from "../services/reviewService";
 import { ReviewTabs } from "../components/ReviewTabs";
 import { ReviewSummaryCard } from "../components/ReviewSummaryCard";
 import { ROUTES } from "../../../shared/constants/routes";
+import StatusBadge from "../../../shared/components/ui/StatusBadge";
 
 const { Title, Paragraph } = Typography;
 const { useToken } = theme;
@@ -150,17 +150,7 @@ const ReviewValidatePage = ({ hackathonId: propHackathonId }) => {
                 >
                   Điều kiện phát hành
                 </Title>
-                <Tag
-                  color="processing"
-                  style={{
-                    fontSize: 13,
-                    padding: "4px 12px",
-                    borderRadius: 6,
-                    fontWeight: 600,
-                  }}
-                >
-                  {hackathon?.status || "DRAFT"}
-                </Tag>
+                <StatusBadge status={hackathon?.status || "DRAFT"} />
               </Space>
               <Title
                 level={5}

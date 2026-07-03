@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Card, Empty, Space, Spin, Tag, Typography } from 'antd';
 import { History, Trophy, ArrowRight, BarChart3 } from 'lucide-react';
 import { studentTeamService } from '../../team/services/studentTeam.service';
+import { studentPortalService } from '../../portal/services/studentPortal.service';
 import { ROUTES } from '../../../../shared/constants/routes';
 
 const { Title, Text } = Typography;
@@ -10,17 +11,25 @@ const { Title, Text } = Typography;
 const StudentHackathonHistoryPage = () => {
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
+  const [historyItems, setHistoryItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    studentTeamService
-      .getMyTeams()
-      .then((data) => {
-        if (!cancelled) setTeams(data.filter((t) => t.status !== 'REJECTED'));
+    Promise.all([
+      studentTeamService.getMyTeams(),
+      studentPortalService.getHistory().catch(() => []),
+    ])
+      .then(([teamData, historyData]) => {
+        if (cancelled) return;
+        setTeams(teamData.filter((t) => t.status !== 'REJECTED'));
+        setHistoryItems(historyData);
       })
       .catch(() => {
-        if (!cancelled) setTeams([]);
+        if (!cancelled) {
+          setTeams([]);
+          setHistoryItems([]);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -29,6 +38,14 @@ const StudentHackathonHistoryPage = () => {
       cancelled = true;
     };
   }, []);
+
+  const historyByHackathon = useMemo(() => {
+    const map = new Map();
+    historyItems.forEach((item) => {
+      map.set(item.hackathonId ?? item.hackathon_id, item);
+    });
+    return map;
+  }, [historyItems]);
 
   const hackathonGroups = useMemo(() => {
     const map = new Map();
@@ -89,6 +106,7 @@ const StudentHackathonHistoryPage = () => {
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           {hackathonGroups.map((group) => {
             const primary = group.teams[0];
+            const historyRow = historyByHackathon.get(group.hackathonId);
             const isAdvanced = group.teams.some((t) => t.isAdvanced);
             const isEliminated = group.teams.every((t) => t.isEliminatedFromFinal);
             const hasFinalist = isAdvanced;
@@ -129,6 +147,12 @@ const StudentHackathonHistoryPage = () => {
                               <Tag color={primary.participationColor}>{primary.participationLabel}</Tag>
                             )}
                             <Tag color={primary?.statusColor}>{primary?.statusLabel}</Tag>
+                            {historyRow?.outcome && (
+                              <Tag color="processing">{historyRow.outcome}</Tag>
+                            )}
+                            {historyRow?.role && (
+                              <Tag>{historyRow.role}</Tag>
+                            )}
                           </Space>
                         </div>
                       </div>

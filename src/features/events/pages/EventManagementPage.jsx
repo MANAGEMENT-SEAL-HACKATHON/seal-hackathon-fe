@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, Button, Table, Form, Input, Modal, Select, Tag, Radio, Badge, Calendar, Spin, Popconfirm, DatePicker, Switch, Steps, Alert, Typography } from 'antd';
 import { Plus, List, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 import { InfoCircleOutlined } from '@ant-design/icons';
@@ -23,10 +23,20 @@ import {
 } from '../utils/eventTypeRules';
 import { hackathonService } from '../../hackathons/services/hackathonService';
 
+const EVENT_TYPE_STYLES = {
+  KICKOFF: { tag: 'red', bg: '#fff1f0', border: '#ff7875' },
+  WORKSHOP: { tag: 'blue', bg: '#e6f4ff', border: '#69b1ff' },
+  PRESENTATION: { tag: 'green', bg: '#f6ffed', border: '#73d13d' },
+  AWARDS: { tag: 'gold', bg: '#fffbe6', border: '#ffc53d' },
+  OTHER: { tag: 'default', bg: '#fafafa', border: '#d9d9d9' },
+};
+
+const getEventTypeStyle = (type) => EVENT_TYPE_STYLES[type] || EVENT_TYPE_STYLES.OTHER;
+
 const { TextArea } = Input;
 const { Text } = Typography;
 const EventManagementPage = ({ hackathonId }) => {
-  const { addNotification } = useAppContext();
+  const { refreshNotifications } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('list');
   const [form] = Form.useForm();
@@ -35,7 +45,7 @@ const EventManagementPage = ({ hackathonId }) => {
   const selectedType = Form.useWatch('type', form);
   const startsAt = Form.useWatch('starts_at', form);
 
-  const { events, rounds, currentHackathon, isLoading, createEvent, deleteEvent } = useEventManagement(hackathonId, addNotification);
+  const { events, rounds, currentHackathon, isLoading, createEvent, deleteEvent } = useEventManagement(hackathonId, refreshNotifications);
   const [awardsReadiness, setAwardsReadiness] = useState(null);
 
   useEffect(() => {
@@ -102,7 +112,15 @@ const EventManagementPage = ({ hackathonId }) => {
   const scheduleHint = getEventScheduleHint(scheduleCtx);
   const columns = [
     { title: 'Tên sự kiện', dataIndex: 'title', key: 'title', render: text => <strong>{text}</strong> },
-    { title: 'Loại', dataIndex: 'type', key: 'type', render: type => <Tag color="purple">{type}</Tag> },
+    {
+      title: 'Loại',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type) => {
+        const style = getEventTypeStyle(type);
+        return <Tag color={style.tag}>{getEventTypeOptionLabel(type)}</Tag>;
+      },
+    },
     { title: 'Bắt đầu', dataIndex: 'starts_at', key: 'starts', render: text => dayjs(text).format('YYYY-MM-DD HH:mm') },
     { title: 'Kết thúc', dataIndex: 'ends_at', key: 'ends', render: text => text ? dayjs(text).format('YYYY-MM-DD HH:mm') : '-' },
     { title: 'Trạng thái', dataIndex: 'is_public', key: 'public', render: (pub) => pub ? <Tag color="green">Mở</Tag> : <Tag>Đóng</Tag> },
@@ -137,11 +155,24 @@ const EventManagementPage = ({ hackathonId }) => {
     const listData = events.filter(e => dayjs(e.starts_at).isSame(value, 'day'));
     return (
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {listData.map((item) => (
-          <li key={item.id} style={{ marginBottom: 4 }}>
-            <Badge status={getBadgeStatus(item.type)} text={<span style={{ fontSize: 12 }}>{item.title}</span>} />
-          </li>
-        ))}
+        {listData.map((item) => {
+          const style = getEventTypeStyle(item.type);
+          return (
+            <li key={item.id} style={{ marginBottom: 4 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                  background: style.bg,
+                  borderLeft: `3px solid ${style.border}`,
+                }}
+              >
+                <Badge status={getBadgeStatus(item.type)} text={item.title} />
+              </div>
+            </li>
+          );
+        })}
       </ul>
     );
   };
@@ -196,7 +227,7 @@ const EventManagementPage = ({ hackathonId }) => {
 
       {awardsReadiness && (
         <Alert
-          data-testid="gd6-awards-readiness"
+          data-testid="hackathon-awards-readiness"
           type={awardsReadiness.ready ? 'success' : 'info'}
           showIcon
           style={{ marginBottom: 16 }}
@@ -209,7 +240,23 @@ const EventManagementPage = ({ hackathonId }) => {
         {isLoading ? (
           <div style={{ textAlign: 'center', padding: '40px 0' }}><Spin size="large" /></div>
         ) : viewMode === 'list' ? (
-          <Table scroll={{ x: 'max-content' }} dataSource={events} columns={columns} rowKey="id" pagination={false} locale={{ emptyText: 'Chưa có sự kiện nào được tạo.' }} />
+          <Table
+            scroll={{ x: 'max-content' }}
+            dataSource={events}
+            columns={columns}
+            rowKey="id"
+            pagination={false}
+            locale={{ emptyText: 'Chưa có sự kiện nào được tạo.' }}
+            onRow={(record) => {
+              const style = getEventTypeStyle(record.type);
+              return {
+                style: {
+                  background: style.bg,
+                  borderLeft: `4px solid ${style.border}`,
+                },
+              };
+            }}
+          />
         ) : (
           <Calendar cellRender={cellRender} />
         )}

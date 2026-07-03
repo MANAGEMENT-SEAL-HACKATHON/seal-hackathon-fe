@@ -1,6 +1,7 @@
 // src/student/features/submission/hooks/useFinalSubmission.js
 import { useState, useEffect, useCallback } from 'react';
 import { message } from 'antd';
+import { resolveProgressionError } from '../../../../features/rounds/constants/progressionErrors';
 import dayjs from 'dayjs';
 import axiosClient from '../../../../shared/api/axiosClient';
 import { studentSubmissionService } from '../services/studentSubmission.service';
@@ -246,25 +247,12 @@ export const useFinalSubmission = (teamId, hackathonId) => {
         return false;
       }
       message.success('Nộp bài Chung kết thành công!');
+      message.info('Hệ thống đang kiểm tra repo công khai — có thể mất vài phút.');
       await fetchSubmissionData();
       return true;
     } catch (error) {
-      const code = error?.code || error?.response?.data?.error?.code || error?.response?.data?.code;
-      if (code === 'ROUND_NOT_ACTIVE') {
-        message.error('Vòng Chung kết chưa mở hoặc đã kết thúc!');
-      } else if (code === 'TEAM_NOT_IN_ROUND') {
-        message.error('Đội của bạn chưa được xác nhận tham gia Vòng Chung kết.');
-      } else if (code === 'INVALID_STATE') {
-        message.error('Không thể nộp lại bài đã bị từ chối.');
-      } else if (code === 'HACKATHON_NOT_ONGOING') {
-        message.error('Hackathon đang chờ xác nhận kết quả — không thể nộp bài.');
-      } else if (code === 'LATE_PENDING_NOT_ALLOWED') {
-        message.error('Chung kết không hỗ trợ duyệt nộp trễ.');
-      } else {
-        message.error(
-          error?.response?.data?.message || error?.message || 'Lỗi khi nộp bài. Vui lòng thử lại!'
-        );
-      }
+      const { message: msg } = resolveProgressionError(error, 'Lỗi khi nộp bài. Vui lòng thử lại!');
+      message.error(msg);
       return false;
     } finally {
       setIsSubmitting(false);

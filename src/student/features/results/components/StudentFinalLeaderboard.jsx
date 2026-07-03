@@ -1,4 +1,3 @@
-import React from 'react';
 import { Table, Typography, Tag, Card } from 'antd';
 import { Trophy, Medal } from 'lucide-react';
 

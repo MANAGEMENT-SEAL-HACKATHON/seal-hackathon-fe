@@ -1,5 +1,6 @@
 // src/features/people/services/peopleService.js
 import axiosClient from '../../../shared/api/axiosClient';
+import { ENDPOINTS } from '../../../shared/api/endpoints';
 
 export const peopleService = {
   // Lấy danh sách Users theo vai trò
@@ -31,4 +32,13 @@ export const peopleService = {
 
   // Gán mentor theo đội — chỉ dùng GĐ2+ (tùy chọn), không dùng wizard GĐ1
   getTeamMentors: async (teamId) => axiosClient.get(`/api/v1/teams/${teamId}/mentors`),
+
+  getJudgeRoundAssignments: async (judgeId) =>
+    axiosClient.get(ENDPOINTS.USERS.JUDGE_ROUND_ASSIGNMENTS(judgeId)),
+
+  getMentorTrackAssignments: async (mentorId) =>
+    axiosClient.get(ENDPOINTS.USERS.MENTOR_TRACK_ASSIGNMENTS(mentorId)),
+
+  patchUserDeptHead: async (userId, isDeptHead) =>
+    axiosClient.patch(ENDPOINTS.USERS.PATCH(userId), { isDeptHead }),
 };

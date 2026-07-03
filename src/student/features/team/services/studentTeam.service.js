@@ -51,12 +51,20 @@ export const studentTeamService = {
   },
 
   createTeam: async ({ hackathonId, teamName }) => {
-    const res = await axiosClient.post(ENDPOINTS.TEAMS.BASE, { hackathonId, teamName });
+    const res = await axiosClient.post(ENDPOINTS.STUDENT_PORTAL.CREATE_TEAM, { hackathonId, teamName });
     return mapStudentTeam(unwrapItem(res));
   },
 
   inviteMember: async (teamId, email) => {
     return axiosClient.post(ENDPOINTS.TEAMS.INVITE_MEMBER(teamId), { email });
+  },
+
+  searchInviteCandidates: async (q) => {
+    const res = await axiosClient.get(ENDPOINTS.USERS.LOOKUP, { params: { q } });
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res?.items)) return res.items;
+    return res?.data?.items || [];
   },
 
   cancelPendingInvite: async (teamId, userId) => {

@@ -29,8 +29,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { judgeService } from '../services/judgeService';
-import ScoringCountdownCard from '../components/ScoringCountdownCard';
-import CalibrationSessionsPanel from '../components/CalibrationSessionsPanel';
+import ScoringCountdownCard from './ScoringCountdownCard';
+import CalibrationSessionsPanel from './CalibrationSessionsPanel';
 import { calibrationService } from '../services/calibrationService';
 
 const { Title, Text, Paragraph } = Typography;

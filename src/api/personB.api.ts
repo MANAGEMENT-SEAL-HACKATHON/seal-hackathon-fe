@@ -1,14 +1,19 @@
 import axiosClient from '../shared/api/axiosClient';
+import { mentorPortalService } from '../features/mentor/services/mentorPortal.service';
 import { studentSubmissionService } from '../student/features/submission/services/studentSubmission.service';
+import { resolvePreliminarySubmissionError } from '../features/submissions/constants/preliminarySubmissionErrors';
 
-const mapSubmissionStatusToFe = (beStatus?: string): 'ON_TIME' | 'LATE_PENDING' | 'REJECTED' | 'INCOMPLETE' | 'NONE' => {
+export type SubmissionBlockReason = 'NO_TEAM' | 'NO_ROUND' | 'NOT_SUBMITTED';
+
+const mapSubmissionStatusToFe = (beStatus?: string): SubmissionStatusResponse['status'] => {
   if (!beStatus) return 'NONE';
   if (beStatus === 'INCOMPLETE') return 'INCOMPLETE';
-  if (['SUBMITTED', 'LATE', 'ACCEPTED', 'LATE_APPROVED', 'ON_TIME'].includes(beStatus)) {
+  if (beStatus === 'LATE_PENDING') return 'LATE_PENDING';
+  if (beStatus === 'LATE_APPROVED') return 'LATE_APPROVED';
+  if (beStatus === 'REJECTED') return 'REJECTED';
+  if (['SUBMITTED', 'LATE', 'ACCEPTED', 'ON_TIME'].includes(beStatus)) {
     return 'ON_TIME';
   }
-  if (beStatus === 'LATE_PENDING') return 'LATE_PENDING';
-  if (beStatus === 'REJECTED') return 'REJECTED';
   return 'NONE';
 };
 
@@ -148,12 +153,13 @@ export interface AssignedTeamsResponse {
 export interface SubmissionRequest {
   repo_url: string;
   demo_url?: string;
+  report_url?: string;
   slide_file?: File;
   late_reason?: string;
 }
 
 export interface SubmissionResponse {
-  status: 'ON_TIME' | 'LATE_PENDING' | 'REJECTED' | 'INCOMPLETE';
+  status: 'ON_TIME' | 'LATE_PENDING' | 'LATE_APPROVED' | 'REJECTED' | 'INCOMPLETE';
   submission_id?: number | string;
   submitted_at?: string;
   repo_url?: string;
@@ -185,7 +191,12 @@ interface BeSubmissionRecord {
 }
 
 export interface SubmissionStatusResponse {
-  status: 'ON_TIME' | 'LATE_PENDING' | 'REJECTED' | 'INCOMPLETE' | 'NONE';
+  status: 'ON_TIME' | 'LATE_PENDING' | 'LATE_APPROVED' | 'REJECTED' | 'INCOMPLETE' | 'NONE';
+  blockReason?: SubmissionBlockReason;
+  round_id?: number | string;
+  track_id?: number;
+  team_id?: number;
+  review_note?: string;
   submission_id?: number | string;
   submitted_at?: string;
   repo_url?: string;
@@ -199,6 +210,7 @@ export interface SubmissionStatusResponse {
 export interface DeadlineResponse {
   deadline?: string;
   round_id?: string;
+  problemReleased?: boolean;
 }
 
 export interface LateSubmission {
@@ -208,6 +220,7 @@ export interface LateSubmission {
   repo_url: string;
   slide_url: string;
   demo_url?: string;
+  late_reason?: string;
   submitted_at: string;
   status: 'LATE_PENDING';
 }
@@ -304,13 +317,22 @@ export const personBApi = {
   /** GET /api/v1/me/mentor/rounds */
   getMentorRounds: async (): Promise<any[]> => {
     const data = await axiosClient.get<any, any[]>('/api/v1/me/mentor/rounds');
-    return data || [];
+    return (data || []).map((round) => ({
+      ...round,
+      round_id: round.roundId ?? round.round_id,
+      round_name: round.roundName ?? round.round_name,
+      team_count: round.teamCount ?? round.team_count,
+      teams: (round.teams || []).map((team: any) => ({
+        ...team,
+        team_id: team.teamId ?? team.team_id,
+        team_name: team.teamName ?? team.team_name,
+      })),
+    }));
   },
 
   /** GET /api/v1/me/mentor-track-assignments */
   getMentorTrackAssignments: async (): Promise<any[]> => {
-    const data = await axiosClient.get<any, any[]>('/api/v1/me/mentor-track-assignments');
-    return Array.isArray(data) ? data : [];
+    return mentorPortalService.getTrackAssignments();
   },
 
   /** GET /api/v1/me/teams — bootstrap teamId + trackId */
@@ -324,37 +346,73 @@ export const personBApi = {
     try {
       const teams = await personBApi.getMyTeams();
       const myTeam = teams?.[0];
-      if (!myTeam) return { status: 'NONE' };
+      if (!myTeam) return { status: 'NONE', blockReason: 'NO_TEAM' };
 
       const teamId = myTeam.teamId ?? myTeam.id;
+      const trackId = myTeam.trackId ?? myTeam.track_id;
       const roundId =
         myTeam.activeRoundId ??
         myTeam.roundId ??
         myTeam.prelimRoundId ??
         (await resolveActiveRoundId());
 
-      if (!roundId) return { status: 'NONE' };
+      if (!roundId) {
+        return {
+          status: 'NONE',
+          blockReason: trackId ? 'NO_ROUND' : 'NO_ROUND',
+          team_id: Number(teamId),
+          track_id: trackId ? Number(trackId) : undefined,
+        };
+      }
 
-      const submission = await axiosClient.get<any, any>(
-        `/api/v1/me/submission?teamId=${teamId}&roundId=${roundId}`
-      );
+      try {
+        const submission = await axiosClient.get<any, any>(
+          `/api/v1/me/submission?teamId=${teamId}&roundId=${roundId}`
+        );
 
-      if (!submission) return { status: 'NONE' };
+        if (!submission) {
+          return {
+            status: 'NONE',
+            blockReason: 'NOT_SUBMITTED',
+            round_id: roundId,
+            team_id: Number(teamId),
+            track_id: trackId ? Number(trackId) : undefined,
+          };
+        }
 
-      return {
-        status: mapSubmissionStatusToFe(submission.status),
-        submission_id: submission.submissionId ?? submission.submission_id ?? submission.id,
-        submitted_at: submission.submittedAt ?? submission.submitted_at,
-        repo_url: submission.repoUrl ?? submission.repo_url,
-        demo_url: submission.demoUrl ?? submission.demo_url,
-        slide_url: submission.slideUrl ?? submission.slide_url,
-        slide_file: submission.slideFile ?? submission.slide_file,
-        slide_download_path: submission.slideDownloadPath ?? submission.slide_download_path,
-        has_slide: submission.hasSlide ?? submission.has_slide,
-      };
+        return {
+          status: mapSubmissionStatusToFe(submission.status),
+          blockReason: undefined,
+          round_id: roundId,
+          team_id: Number(teamId),
+          track_id: trackId ? Number(trackId) : undefined,
+          submission_id: submission.submissionId ?? submission.submission_id ?? submission.id,
+          submitted_at: submission.submittedAt ?? submission.submitted_at,
+          repo_url: submission.repoUrl ?? submission.repo_url,
+          demo_url: submission.demoUrl ?? submission.demo_url,
+          slide_url: submission.slideUrl ?? submission.slide_url,
+          slide_file: submission.slideFile ?? submission.slide_file,
+          slide_download_path: submission.slideDownloadPath ?? submission.slide_download_path,
+          has_slide: submission.hasSlide ?? submission.has_slide,
+          review_note: submission.reviewNote ?? submission.review_note,
+        };
+      } catch (err: any) {
+        if (err?.status === 404 || err?.response?.status === 404) {
+          return {
+            status: 'NONE',
+            blockReason: 'NOT_SUBMITTED',
+            round_id: roundId,
+            team_id: Number(teamId),
+            track_id: trackId ? Number(trackId) : undefined,
+          };
+        }
+        throw err;
+      }
     } catch (err: any) {
-      if (err?.status === 404) return { status: 'NONE' };
-      throw err;
+      const resolved = resolvePreliminarySubmissionError(err, 'Không thể tải trạng thái bài nộp.');
+      const error = new Error(resolved.message) as Error & { code?: string };
+      error.code = resolved.code;
+      throw error;
     }
   },
 
@@ -387,29 +445,37 @@ export const personBApi = {
       roundId: roundId ? Number(roundId) : undefined,
       repoUrl: data.repo_url,
       demoUrl: data.demo_url || undefined,
+      reportUrl: data.report_url || undefined,
       lateReason: data.late_reason,
       slideFile: data.slide_file,
     };
 
-    const res = (await studentSubmissionService.submitMultipart(
-      payload
-    )) as unknown as BeSubmissionRecord;
+    try {
+      const res = (await studentSubmissionService.submitMultipart(
+        payload
+      )) as unknown as BeSubmissionRecord;
 
-    if (!res.slideFile && !res.slide_file && !res.slideDownloadPath && !res.slide_download_path) {
-      throw new Error('Nộp file slide thất bại — vui lòng chọn file PDF và thử lại.');
+      if (!res.slideFile && !res.slide_file && !res.slideDownloadPath && !res.slide_download_path) {
+        throw new Error('Nộp file slide thất bại — vui lòng chọn file PDF và thử lại.');
+      }
+
+      const mapped = mapSubmissionStatusToFe(res.status);
+
+      return {
+        status: mapped === 'NONE' ? 'ON_TIME' : mapped,
+        submission_id: res.id ?? res.submissionId ?? res.submission_id,
+        submitted_at: res.submittedAt ?? res.submitted_at,
+        repo_url: res.repoUrl ?? res.repo_url,
+        demo_url: res.demoUrl ?? res.demo_url,
+        slide_file: res.slideFile ?? res.slide_file,
+        slide_download_path: res.slideDownloadPath ?? res.slide_download_path,
+      };
+    } catch (err: any) {
+      const resolved = resolvePreliminarySubmissionError(err, 'Nộp bài thất bại.');
+      const error = new Error(resolved.message) as Error & { code?: string };
+      error.code = resolved.code;
+      throw error;
     }
-
-    const mapped = mapSubmissionStatusToFe(res.status);
-
-    return {
-      status: mapped === 'NONE' ? 'ON_TIME' : mapped,
-      submission_id: res.id ?? res.submissionId ?? res.submission_id,
-      submitted_at: res.submittedAt ?? res.submitted_at,
-      repo_url: res.repoUrl ?? res.repo_url,
-      demo_url: res.demoUrl ?? res.demo_url,
-      slide_file: res.slideFile ?? res.slide_file,
-      slide_download_path: res.slideDownloadPath ?? res.slide_download_path,
-    };
   },
 
   /** Resolve roundId cho presentation queue / coordinator ops (không dùng student-only deadline khi role khác). */
@@ -418,19 +484,46 @@ export const personBApi = {
   /** GET /api/v1/me/rounds/current/deadline */
   getCurrentDeadline: async (): Promise<DeadlineResponse> => {
     try {
-      const data = await axiosClient.get<any, { deadline?: string; roundId?: number }>(
-        '/api/v1/me/rounds/current/deadline'
-      );
+      const data = await axiosClient.get<any, {
+        deadline?: string;
+        roundId?: number;
+        problemReleased?: boolean;
+      }>('/api/v1/me/rounds/current/deadline');
       return {
         deadline: data.deadline,
         round_id: data.roundId ? String(data.roundId) : undefined,
+        problemReleased: Boolean(data.problemReleased),
       };
     } catch (err: any) {
       if (err?.status === 404 || err?.response?.status === 404) {
-        return { deadline: undefined, round_id: undefined };
+        return { deadline: undefined, round_id: undefined, problemReleased: false };
       }
       throw err;
     }
+  },
+
+  /** GET /api/v1/me/rounds/{roundId}/problem-statement — download PDF */
+  downloadRoundProblemStatement: async (roundId: number | string) =>
+    axiosClient.get(`/api/v1/me/rounds/${roundId}/problem-statement`, {
+      responseType: 'blob',
+    }),
+
+  /** GET /api/v1/me/mentor/teams/{teamId}/submissions */
+  getMentorTeamSubmissions: async (teamId: number | string, roundId: number | string) => {
+    const data = await axiosClient.get<any, any>(
+      `/api/v1/me/mentor/teams/${teamId}/submissions`,
+      { params: { roundId } }
+    );
+    return Array.isArray(data) ? data : data?.items || data?.data || [];
+  },
+
+  /** GET /api/v1/me/mentor/teams/{teamId}/scores */
+  getMentorTeamScores: async (teamId: number | string, roundId: number | string) => {
+    const data = await axiosClient.get<any, any>(
+      `/api/v1/me/mentor/teams/${teamId}/scores`,
+      { params: { roundId } }
+    );
+    return Array.isArray(data) ? data : data?.items || data?.data || [];
   },
 
   /** GET /api/v1/me/rounds/{roundId}/problem */
@@ -477,6 +570,7 @@ export const personBApi = {
         repo_url: sub.repoUrl ?? sub.repo_url,
         slide_url: sub.slideUrl ?? sub.slide_url,
         demo_url: sub.demoUrl ?? sub.demo_url,
+        late_reason: sub.lateReason ?? sub.late_reason,
         submitted_at: sub.submittedAt ?? sub.submitted_at,
         status: 'LATE_PENDING' as const,
       }));
@@ -494,19 +588,26 @@ export const personBApi = {
   ) => {
     try {
       return await axiosClient.patch(`/api/v1/submissions/${submissionId}/review-late`, data);
-    } catch {
-      if (data.decision === 'APPROVE') {
-        return axiosClient.patch(`/api/v1/submissions/${submissionId}/approve`, {});
+    } catch (err: any) {
+      try {
+        if (data.decision === 'APPROVE') {
+          return await axiosClient.patch(`/api/v1/submissions/${submissionId}/approve`, {});
+        }
+        return await axiosClient.patch(`/api/v1/submissions/${submissionId}/reject`, {
+          reason: data.note || '',
+        });
+      } catch (fallbackErr: any) {
+        const resolved = resolvePreliminarySubmissionError(fallbackErr, 'Không thể cập nhật quyết định bài nộp trễ.');
+        const error = new Error(resolved.message) as Error & { code?: string };
+        error.code = resolved.code;
+        throw error;
       }
-      return axiosClient.patch(`/api/v1/submissions/${submissionId}/reject`, {
-        reason: data.note || '',
-      });
     }
   },
 
-  /** GET /api/v1/me/mentor/teams/{teamId}/presentation-slot */
+  /** GET /api/v1/me/mentor-team-assignments/{teamId}/presentation-slot */
   getTeamPresentationSlot: async (teamId: string | number) =>
-    axiosClient.get(`/api/v1/me/mentor/teams/${teamId}/presentation-slot`),
+    axiosClient.get(`/api/v1/me/mentor-team-assignments/${teamId}/presentation-slot`),
 
   /** POST /api/v1/presentation/queue/shuffle */
   shufflePresentationQueue: async (roundId: string | number, trackIds?: number[]) => {

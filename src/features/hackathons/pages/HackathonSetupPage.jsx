@@ -1,7 +1,7 @@
 // src/features/hackathons/pages/HackathonSetupPage.jsx
 import React, { useState, useCallback } from 'react';
-import { Card, Tabs, Typography, Select, Space, Button, Alert } from 'antd';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Card, Tabs, Typography, Button } from 'antd';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../../../shared/components/ui/PageHeader';
 import TrackManagementPage from '../../tracks/pages/TrackManagementPage';
 import RoundManagementPage from '../../rounds/pages/RoundManagementPage';
@@ -12,27 +12,50 @@ import PeopleManagementPage from '../../people/pages/PeopleManagementPage';
 import EventManagementPage from '../../events/pages/EventManagementPage';
 import { hackathonService } from '../services/hackathonService';
 import { roundService } from '../../rounds/services/roundService';
+import { trackService } from '../../tracks/services/trackService';
+import { eventService } from '../../events/services/eventService';
 import { mapHackathonToFE } from '../mappers/hackathonMapper';
 import { mapRoundToFE } from '../../rounds/mappers/roundMapper';
 import LotteryManagementPage from '../../teams/pages/LotteryManagementPage';
 import HackathonGeneralConfig from '../components/HackathonGeneralConfig';
+import HackathonSetupChecklist from '../components/HackathonSetupChecklist';
+import { useReadiness } from '../../review/hooks/useReadiness';
 
-// 1. IMPORT TRANG ANALYTICS MỚI (CHỈ THÊM DÒNG NÀY)
-import AnalyticsPage from '../../analytics/pages/AnalyticsPage.jsx';
-import FinalRoundConfigPage from '../../coordinator/pages/FinalRoundConfigPage';
+const VALID_TABS = new Set([
+  'general',
+  'rounds',
+  'tracks',
+  'lottery',
+  'criteria',
+  'people',
+  'events',
+  'review',
+]);
 
-const { Title } = Typography;
-const { Option } = Select;
+const getValidTab = (tab) => (VALID_TABS.has(tab) ? tab : 'tracks');
 
 const HackathonSetupPage = () => {
   const { hackathonId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [hackathon, setHackathon] = useState(null);
   const [rounds, setRounds] = useState([]);
+  const [tracksCount, setTracksCount] = useState(0);
+  const [eventsCount, setEventsCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [selectedRoundId, setSelectedRoundId] = useState(null);
-  const [activeTab, setActiveTab] = useState('tracks');
-  
+  const [activeTab, setActiveTab] = useState(() => getValidTab(searchParams.get('tab')));
+
+  const { readinessData } = useReadiness(hackathonId);
+
+  const changeTab = useCallback((nextTab) => {
+    if (nextTab === '_divider') return;
+    const tab = getValidTab(nextTab);
+    setActiveTab(tab);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('tab', tab);
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   const refreshHackathon = useCallback(async () => {
     try {
       const hackData = await hackathonService.getById(hackathonId);
@@ -46,25 +69,29 @@ const HackathonSetupPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [hackData, roundsData] = await Promise.all([
+        const [hackData, roundsData, tracksData, eventsData] = await Promise.all([
           hackathonService.getById(hackathonId),
-          roundService.listByHackathon(hackathonId)
+          roundService.listByHackathon(hackathonId),
+          trackService.listByHackathon(hackathonId),
+          eventService.listByHackathon(hackathonId),
         ]);
-        
+
         const fullRounds = await Promise.all(
           (roundsData || []).map(async (r) => {
             try {
               const detail = await roundService.getById(r.id);
               return mapRoundToFE(detail);
-            } catch (e) {
+            } catch (_e) {
               return mapRoundToFE(r);
             }
-          })
+          }),
         );
-        
+
         setHackathon(mapHackathonToFE(hackData));
         setRounds(fullRounds);
-      } catch (error) {
+        setTracksCount(Array.isArray(tracksData) ? tracksData.length : 0);
+        setEventsCount(Array.isArray(eventsData) ? eventsData.length : 0);
+      } catch (_error) {
         // Fallback for not found or errors
       } finally {
         setLoading(false);
@@ -72,6 +99,13 @@ const HackathonSetupPage = () => {
     };
     fetchData();
   }, [hackathonId]);
+
+  React.useEffect(() => {
+    const urlTab = getValidTab(searchParams.get('tab'));
+    if (urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+  }, [activeTab, searchParams]);
 
   if (loading) {
     return <Card style={{ textAlign: 'center', padding: '40px 0' }}>Đang tải...</Card>;
@@ -96,13 +130,13 @@ const HackathonSetupPage = () => {
         <HackathonGeneralConfig
           hackathon={hackathon}
           onUpdated={refreshHackathon}
-          onGoToLottery={() => setActiveTab('lottery')}
+          onGoToLottery={() => changeTab('lottery')}
         />
       ),
     },
     {
       key: 'rounds',
-      label: 'Vòng thi (Rounds)',
+      label: 'Vòng thi',
       children: (
         <RoundManagementPage
           hackathonId={hackathon.id}
@@ -118,13 +152,13 @@ const HackathonSetupPage = () => {
     },
     {
       key: 'lottery',
-      label: 'Bốc thăm & Khai mạc',
+      label: 'Bốc thăm & khai mạc',
       children: <LotteryManagementPage hackathonId={hackathon.id} />,
     },
     {
       key: 'criteria',
       label: 'Tiêu chí đánh giá',
-      children: <CriteriaManagementPage hackathonId={hackathon.id} />, 
+      children: <CriteriaManagementPage hackathonId={hackathon.id} />,
     },
     {
       key: 'people',
@@ -133,46 +167,31 @@ const HackathonSetupPage = () => {
     },
     {
       key: 'events',
-      label: 'Lịch trình & Sự kiện',
+      label: 'Lịch trình & sự kiện',
       children: <EventManagementPage hackathonId={hackathon.id} />,
     },
     {
       key: 'review',
-      label: 'Đánh giá & Kiểm tra',
-      children: activeTab === 'review' ? <ReviewValidatePage hackathonId={hackathon.id} /> : null, 
+      label: 'Đánh giá & kiểm tra',
+      children: activeTab === 'review' ? <ReviewValidatePage hackathonId={hackathon.id} /> : null,
     },
-    // 2. TAB ANALYTICS (CHỈ THÊM ĐOẠN NÀY)
-    {
-      key: 'analytics',
-      label: 'Phân tích & Dữ liệu',
-      children: activeTab === 'analytics' ? <AnalyticsPage hackathonId={hackathon.id} hackathon={hackathon} rounds={rounds} /> : null,
-    },
-    {
-      key: 'final-config',
-      label: 'Cấu hình Chung kết',
-      children: null, // rendered outside Card below
-    }
   ];
 
   return (
     <div>
-      <PageHeader 
+      <PageHeader
         title={hackathon.name}
         subtitle={`Thiết lập bảng đấu và vòng thi cho mùa ${hackathon.season} ${hackathon.year}`}
         onBack={() => navigate(ROUTES.HACKATHONS)}
       />
 
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16, borderRadius: 12 }}
-        message="Quy trình chuẩn bị kỳ thi"
-        description={
-          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-            Lần lượt: tạo vòng thi → bảng đấu → tiêu chí chấm (tổng điểm mỗi bảng = 1) → gán mentor & giám khảo theo bảng →
-            lên lịch sự kiện → kiểm tra điều kiện → mở đăng ký. Bốc thăm chỉ làm sau khi đã mở đăng ký và hết hạn đăng ký.
-          </Typography.Text>
-        }
+      <HackathonSetupChecklist
+        rounds={rounds}
+        tracksCount={tracksCount}
+        eventsCount={eventsCount}
+        hackathon={hackathon}
+        readinessData={readinessData}
+        onStepClick={changeTab}
       />
 
       <style>{`
@@ -191,6 +210,11 @@ const HackathonSetupPage = () => {
         .hackathon-setup-tabs .ant-tabs-ink-bar {
           background: #0f3d8a !important;
         }
+        .hackathon-setup-tabs .ant-tabs-tab-disabled {
+          cursor: default !important;
+          padding-left: 4px !important;
+          padding-right: 4px !important;
+        }
         .hackathon-setup-card.ant-card {
           border: 1px solid #e8edf5 !important;
           box-shadow: 0 1px 6px rgba(15,61,138,0.05) !important;
@@ -203,18 +227,22 @@ const HackathonSetupPage = () => {
       <Card
         bordered={false}
         className="hackathon-setup-card"
-        style={{ borderRadius: 12, border: '1px solid #e8edf5', boxShadow: '0 1px 6px rgba(15,61,138,0.05)', marginBottom: activeTab === 'final-config' ? 0 : undefined }}
+        style={{
+          borderRadius: 12,
+          border: '1px solid #e8edf5',
+          boxShadow: '0 1px 6px rgba(15,61,138,0.05)',
+          marginBottom: undefined,
+        }}
         bodyStyle={{ padding: '0 24px' }}
       >
         <Tabs
           destroyInactiveTabPane
           activeKey={activeTab}
           items={items}
-          onChange={setActiveTab}
+          onChange={changeTab}
           className="hackathon-setup-tabs"
         />
       </Card>
-      {activeTab === 'final-config' && <FinalRoundConfigPage hackathonId={hackathon.id} />}
     </div>
   );
 };

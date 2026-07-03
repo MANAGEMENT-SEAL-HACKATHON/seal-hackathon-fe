@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { userService } from '../services/userService';
+import AccountSecurityPanel from '../components/AccountSecurityPanel';
 import { ROUTES } from '../../../shared/constants/routes';
 
 const { Option } = Select;
@@ -48,6 +49,70 @@ const generateSHA1 = async (string) => {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   return hashHex;
+};
+
+const StudentCardPreview = ({ userId }) => {
+  const [cloudinaryFailed, setCloudinaryFailed] = useState(false);
+  const [fallbackUrl, setFallbackUrl] = useState(null);
+  const [loadingFallback, setLoadingFallback] = useState(false);
+
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'drrd1a7jd';
+  const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/student-cards/student-card-${userId}`;
+
+  useEffect(() => {
+    if (!cloudinaryFailed || !userId) return undefined;
+    let active = true;
+
+    const loadFallback = async () => {
+      setLoadingFallback(true);
+      try {
+        const blob = await userService.getMyStudentCardBlob();
+        if (!active || !blob) return;
+        setFallbackUrl(URL.createObjectURL(blob));
+      } catch (err) {
+        console.error('Failed to load student card from backend:', err);
+      } finally {
+        if (active) setLoadingFallback(false);
+      }
+    };
+
+    loadFallback();
+    return () => {
+      active = false;
+    };
+  }, [cloudinaryFailed, userId]);
+
+  useEffect(() => () => {
+    if (fallbackUrl) URL.revokeObjectURL(fallbackUrl);
+  }, [fallbackUrl]);
+
+  if (!userId) return null;
+
+  const displayUrl = cloudinaryFailed ? fallbackUrl : cloudinaryUrl;
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      {loadingFallback && <Spin size="small" />}
+      {displayUrl ? (
+        <img
+          src={displayUrl}
+          alt="Ảnh thẻ sinh viên hiện tại"
+          style={{
+            maxWidth: '100%',
+            maxHeight: 180,
+            objectFit: 'contain',
+            borderRadius: 12,
+            border: '1px solid #e5e7eb',
+          }}
+          onError={() => {
+            if (!cloudinaryFailed) setCloudinaryFailed(true);
+          }}
+        />
+      ) : cloudinaryFailed && !loadingFallback ? (
+        <Tag color="warning">Không tải được ảnh thẻ — vui lòng upload lại.</Tag>
+      ) : null}
+    </div>
+  );
 };
 
 // ---------------------------------------------------------------------------
@@ -414,9 +479,18 @@ const OnboardingPage = () => {
         )}
       </Upload>
 
-      {hasCard && (
+      {hasCard && fileList.length === 0 && (
+        <>
+          <StudentCardPreview userId={userInfo?.id || userInfo?.userId} />
+          <Tag color="success" style={{ marginTop: 8 }} icon={<CheckCircleOutlined />}>
+            Đã có ảnh thẻ — có thể dùng lại hoặc upload mới
+          </Tag>
+        </>
+      )}
+
+      {hasCard && fileList.length > 0 && (
         <Tag color="success" style={{ marginTop: 8 }} icon={<CheckCircleOutlined />}>
-          Đã upload thành công
+          Đã chọn ảnh mới
         </Tag>
       )}
 
@@ -545,6 +619,7 @@ const OnboardingPage = () => {
         {currentStep === 1 && renderCardStep()}
         {currentStep === 2 && renderWaitingStep()}
         {currentStep === 3 && renderApprovedStep()}
+        {currentStep >= 3 && <AccountSecurityPanel />}
 
         {currentStep < 2 && (
           <div style={{ textAlign: 'center', marginTop: 16 }}>

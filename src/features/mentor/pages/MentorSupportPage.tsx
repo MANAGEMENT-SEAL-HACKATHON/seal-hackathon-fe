@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Tag } from 'antd';
+import { Drawer, Select, Skeleton, Tabs, Button, Card } from 'antd';
 import { personBApi, AssignedTeamsResponse } from '../../../api/personB.api';
-import { mockAssignedTeams } from '../../../api/personB.mock';
+import { mentorPortalService } from '../services/mentorPortal.service';
+import MentorFinalSchedulePanel from '../components/MentorFinalSchedulePanel';
+import MentorHackathonRankingsPanel from '../components/MentorHackathonRankingsPanel';
+import MentorTeamAssignmentsPanel from '../components/MentorTeamAssignmentsPanel';
 
 // Helper to generate elegant gradient avatars for teams
 const getAvatarGradient = (teamName: string) => {
@@ -55,25 +58,21 @@ const getStatusStyles = (status: string) => {
 interface TeamCardProps {
   team: any;
   groupNumber: string;
-  useMock: boolean;
+  onViewSubmission?: (team: any) => void;
+  presentationSlot?: any;
 }
 
-const TeamCard: React.FC<TeamCardProps> = ({ team, groupNumber, useMock }) => {
-  const scheduleText = team.presentation_schedule || team.presentationSchedule;
-  const locationText = team.location;
+const TeamCard: React.FC<TeamCardProps> = ({ team, groupNumber, onViewSubmission, presentationSlot }) => {
+  const scheduleText =
+    team.presentation_schedule ||
+    team.presentationSchedule ||
+    presentationSlot?.slotStartAt ||
+    presentationSlot?.slot_start_at ||
+    presentationSlot?.presentationSchedule;
+  const locationText = team.location || presentationSlot?.location;
 
   const formatSlotTime = () => {
     if (!scheduleText) return '';
-    if (useMock && scheduleText.includes('T')) {
-      const date = new Date(scheduleText);
-      if (!isNaN(date.getTime())) {
-        const startHours = String(date.getHours()).padStart(2, '0');
-        const startMins = String(date.getMinutes()).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        return `${startHours}:${startMins} ngày ${day}/${month}`;
-      }
-    }
     return scheduleText;
   };
 
@@ -160,9 +159,27 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, groupNumber, useMock }) => {
         }}>
           {team.status || 'ACTIVE'}
         </span>
+        {onViewSubmission && (
+          <Button type="link" size="small" style={{ padding: 0, marginTop: 8 }} onClick={() => onViewSubmission(team)}>
+            Xem bài nộp →
+          </Button>
+        )}
       </div>
     </div>
   );
+};
+
+const TeamCardWithSlot: React.FC<Omit<TeamCardProps, 'presentationSlot'>> = (props) => {
+  const hasSchedule = Boolean(
+    props.team.presentation_schedule || props.team.presentationSchedule || props.team.location
+  );
+  const { data: slot } = useQuery({
+    queryKey: ['mentorPresentationSlot', props.team.team_id],
+    queryFn: () => personBApi.getTeamPresentationSlot(props.team.team_id),
+    enabled: !hasSchedule && Boolean(props.team.team_id),
+    retry: false,
+  });
+  return <TeamCard {...props} presentationSlot={slot} />;
 };
 
 const parseRoundIdParam = (value: string | null) => {
@@ -172,8 +189,9 @@ const parseRoundIdParam = (value: string | null) => {
 };
 
 const MentorSupportPage: React.FC = () => {
-  const [useMock, setUseMock] = useState(false);
+  const navigate = useNavigate();
   const [showErrorAlert, setShowErrorAlert] = useState(true);
+  const [drawerTeam, setDrawerTeam] = useState<any | null>(null);
   const [searchParams] = useSearchParams();
   const roundIdFromUrl = parseRoundIdParam(searchParams.get('roundId'));
 
@@ -182,15 +200,8 @@ const MentorSupportPage: React.FC = () => {
 
   // Lấy vòng thi qua API mentor — không dùng endpoint coordinator
   const { data: dbRounds, isLoading: isRoundsLoading, error: roundsError, refetch: refetchRounds } = useQuery<any[]>({
-    queryKey: ['mentorRounds', useMock],
+    queryKey: ['mentorRounds'],
     queryFn: async () => {
-      if (useMock) {
-        return [
-          { roundId: 1, roundName: 'Vòng Sơ loại - Round A', status: 'ACTIVE', description: 'Vòng đấu loại trực tiếp của dự án SEAL Hackathon. Hạn nộp bài đang diễn ra.' },
-          { roundId: 2, roundName: 'Vòng Bán kết - Round B', status: 'UPCOMING', description: 'Vòng bán kết đánh giá dự án thực tế. Sắp diễn ra.' },
-          { roundId: 3, roundName: 'Vòng Chung kết - Round C', status: 'UPCOMING', description: 'Chung kết xếp hạng và thuyết trình trực tiếp trước hội đồng giám khảo.' }
-        ];
-      }
       const res = await personBApi.getMentorRounds();
       return res || [];
     },
@@ -203,14 +214,13 @@ const MentorSupportPage: React.FC = () => {
 
   // React Query Fetching Teams — chỉ gọi khi đã có roundId hợp lệ
   const { data: teamsData, isLoading: isTeamsLoading, isFetching: isTeamsFetching, error: teamsError, refetch: refetchTeams } = useQuery<AssignedTeamsResponse>({
-    queryKey: ['assignedTeams', mentorId, effectiveRoundId, useMock],
+    queryKey: ['assignedTeams', mentorId, effectiveRoundId],
     queryFn: async () => {
-      if (useMock) return mockAssignedTeams;
       const res = await personBApi.getAssignedTeams(mentorId, effectiveRoundId!);
       setShowErrorAlert(false);
       return res;
     },
-    enabled: useMock || effectiveRoundId != null,
+    enabled: effectiveRoundId != null,
     retry: false
   });
 
@@ -229,6 +239,48 @@ const MentorSupportPage: React.FC = () => {
   const currentRoundName = currentRoundObj?.roundName || currentRoundObj?.name || 'Chưa chọn vòng thi';
 
   const teams = activeTeams;
+
+  const { data: drawerSubmissions = [], isLoading: drawerSubmissionsLoading } = useQuery({
+    queryKey: ['mentorTeamSubmissions', drawerTeam?.team_id, effectiveRoundId],
+    queryFn: () => personBApi.getMentorTeamSubmissions(drawerTeam!.team_id, effectiveRoundId!),
+    enabled: Boolean(drawerTeam?.team_id && effectiveRoundId),
+    retry: false,
+  });
+
+  const { data: drawerScores = [], isLoading: drawerScoresLoading } = useQuery({
+    queryKey: ['mentorTeamScores', drawerTeam?.team_id, effectiveRoundId],
+    queryFn: () => personBApi.getMentorTeamScores(drawerTeam!.team_id, effectiveRoundId!),
+    enabled: Boolean(drawerTeam?.team_id && effectiveRoundId),
+    retry: false,
+  });
+
+  const { data: mentorTeamAssignments = [] } = useQuery({
+    queryKey: ['mentorTeamAssignments', effectiveRoundId],
+    queryFn: () => mentorPortalService.getTeamAssignments(effectiveRoundId!),
+    enabled: Boolean(effectiveRoundId),
+    retry: false,
+  });
+
+  const { data: finalSchedule } = useQuery({
+    queryKey: ['mentorFinalSchedule', effectiveRoundId],
+    queryFn: () => mentorPortalService.getFinalRoundSchedule(effectiveRoundId!),
+    enabled: Boolean(effectiveRoundId),
+    retry: false,
+  });
+
+  const hackathonIdForRankings =
+    currentRoundObj?.hackathonId ?? currentRoundObj?.hackathon_id ?? teamsData?.hackathonId;
+
+  const { data: mentorRankings } = useQuery({
+    queryKey: ['mentorHackathonRankings', hackathonIdForRankings],
+    queryFn: () => mentorPortalService.getHackathonRankings(hackathonIdForRankings!),
+    enabled: Boolean(hackathonIdForRankings),
+    retry: false,
+  });
+
+  const handleRoundChange = (nextRoundId: number) => {
+    navigate(`/mentor/support?roundId=${nextRoundId}`);
+  };
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -367,7 +419,7 @@ const MentorSupportPage: React.FC = () => {
               gap: '8px',
               margin: 0
             }}>
-              🤝 Nhóm Đội Hỗ Trợ
+              🤝 Nhóm đội hỗ trợ
             </h1>
             <p style={{ fontSize: '14px', color: '#6B7280', margin: '4px 0 0' }}>
               Danh sách các đội thi được phân công hỗ trợ trực tiếp bởi Mentor {userInfo.fullName || 'Phạm Minh Mentor'}.
@@ -375,25 +427,37 @@ const MentorSupportPage: React.FC = () => {
           </div>
 
           {/* Chip vòng thi - góc phải */}
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: '#EFF6FF',
-            border: '1px solid #BFDBFE',
-            borderRadius: '999px',
-            padding: '6px 14px',
-            fontSize: '12px',
-            fontWeight: 600,
-            color: '#2563EB',
-            whiteSpace: 'nowrap'
-          }}>
-            🔵 Vòng thi đang chọn: {currentRoundName}
-          </div>
+          {dbRoundsList.length > 1 ? (
+            <Select
+              style={{ minWidth: 260 }}
+              value={effectiveRoundId ?? undefined}
+              onChange={handleRoundChange}
+              options={dbRoundsList.map((r: any) => ({
+                value: r.roundId ?? r.id,
+                label: r.roundName ?? r.name ?? `Vòng ${r.roundId ?? r.id}`,
+              }))}
+            />
+          ) : (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#EFF6FF',
+              border: '1px solid #BFDBFE',
+              borderRadius: '999px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#2563EB',
+              whiteSpace: 'nowrap'
+            }}>
+              🔵 Vòng thi đang chọn: {currentRoundName}
+            </div>
+          )}
         </div>
 
         {/* ERROR BANNER (INLINE ALERT) */}
-        {error && !useMock && showErrorAlert && (
+        {error && showErrorAlert && (
           <div className="flex items-start justify-between bg-[var(--warning-surface)] border-l-4 border-amber-500 rounded-lg p-4 shadow-sm text-sm animate-fadeIn">
             <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 custom-label">
               <span className="text-base">⚠️</span>
@@ -519,10 +583,7 @@ const MentorSupportPage: React.FC = () => {
               Danh sách đội hỗ trợ
             </span>
             <button
-              onClick={() => {
-                setUseMock(false);
-                refetch();
-              }}
+              onClick={() => refetch()}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -542,7 +603,11 @@ const MentorSupportPage: React.FC = () => {
           </div>
 
           {/* TEAM CARDS LIST / EMPTY STATE */}
-          {teams.length === 0 ? (
+          {isLoading ? (
+            <div style={{ padding: 24 }}>
+              <Skeleton active paragraph={{ rows: 4 }} />
+            </div>
+          ) : teams.length === 0 ? (
             /* EMPTY STATE */
             <div style={{
               padding: '60px 24px',
@@ -573,7 +638,16 @@ const MentorSupportPage: React.FC = () => {
               </p>
             </div>
           ) : (
-            /* TEAM CARDS LIST */
+            <>
+            <div style={{ padding: '16px 20px 0' }}>
+              <MentorTeamAssignmentsPanel assignments={mentorTeamAssignments} />
+              <MentorFinalSchedulePanel
+                schedule={finalSchedule}
+                assignedTeamIds={teams.map((t) => Number(t.team_id))}
+                roundName={currentRoundName}
+              />
+              <MentorHackathonRankingsPanel rankings={mentorRankings} />
+            </div>
             <div
               style={{
                 padding: '20px',
@@ -585,18 +659,68 @@ const MentorSupportPage: React.FC = () => {
               {teams.map((team) => {
                 const groupNumber = String(team.group_number || (team.assigned_group ? team.assigned_group.replace(/Nhóm\s+/i, '').replace(/Group\s+/i, '') : 'A'));
                 return (
-                  <TeamCard
+                  <TeamCardWithSlot
                     key={team.team_id}
                     team={team}
                     groupNumber={groupNumber}
-                    useMock={useMock}
+                    onViewSubmission={setDrawerTeam}
                   />
                 );
               })}
             </div>
+            </>
           )}
         </div>
       </div>
+
+      <Drawer
+        title={drawerTeam ? `Bài nộp — ${drawerTeam.team_name}` : 'Bài nộp'}
+        open={Boolean(drawerTeam)}
+        onClose={() => setDrawerTeam(null)}
+        width={480}
+      >
+        {drawerSubmissionsLoading || drawerScoresLoading ? (
+          <Skeleton active paragraph={{ rows: 3 }} />
+        ) : (
+          <Tabs
+            items={[
+              {
+                key: 'submissions',
+                label: 'Bài nộp',
+                children: drawerSubmissions.length === 0 ? (
+                  <p style={{ color: '#6B7280' }}>Chưa có bài nộp.</p>
+                ) : (
+                  <ul style={{ paddingLeft: 18, margin: 0 }}>
+                    {drawerSubmissions.map((sub: any) => (
+                      <li key={sub.id ?? sub.submissionId} style={{ marginBottom: 8 }}>
+                        #{sub.id ?? sub.submissionId} — {sub.status || 'N/A'}
+                        {sub.repoUrl || sub.repo_url ? (
+                          <div style={{ fontSize: 12, color: '#6B7280' }}>{sub.repoUrl || sub.repo_url}</div>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+              {
+                key: 'scores',
+                label: 'Điểm',
+                children: drawerScores.length === 0 ? (
+                  <p style={{ color: '#6B7280' }}>Chưa có điểm (có thể chưa khóa chấm).</p>
+                ) : (
+                  <ul style={{ paddingLeft: 18, margin: 0 }}>
+                    {drawerScores.map((score: any, idx: number) => (
+                      <li key={score.id ?? idx} style={{ marginBottom: 8 }}>
+                        {score.criterionName || score.criterion_name || 'Tiêu chí'}: {score.scoreValue ?? score.score_value ?? '—'}
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+            ]}
+          />
+        )}
+      </Drawer>
     </div>
   );
 };

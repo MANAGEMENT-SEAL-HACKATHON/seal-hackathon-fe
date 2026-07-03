@@ -76,6 +76,12 @@ export const presentationService = {
     axiosClient.delete(ENDPOINTS.PRESENTATION.DURATION, {
       params: { roundId, trackId },
     }),
+
+  clearTrackController: (trackId) =>
+    axiosClient.delete(ENDPOINTS.PRESENTATION.TRACK_CONTROLLER(trackId)),
+
+  clearRoundController: (roundId) =>
+    axiosClient.delete(ENDPOINTS.PRESENTATION.ROUND_CONTROLLER(roundId)),
 };
 
 export const getQueueBucket = (queueData, { isFinal, trackId } = {}) => {

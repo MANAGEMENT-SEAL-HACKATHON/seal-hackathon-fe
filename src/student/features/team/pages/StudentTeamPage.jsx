@@ -225,6 +225,7 @@ const StudentTeamWorkspace = () => {
             disbandTeam={disbandTeam}
             confirmTeamFormation={confirmTeamFormation}
             fetchInvitations={fetchInvitations}
+            onTeamRefresh={refreshSelectedTeam}
           />
         )}
       </AnimatePresence>

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button, Typography, Space } from 'antd';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

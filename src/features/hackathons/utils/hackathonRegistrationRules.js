@@ -24,7 +24,11 @@ export const canRunLottery = (hackathon) => {
   return dayjs().startOf('day').isAfter(dayjs(regEnd).startOf('day'));
 };
 
-export const getLotteryGateReason = (hackathon, activeTeams = []) => {
+export const getLotteryGateReason = (hackathon, activeTeams = [], selectedRound = null) => {
+  if (selectedRound && (selectedRound.is_active || selectedRound.isActive)) {
+    return 'Vòng thi đã được kích hoạt, không thể bốc thăm lại.';
+  }
+
   if (hackathon?.status && hackathon.status !== 'ONGOING') {
     return 'Bốc thăm chỉ thực hiện khi hackathon đã ONGOING (sau bước Mở đăng ký ở tab Đánh giá).';
   }

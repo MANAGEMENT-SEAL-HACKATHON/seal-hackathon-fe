@@ -17,6 +17,7 @@ import {
   Input, 
   Select 
 } from 'antd';
+import LiveRecordIndicator from '../../../shared/components/ui/LiveRecordIndicator';
 import { 
   ArrowRightOutlined, 
   SearchOutlined, 
@@ -289,7 +290,7 @@ const ScoringLobbyPage = () => {
               color: '#1e293b' 
             }}
           >
-            Phòng Chấm Thi
+            Phòng chấm thi
           </Title>
           <Text 
             type="secondary" 
@@ -686,14 +687,21 @@ const ScoringLobbyPage = () => {
                                     HOÀN THÀNH
                                   </Tag>
                                 ) : (
-                                  <Tag 
-                                    color="processing" 
-                                    style={{ 
-                                      borderRadius: 4, 
-                                      margin: 0 
+                                  <Tag
+                                    style={{
+                                      borderRadius: 4,
+                                      margin: 0,
+                                      background: '#fef2f2',
+                                      color: '#b91c1c',
+                                      border: '1px solid #fecaca',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 6,
+                                      fontWeight: 700,
                                     }}
                                   >
-                                    ĐANG MỞ
+                                    <LiveRecordIndicator size={8} />
+                                    Đang mở
                                   </Tag>
                                 )}
                               </div>

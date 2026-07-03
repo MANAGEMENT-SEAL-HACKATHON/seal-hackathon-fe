@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Modal,
   Alert,
@@ -36,7 +35,7 @@ export const CriteriaBatchModal = ({ visible, onCancel, onFinish }) => {
         onFinish(values.items);
         form.resetFields();
       }
-    } catch (err) {}
+    } catch { /* validation errors shown by form */ }
   };
 
   const preventNegative = (e) => {

@@ -3,9 +3,10 @@
  * Chức năng: Bảng điều khiển quản lý danh sách thành viên trong đội. Cho phép Trưởng nhóm mời thêm người, chuyển quyền hoặc giải tán đội.
  */
 import { useMemo, useState } from 'react';
-import { Button, Empty, Form, Input, Space, Typography, theme, Divider, Row, Col, Modal } from 'antd';
-import { MailOutlined, SettingOutlined, UserAddOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { Button, Empty, Form, Space, Typography, theme, Divider, Row, Col, Modal } from 'antd';
+import { SettingOutlined, UserAddOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import UserInviteAutoComplete from '../../../../shared/components/ui/UserInviteAutoComplete';
 import { MEMBER_STATUS } from '../constants/studentTeam.constants';
 import LeaveTeamPanel from './LeaveTeamPanel';
 import MemberStatusFilter, { MEMBER_FILTERS } from './MemberStatusFilter';
@@ -88,12 +89,11 @@ const TeamMemberManager = ({ team, onInviteMember, onCancelInvite, onLeaveTeam, 
         <Col xs={24} md={12}>
           <Form form={inviteForm} layout="inline" onFinish={handleInvite} requiredMark={false} style={{ width: '100%', justifyContent: 'flex-end' }}>
             <Space.Compact style={{ width: '100%', maxWidth: 400, boxShadow: '0 8px 20px rgba(0,0,0,0.04)', borderRadius: 12 }}>
-              <Form.Item name="email" noStyle rules={[{ required: true, message: 'Nhập email.' }, { type: 'email', message: 'Email không hợp lệ.' }]}>
-                <Input
-                  prefix={<MailOutlined style={{ color: token.colorTextQuaternary }} />}
-                  placeholder={team.canInvite ? 'Nhập email mời vào đội...' : inviteDisabledReason}
+              <Form.Item name="email" noStyle rules={[{ required: true, message: 'Chọn hoặc nhập email từ gợi ý.' }]}>
+                <UserInviteAutoComplete
+                  placeholder={team.canInvite ? 'Tìm email, tên hoặc mã SV...' : inviteDisabledReason}
                   disabled={!team.canInvite}
-                  style={{ height: 48, borderTopLeftRadius: 12, borderBottomLeftRadius: 12 }}
+                  inputStyle={{ height: 48, borderTopLeftRadius: 12, borderBottomLeftRadius: 12 }}
                 />
               </Form.Item>
               <Button type="primary" htmlType="submit" loading={loading} disabled={!team.canInvite} icon={<UserAddOutlined />} style={{ height: 48, fontWeight: 700, borderTopRightRadius: 12, borderBottomRightRadius: 12 }}>

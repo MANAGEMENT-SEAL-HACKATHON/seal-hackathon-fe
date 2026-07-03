@@ -5,6 +5,7 @@ import { judgeService } from '../services/judgeService';
 import { criteriaService } from '../../criteria/services/criteriaService';
 import { presentationService, getQueueBucket } from '../services/presentationService';
 import { roundService } from '../../rounds/services/roundService';
+import { useScoreSavedSocket } from '../../../shared/hooks/useScoreSavedSocket';
 
 const getErrorCode = (error) =>
   error?.code || error?.response?.data?.error?.code || error?.response?.data?.code;
@@ -257,6 +258,14 @@ export const useLiveScoringV2 = (
     }, 1000);
     return () => clearInterval(interval);
   }, [fetchStaticData, fetchQueue, refreshPresentationStatus, isCalibration]);
+
+  const handleScoreSaved = useCallback(() => {
+    if (isCalibration) return;
+    fetchQueue(true);
+    fetchStaticData();
+  }, [isCalibration, fetchQueue, fetchStaticData]);
+
+  useScoreSavedSocket(!isFinal && trackId ? trackId : null, handleScoreSaved);
 
   useEffect(() => {
     return () => {
@@ -570,6 +579,8 @@ export const useLiveScoringV2 = (
         if (code === 'SCORING_LOCKED') {
           setScoringLocked(true);
           message.error('Vòng đã khóa chấm điểm — không thể nộp điểm.');
+        } else if (code === 'SCORING_NOT_OPEN') {
+          message.error('Chỉ chấm điểm khi đội đang thuyết trình (slot PRESENTING).');
         } else if (code === 'JUDGE_NOT_ASSIGNED') {
           message.error('Bạn không được phân công chấm vòng Chung kết này.');
         } else {
@@ -672,6 +683,9 @@ export const useLiveScoringV2 = (
           });
           await refreshPresentationStatus();
           await fetchStaticData();
+        } else if (actionType === 'RESET') {
+          applyEngineState('IDLE', resolvePresentationSeconds(presentingSlot?.timer, 0));
+          await presentationService.resetTimer(roundId, timerTrackId);
         }
       } catch (error) {
         applyEngineState(previousEngineState.phase, previousEngineState.baseSeconds);
@@ -723,6 +737,5 @@ export const useLiveScoringV2 = (
     scoringLocked,
     isFinal,
     isCalibration,
-    hasPresentationQueue,
   };
 };

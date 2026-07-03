@@ -1,4 +1,4 @@
-import React, { 
+import { 
   useState, 
   useEffect 
 } from 'react';
@@ -9,7 +9,6 @@ import {
 } from 'antd';
 import { 
   Timer, 
-  Flag, 
   PlayCircle,
   Lock,
   CheckCircle // ĐÃ FIX LỖI CRASH Ở ĐÂY: Dùng đúng CheckCircle của lucide-react

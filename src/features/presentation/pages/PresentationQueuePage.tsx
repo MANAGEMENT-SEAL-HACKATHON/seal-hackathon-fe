@@ -1,7 +1,7 @@
 // src/features/presentation/pages/PresentationQueuePage.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Typography, Spin, Alert, Segmented, Card, Row, Col, Button, Tag, Space, Divider, Modal, Form, InputNumber, Checkbox } from 'antd';
 import { 
   RetweetOutlined, CheckCircleFilled, 
@@ -16,7 +16,10 @@ import { roundService } from '../../rounds/services/roundService';
 import { trackService } from '../../tracks/services/trackService';
 import { hackathonService } from '../../hackathons/services/hackathonService';
 import { presentationService } from '../../judging/services/presentationService';
+import { peopleService } from '../../people/services/peopleService';
+import { TEAM_ERROR_MESSAGES } from '../../../shared/constants/teamErrors';
 import toast from 'react-hot-toast';
+import { usePresentationQueueSocket } from '../../../shared/hooks/usePresentationQueueSocket';
 
 // Import Components phụ
 import PresentationControllerCard from '../components/PresentationControllerCard';
@@ -151,7 +154,7 @@ const DurationSettingsModal = ({ visible, onClose, roundId, trackId, isFinalRoun
 
   const clearOverrideMutation = useMutation({
     mutationFn: () => presentationService.clearTrackOverride(roundId, trackId),
-    onSuccess: () => { toast.success('Đã gỡ cấu hình riêng, quay về mặc định của Vòng thi.'); refetch(); },
+    onSuccess: () => { toast.success('Đã gỡ cấu hình riêng, quay về mặc định 10p / 5p.'); refetch(); },
   });
 
   return (
@@ -166,7 +169,7 @@ const DurationSettingsModal = ({ visible, onClose, roundId, trackId, isFinalRoun
     >
       <Spin spinning={isLoading}>
         <Alert type="info" showIcon style={{ marginBottom: 16 }} message={`Đang cấu hình cho: ${isFinalRound ? 'Toàn bộ Vòng Chung Kết' : 'Riêng Bảng đấu này'}`} 
-               description="Mỗi track có cấu hình riêng. Muốn các track cùng thời lượng — tick «Áp dụng cho tất cả track» khi lưu, hoặc bấm «Cập nhật Đồng bộ» trên trang. Chỉ đổi được khi chưa Start Timer." />
+               description="Mỗi bảng đấu có cấu hình riêng. Muốn các track cùng thời lượng — tick «Áp dụng cho tất cả track» khi lưu, hoặc bấm «Cập nhật Đồng bộ» trên trang. Để trống ở GĐ1 = mặc định 10p / 5p. Chỉ đổi được khi chưa Start Timer." />
         <Form form={form} layout="vertical" onFinish={(values) => updateMutation.mutate(values)} initialValues={{ applyToAllTracks: false }}>
           <Form.Item name="presentationMinutes" label="Thời gian Thuyết trình (Phút)" rules={[{ required: true, message: 'Vui lòng nhập số phút!' }]}>
             <InputNumber min={1} max={60} style={{ width: '100%' }} size="large" />
@@ -203,16 +206,35 @@ const PresentationQueuePage: React.FC = () => {
   const [isRolling, setIsRolling] = useState(false);
   const [isDurationModalOpen, setIsDurationModalOpen] = useState(false);
 
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     if (!roundIdFromUrl) personBApi.resolveActiveRoundId().then((id: number | null) => { if (id) setRoundId(id); });
   }, [roundIdFromUrl]);
+
+  const { data: roundDetail } = useQuery<any>({
+    queryKey: ['roundDetail', roundId],
+    queryFn: () => roundService.getById(roundId!),
+    enabled: roundId !== null,
+  });
+
+  const isFinalRound = Boolean(roundDetail?.isFinal || roundDetail?.is_final);
+  const wsTrackId = !isFinalRound && selectedTrackId ? selectedTrackId : null;
+
+  const { connected: queueSocketConnected } = usePresentationQueueSocket(
+    roundId,
+    () => {
+      queryClient.invalidateQueries({ queryKey: ['presentationQueue', roundId, selectedTrackId] });
+    },
+    wsTrackId,
+  );
 
   // ── QUERIES ──
   const { data: queueResponse, isLoading: isQueueLoading, refetch: refetchQueue } = useQuery<any>({
     queryKey: ['presentationQueue', roundId, selectedTrackId],
     queryFn: () => personBApi.getPresentationQueue(roundId as number, selectedTrackId || undefined),
     enabled: roundId !== null,
-    refetchInterval: 3000, 
+    refetchInterval: queueSocketConnected ? false : 10000,
   });
 
   const { data: roundTracks = [] } = useQuery<any[]>({
@@ -221,12 +243,6 @@ const PresentationQueuePage: React.FC = () => {
       const data: any = await trackService.listByRound(roundId!);
       return Array.isArray(data) ? data : data?.items || [];
     },
-    enabled: roundId !== null,
-  });
-
-  const { data: roundDetail } = useQuery<any>({
-    queryKey: ['roundDetail', roundId],
-    queryFn: () => roundService.getById(roundId!),
     enabled: roundId !== null,
   });
 
@@ -243,8 +259,41 @@ const PresentationQueuePage: React.FC = () => {
     enabled: roundId !== null && isCoordinator,
   });
 
+  const { data: trackMentors = [] } = useQuery<any[]>({
+    queryKey: ['trackMentors', selectedTrackId],
+    queryFn: async () => {
+      const data: any = await peopleService.getTrackMentors(selectedTrackId!);
+      return Array.isArray(data) ? data : data?.items || [];
+    },
+    enabled: Boolean(selectedTrackId) && !isFinalRound,
+  });
+
+  const { data: trackJudges = [] } = useQuery<any[]>({
+    queryKey: ['trackJudges', selectedTrackId],
+    queryFn: async () => {
+      const data: any = await peopleService.getTrackJudges(selectedTrackId!);
+      return Array.isArray(data) ? data : data?.items || [];
+    },
+    enabled: Boolean(selectedTrackId) && !isFinalRound,
+  });
+
+  const resolveAssignmentPersonId = (row: any) =>
+    row?.mentorId ??
+    row?.mentor_id ??
+    row?.judgeId ??
+    row?.judge_id ??
+    row?.userId ??
+    row?.user_id ??
+    row?.id;
+
+  const mentorJudgeConflict = useMemo(() => {
+    const mentorIds = new Set(
+      trackMentors.map(resolveAssignmentPersonId).filter((id) => id != null),
+    );
+    return trackJudges.some((judge) => mentorIds.has(resolveAssignmentPersonId(judge)));
+  }, [trackMentors, trackJudges]);
+
   // ── BÓC TÁCH DỮ LIỆU ──
-  const isFinalRound = Boolean(roundDetail?.isFinal || roundDetail?.is_final);
   const scoringLocked = Boolean(roundDetail?.scoringLocked || roundDetail?.scoring_locked);
   const hackathonName = hackathonDetail?.name || hackathonDetail?.title || 'SEAL Hackathon'; 
   const roundName = roundDetail?.name || (isFinalRound ? 'Vòng Chung Kết' : 'Vòng Sơ Loại');
@@ -378,7 +427,7 @@ const PresentationQueuePage: React.FC = () => {
   if (!roundId) {
     return (
       <div style={{ padding: 100, textAlign: 'center' }}>
-        <Title level={3} style={{ color: '#1e293b' }}>Không xác định được Vòng Thi</Title>
+        <Title level={3} style={{ color: '#1e293b' }}>Không xác định được vòng thi</Title>
         <Text type="secondary">Vui lòng quay lại trang Cấu hình và chọn "Mở hàng đợi" trên 1 vòng cụ thể.</Text>
         <br/><br/><Button type="primary" onClick={() => navigate(-1)} style={{ background: PRIMARY_BLUE, marginTop: 16 }}>Quay lại</Button>
       </div>
@@ -391,14 +440,14 @@ const PresentationQueuePage: React.FC = () => {
       
       <div style={{ marginBottom: 24 }}>
         <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ padding: 0, marginBottom: 12, color: '#64748b', fontWeight: 600 }}>
-          Quay lại Cấu hình Sự kiện
+          Quay lại Cấu hình sự kiện
         </Button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
           <div>
             <Title level={2} style={{ margin: 0, fontWeight: 800, color: '#1e293b' }}>
-              <SettingOutlined style={{ color: PRIMARY_BLUE, marginRight: 12 }} /> Điều Phối Lịch Trình Thuyết Trình
+              <SettingOutlined style={{ color: PRIMARY_BLUE, marginRight: 12 }} /> Điều phối lịch trình thuyết trình
             </Title>
-            <Text type="secondary" style={{ fontSize: 16 }}>Thiết lập thứ tự lên sân khấu và phân công quyền điều khiển cho Giám Khảo.</Text>
+            <Text type="secondary" style={{ fontSize: 16 }}>Thiết lập thứ tự lên sân khấu và phân công quyền điều khiển cho giám khảo.</Text>
           </div>
           <Space>
             {isCoordinator && (
@@ -417,6 +466,16 @@ const PresentationQueuePage: React.FC = () => {
           </Space>
         </div>
       </div>
+
+      {mentorJudgeConflict && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16, borderRadius: 12 }}
+          message="Xung đột phân công mentor / giám khảo"
+          description={TEAM_ERROR_MESSAGES.CONFLICT_MENTOR_JUDGE_SAME_ROUND_TRACK}
+        />
+      )}
 
       <Card style={{ borderRadius: 16, border: `1px solid ${PRIMARY_BLUE}40`, background: '#fff', marginBottom: 24, boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '16px 24px' } }}>
         <Row align="middle" justify="space-between">
@@ -463,7 +522,7 @@ const PresentationQueuePage: React.FC = () => {
           >
             {!showQueueDirectly ? (
               <div style={{ flex: 1, padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <Title level={3} style={{ color: '#1e293b', marginBottom: 12, fontWeight: 900, textAlign: 'center' }}>Bốc Thăm Phân Bổ Ngẫu Nhiên</Title>
+                <Title level={3} style={{ color: '#1e293b', marginBottom: 12, fontWeight: 900, textAlign: 'center' }}>Bốc thăm phân bổ ngẫu nhiên</Title>
                 <Text style={{ fontSize: 16, color: '#475569', display: 'block', maxWidth: 600, margin: '0 auto 24px', lineHeight: 1.6, textAlign: 'center' }}>
                   Hệ thống sẽ dùng thuật toán quay số để phân bổ các đội thi vào các khung giờ thuyết trình hoàn toàn ngẫu nhiên và minh bạch.
                 </Text>
@@ -575,7 +634,7 @@ const PresentationQueuePage: React.FC = () => {
           {isCoordinator && roundId && (
             <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
               <div style={{ background: '#f8fafc', padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
-                 <Title level={4} style={{ margin: 0, color: '#0f172a', fontWeight: 900 }}>Ủy Quyền Điều Phối Timer</Title>
+                 <Title level={4} style={{ margin: 0, color: '#0f172a', fontWeight: 900 }}>Ủy quyền điều phối timer</Title>
                  <Text type="secondary" style={{ fontSize: 13, marginTop: 4, display: 'block', lineHeight: 1.6 }}>Người được chọn sẽ bấm timer và mở khóa form chấm điểm cho hội đồng. Coordinator có thể đổi người này bất cứ lúc nào.</Text>
               </div>
               <div style={{ padding: 24 }}>

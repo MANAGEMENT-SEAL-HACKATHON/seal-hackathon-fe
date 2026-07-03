@@ -20,6 +20,9 @@ export const ROUTES = {
   LOGIN: '/login',
   REGISTER: '/register',
   GITHUB_CALLBACK: '/auth/github/callback',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password',
+  VERIFY_EMAIL: '/verify-email',
   ONBOARDING: '/onboarding',
   CHANGE_PASSWORD: '/change-password',
   USER_APPROVAL: '/admin/users',
@@ -30,9 +33,12 @@ export const ROUTES = {
   JUDGE_CRITERIA: '/judge/criteria',
   MENTOR_SUPPORT: '/mentor/support',
   MENTOR_ROUNDS: '/mentor/rounds',
+  MENTOR_HISTORY: '/mentor/history',
+  STUDENT_ANNUAL_AWARDS: '/student/annual-awards',
   STUDENT_SUBMIT: '/student/submit',
   COORDINATOR_LATE_SUBMISSIONS: '/coordinator/late-submissions',
   PRESENTATION_QUEUE: '/presentation/queue',
+  COORDINATOR_ANALYTICS: '/coordinator/analytics',
   COORDINATOR_FINAL_CONFIG: '/coordinator/final-config',
 };
 

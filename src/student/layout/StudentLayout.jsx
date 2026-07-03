@@ -1,7 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Badge, Drawer, Grid, Space, theme, Typography, Tag } from 'antd';
+import { Layout, Menu, Button, Avatar, Drawer, Grid, Space, theme, Typography, Tag } from 'antd';
 import {
-  BellOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -13,6 +12,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../shared/constants/routes';
 import { useAppContext } from '../../app/AppContext';
 import { authService } from '../../features/auth/services/authService';
+import NotificationBell from '../../shared/components/ui/NotificationBell';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -34,7 +34,7 @@ const StudentLayout = ({ children }) => {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const { token } = theme.useToken();
-  const { darkMode, toggleDarkMode, notifications = [] } = useAppContext();
+  const { darkMode, toggleDarkMode, notifications = [], markAsRead } = useAppContext();
   const [currentUser, setCurrentUser] = useState(getStoredUser());
 
   useEffect(() => {
@@ -44,8 +44,6 @@ const StudentLayout = ({ children }) => {
     window.addEventListener('userInfoUpdated', handleUserInfoUpdated);
     return () => window.removeEventListener('userInfoUpdated', handleUserInfoUpdated);
   }, []);
-
-  const unreadCount = notifications.filter((item) => !item.is_read).length;
 
   const menuItems = useMemo(() => {
     const baseItems = [
@@ -83,6 +81,11 @@ const StudentLayout = ({ children }) => {
         label: 'Kết quả thi đấu',
       },
       {
+        key: ROUTES.STUDENT_ANNUAL_AWARDS,
+        icon: <Trophy size={18} />,
+        label: 'Giải cá nhân năm',
+      },
+      {
         key: 'student-schedule',
         icon: <CalendarDays size={18} />,
         label: 'Lịch sự kiện',
@@ -114,6 +117,7 @@ const StudentLayout = ({ children }) => {
       key === ROUTES.STUDENT_TEAM ||
       key === ROUTES.STUDENT_SUBMIT ||
       key === ROUTES.STUDENT_RESULTS ||
+      key === ROUTES.STUDENT_ANNUAL_AWARDS ||
       key === ROUTES.PROFILE
     ) {
       navigate(key);
@@ -128,6 +132,19 @@ const StudentLayout = ({ children }) => {
       }
     } catch {
       // Local session cleanup below still runs if logout API is unavailable.
+    } finally {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('userInfo');
+      navigate(ROUTES.LOGIN, { replace: true });
+    }
+  };
+
+  const handleLogoutAll = async () => {
+    try {
+      await authService.logoutAll();
+    } catch {
+      // still clear local session
     } finally {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
@@ -202,6 +219,23 @@ const StudentLayout = ({ children }) => {
       />
 
       <div style={{ padding: 16, marginTop: 'auto' }}>
+        <Button
+          type="text"
+          icon={<LogoutOutlined />}
+          onClick={handleLogoutAll}
+          block={!collapsed || isMobile}
+          style={{
+            height: 42,
+            borderRadius: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
+            gap: 8,
+            marginBottom: 8,
+          }}
+        >
+          {(!collapsed || isMobile) && 'Đăng xuất tất cả thiết bị'}
+        </Button>
         <Button
           danger
           type="text"
@@ -324,9 +358,12 @@ const StudentLayout = ({ children }) => {
           </Space>
 
           <Space size={isMobile ? 6 : 10} align="center" style={{ flexShrink: 0 }}>
-            <Badge count={unreadCount} size="small">
-              <Button type="text" icon={<BellOutlined />} style={{ width: 42, height: 42, borderRadius: 12 }} />
-            </Badge>
+            <NotificationBell
+              notifications={notifications}
+              markAsRead={markAsRead}
+              darkMode={darkMode}
+              buttonStyle={{ width: 42, height: 42, borderRadius: 12 }}
+            />
             <Button
               type="text"
               icon={darkMode ? <SunOutlined /> : <MoonOutlined />}

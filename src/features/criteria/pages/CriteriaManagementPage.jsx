@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   Table,
   Button,
@@ -32,6 +32,7 @@ import { CriteriaHeader } from "../components/CriteriaHeader";
 import { CriteriaFormModal } from "../components/CriteriaFormModal";
 import { CriteriaCloneModal } from "../components/CriteriaCloneModal";
 import { CriteriaBatchModal } from "../components/CriteriaBatchModal";
+import { STANDARD_SYSTEM_CRITERIA } from "../constants/standardCriteria";
 
 const CriteriaManagementPage = ({ hackathonId }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -58,6 +59,7 @@ const CriteriaManagementPage = ({ hackathonId }) => {
     handleCloneCriteria,
     handleSaveCriteria,
     handleBatchSaveCriteria,
+    handleApplyStandardCriteria,
     deleteCriteria,
     updateRound,
   } = useCriteriaManagement(hackathonId);
@@ -144,6 +146,11 @@ const CriteriaManagementPage = ({ hackathonId }) => {
       type === "TRACK" ? id : null,
       replaceExisting,
     );
+    setIsCloneVisible(false);
+  };
+
+  const executeApplyStandard = (replaceExisting) => {
+    handleApplyStandardCriteria(STANDARD_SYSTEM_CRITERIA, replaceExisting);
     setIsCloneVisible(false);
   };
 
@@ -261,6 +268,7 @@ const CriteriaManagementPage = ({ hackathonId }) => {
         visible={isCloneVisible}
         onCancel={() => setIsCloneVisible(false)}
         onClone={executeClone}
+        onApplyStandard={executeApplyStandard}
         {...{
           currentHackathonId: hackathonId,
           hackathonRounds,

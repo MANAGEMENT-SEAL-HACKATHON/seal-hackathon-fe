@@ -47,6 +47,16 @@ export const dedupePersonnelById = (list = []) => {
 export const buildPrelimJudgePool = (mentors = [], judges = []) =>
   dedupePersonnelById([...mentors, ...judges]).filter(isEligibleForPrelimJudge);
 
+/**
+ * Mentor Sơ loại đủ điều kiện: INTERNAL judge/mentor hoặc trưởng ban.
+ * BE (PersonnelAssignmentRules) cho phép cả user role=JUDGE làm mentor (khác track),
+ * nên pool mentor phải đối xứng với pool prelim judge — không chỉ role=MENTOR.
+ */
+export const isEligibleForMentor = (person) => isEligibleForPrelimJudge(person);
+
+export const buildMentorPool = (mentors = [], judges = []) =>
+  dedupePersonnelById([...mentors, ...judges]).filter(isEligibleForMentor);
+
 export const buildFinalJudgePool = (judges = [], tempJudges = []) =>
   dedupePersonnelById([...judges, ...tempJudges]).filter(isEligibleForFinalJudge);
 

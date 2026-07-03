@@ -7,6 +7,7 @@ import { roundService } from '../../rounds/services/roundService';
 import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
 import {
   buildFinalJudgePool,
+  buildMentorPool,
   buildPrelimJudgePool,
   findPersonById,
   resolveFinalAssignmentType,
@@ -176,6 +177,11 @@ export const usePeopleManagement = (hackathonId) => {
     fetchBaseData();
   }, [fetchBaseData]);
 
+  const mentorPool = useMemo(
+    () => buildMentorPool(mentors, judges),
+    [mentors, judges]
+  );
+
   const prelimJudgePool = useMemo(
     () => buildPrelimJudgePool(mentors, judges),
     [mentors, judges]
@@ -315,6 +321,19 @@ export const usePeopleManagement = (hackathonId) => {
     }
   };
 
+  const patchUserDeptHead = async (userId, isDeptHead) => {
+    setIsLoading(true);
+    try {
+      await peopleService.patchUserDeptHead(userId, isDeptHead);
+      message.success(isDeptHead ? 'Đã đặt Trưởng ban' : 'Đã gỡ Trưởng ban');
+      await fetchBaseData();
+    } catch (error) {
+      message.error(getTeamErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const isMentorBlockedForTrack = (mentorId, trackId) =>
     judgeIdsByTrack.get(trackId)?.has(mentorId);
 
@@ -336,6 +355,8 @@ export const usePeopleManagement = (hackathonId) => {
     removeMentor,
     assignJudge,
     removeJudge,
+    patchUserDeptHead,
+    mentorPool,
     prelimJudgePool,
     finalJudgePool,
     isMentorBlockedForTrack,

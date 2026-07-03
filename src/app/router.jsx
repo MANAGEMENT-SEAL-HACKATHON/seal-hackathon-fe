@@ -18,30 +18,36 @@ import LoginPage from '../features/auth/pages/LoginPage';
 import RegisterPage from '../features/auth/pages/RegisterPage';
 import OnboardingPage from '../features/auth/pages/OnboardingPage';
 import ChangePasswordPage from '../features/auth/pages/ChangePasswordPage';
+import ForgotPasswordPage from '../features/auth/pages/ForgotPasswordPage';
+import ResetPasswordPage from '../features/auth/pages/ResetPasswordPage';
+import VerifyEmailPage from '../features/auth/pages/VerifyEmailPage';
 import UserApprovalPage from '../features/auth/pages/UserApprovalPage';
 import TempJudgesPage from '../features/auth/pages/TempJudgesPage';
-import CoordinatorTeamPage from '../features/coordinator-teams/pages/CoordinatorTeamPage';
+import CoordinatorTeamPage from '../features/coordinator/pages/CoordinatorTeamPage';
 import GithubCallbackPage from '../features/auth/pages/GithubCallbackPage';
 import LandingPage from '../landing/pages/LandingPage';
 import StudentTeamPage from '../student/features/team/pages/StudentTeamPage';
 import JudgeDashboardPage from '../features/judging/pages/JudgeDashboardPage';
 import LiveScoringPage from '../features/judging/pages/LiveScoringPage';
 import JudgeCriteriaViewPage from '../features/judging/pages/JudgeCriteriaViewPage';
-import RoundRankingPreviewPage from '../features/round-ranking/pages/RoundRankingPreviewPage';
+import RoundRankingPreviewPage from '../features/rounds/pages/RoundRankingPreviewPage';
 import MentorSupportPage from '../features/mentor/pages/MentorSupportPage';
 import MentorRoundsPage from '../features/mentor/pages/MentorRoundsPage';
 import StudentHackathonHistoryPage from '../student/features/hackathon/pages/StudentHackathonHistoryPage';
 import StudentSubmissionPage from '../student/features/submission/pages/StudentSubmissionPage';
 import ScoringLobbyPage from '../features/judging/pages/ScoringLobbyPage';
-import HackathonResultsPage from '../features/hackathon-results/pages/HackathonResultsPage';
-import PreliminaryResultsPage from '../features/round-results/pages/PreliminaryResultsPage';
+import HackathonResultsPage from '../features/hackathons/pages/HackathonResultsPage';
+import PreliminaryResultsPage from '../features/rounds/pages/PreliminaryResultsPage';
 import StudentRoundLeaderboardPage from '../student/features/results/pages/StudentRoundLeaderboardPage';
 import StudentResultsIndexPage from '../student/features/results/pages/StudentResultsIndexPage';
 import StudentHackathonResultsPage from '../student/features/results/pages/StudentHackathonResultsPage';
 import MatchmakingBoardPage from '../student/features/matchmaking/pages/MatchmakingBoardPage';
 import LateSubmissionReviewPage from '../features/coordinator/pages/LateSubmissionReviewPage';
-import PresentationQueuePage from '../features/presentation/pages/PresentationQueuePage';
+import CoordinatorAnalyticsPage from '../features/coordinator/pages/CoordinatorAnalyticsPage';
 import FinalRoundConfigPage from '../features/coordinator/pages/FinalRoundConfigPage';
+import PresentationQueuePage from '../features/presentation/pages/PresentationQueuePage';
+import MentorHistoryPage from '../features/mentor/pages/MentorHistoryPage';
+import StudentAnnualAwardsPage from '../student/features/portal/pages/StudentAnnualAwardsPage';
 
 
 const TrackWrapper = () => {
@@ -208,14 +214,23 @@ const AppRouter = () => {
       <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
       <Route path={ROUTES.GITHUB_CALLBACK} element={<GithubCallbackPage />} />
       <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePasswordPage />} />
+      <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPasswordPage />} />
+      <Route path={ROUTES.RESET_PASSWORD} element={<ResetPasswordPage />} />
+      <Route path={ROUTES.VERIFY_EMAIL} element={<VerifyEmailPage />} />
       <Route path={ROUTES.PUBLIC_ROUND_SCOREBOARD} element={<StudentRoundLeaderboardPage />} />
 
       {/* Protected Routes inside role-aware layout */}
       <Route element={<AppLayoutWrapper />}>
         <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+        <Route path="/student/dashboard" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
         <Route path={ROUTES.STUDENT_HACKATHON_HISTORY} element={
           <ProtectedRoute allowedRoles={['STUDENT']}>
             <StudentHackathonHistoryPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.STUDENT_ANNUAL_AWARDS} element={
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <StudentAnnualAwardsPage />
           </ProtectedRoute>
         } />
         <Route path={ROUTES.STUDENT_TEAM} element={
@@ -254,6 +269,7 @@ const AppRouter = () => {
         <Route path="/hackathons/:hackathonId" element={<HackathonDetailRedirect />} />
         <Route path={ROUTES.HACKATHON_CREATE} element={<CreateHackathonPage />} />
         <Route path={ROUTES.HACKATHON_SETUP} element={<HackathonSetupPage />} />
+        <Route path={`${ROUTES.GLOBAL_TEAMS}/:hackathonId`} element={<CoordinatorTeamPage />} />
         <Route path={ROUTES.GLOBAL_TEAMS} element={<CoordinatorTeamPage />} />
         <Route path={ROUTES.USER_APPROVAL} element={
           <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
@@ -325,6 +341,11 @@ const AppRouter = () => {
             <MentorSupportPage />
           </ProtectedRoute>
         } />
+        <Route path={ROUTES.MENTOR_HISTORY} element={
+          <ProtectedRoute allowedRoles={['MENTOR', 'COORDINATOR', 'ADMIN']}>
+            <MentorHistoryPage />
+          </ProtectedRoute>
+        } />
         <Route path={ROUTES.STUDENT_SUBMIT} element={
           <ProtectedRoute allowedRoles={['STUDENT']}>
             <StudentSubmissionPage />
@@ -333,6 +354,16 @@ const AppRouter = () => {
         <Route path={ROUTES.COORDINATOR_LATE_SUBMISSIONS} element={
           <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
             <LateSubmissionReviewPage />
+          </ProtectedRoute>
+        } />
+        <Route path={`${ROUTES.COORDINATOR_ANALYTICS}/:hackathonId`} element={
+          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+            <CoordinatorAnalyticsPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.COORDINATOR_ANALYTICS} element={
+          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+            <CoordinatorAnalyticsPage />
           </ProtectedRoute>
         } />
         <Route path={ROUTES.COORDINATOR_FINAL_CONFIG} element={

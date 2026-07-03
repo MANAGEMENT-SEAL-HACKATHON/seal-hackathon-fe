@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal, Form, Input, InputNumber, Row, Col, Select, DatePicker, Switch, Tooltip, Alert, Button, message } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -633,6 +633,62 @@ const RoundFormModal = ({
               </Form.Item>
             </Col>
           </Row>
+        )}
+
+        {isFinal && (
+          <>
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Thời lượng thuyết trình (tùy chọn)"
+              description={
+                <span style={{ fontSize: 12 }}>
+                  Timer cho toàn bộ vòng Chung kết (không theo bảng đấu). Để trống = mặc định 10 phút thuyết trình / 5 phút Q&A.
+                </span>
+              }
+            />
+            <Row gutter={24}>
+              <Col span={12}>
+                <Form.Item
+                  name="default_presentation_minutes"
+                  label="Thuyết trình (phút)"
+                  validateTrigger={['onChange', 'onBlur']}
+                  rules={[
+                    {
+                      validator: (_, value) => {
+                        if (value == null || value === '' || (value >= 1 && value <= 60)) {
+                          return Promise.resolve();
+                        }
+                        return Promise.reject(new Error('Nhập từ 1 đến 60 phút'));
+                      },
+                    },
+                  ]}
+                >
+                  <InputNumber min={1} max={60} style={{ width: '100%' }} placeholder="10" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="default_qa_minutes"
+                  label="Q&A (phút)"
+                  validateTrigger={['onChange', 'onBlur']}
+                  rules={[
+                    {
+                      validator: (_, value) => {
+                        if (value == null || value === '' || (value >= 1 && value <= 60)) {
+                          return Promise.resolve();
+                        }
+                        return Promise.reject(new Error('Nhập từ 1 đến 60 phút'));
+                      },
+                    },
+                  ]}
+                >
+                  <InputNumber min={1} max={60} style={{ width: '100%' }} placeholder="5" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </>
         )}
 
         <Row gutter={24}>

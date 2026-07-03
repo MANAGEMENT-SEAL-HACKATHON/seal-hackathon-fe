@@ -64,4 +64,8 @@ export const teamService = {
   adminMergeTeams: async (targetTeamId, sourceTeamId) => {
     return axiosClient.post(ENDPOINTS.TEAMS.ADMIN_MERGE(targetTeamId), { sourceTeamId });
   },
+
+  getJourney: async (teamId) => {
+    return axiosClient.get(ENDPOINTS.TEAMS.JOURNEY(teamId));
+  },
 };

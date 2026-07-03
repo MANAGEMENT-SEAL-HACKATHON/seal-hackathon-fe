@@ -263,14 +263,16 @@ const JudgeScoringWorkspace = ({ logic }) => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {criteria.map((c, index) => (
+        {criteria.map((c, index) => {
+          const hasScore = currentScores[c.id] !== undefined && currentScores[c.id] !== null;
+          return (
           <div
             key={c.id}
             style={{
               padding: '16px 20px',
-              background: '#ffffff',
+              background: hasScore ? '#f0fdf4' : hasScoredCurrentTeam ? '#f8fafc' : '#fff',
               borderRadius: 12,
-              border: '1px solid #e2e8f0',
+              border: `2px solid ${hasScore ? '#86efac' : hasScoredCurrentTeam ? '#e2e8f0' : '#fecaca'}`,
               boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
             }}
           >
@@ -328,7 +330,8 @@ const JudgeScoringWorkspace = ({ logic }) => {
               }}
             />
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div style={{ marginTop: 32 }}>

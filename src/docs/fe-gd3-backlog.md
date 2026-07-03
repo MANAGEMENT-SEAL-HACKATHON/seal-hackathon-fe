@@ -1,9 +1,9 @@
 # GĐ3 — Phần chưa làm / chưa tích hợp FE
 
 > Đối chiếu: `BE/docs/testing/fe-gd3-api-mapping.md`  
-> Cập nhật: 2026-05-27
+> Cập nhật: 2026-06-30 (sau GĐ3 FE Gap Closure)
 
-File này ghi **những màn hình, API và luồng GĐ3 chưa có hoặc còn mock** — không nằm trong phạm vi sửa lần này.
+File này ghi **những màn hình, API và luồng GĐ3 còn thiếu hoặc chờ BE** — phản ánh trạng thái code thực tế.
 
 ---
 
@@ -11,24 +11,25 @@ File này ghi **những màn hình, API và luồng GĐ3 chưa có hoặc còn m
 
 | Mục | API BE | Trạng thái FE | Ghi chú |
 |-----|--------|---------------|---------|
-| Kích hoạt vòng SL (Gate 2) | `PATCH /api/v1/rounds/{prelimId}/activate` | ❌ Chưa có màn | Hiện activate nằm ở luồng GĐ2/Round management |
-| Phát đề bài | `PATCH /api/v1/rounds/{prelimId}/release-problem` | ❌ Chưa có màn | Cần nút BTC sau activate |
-| Tiến độ chấm | `GET /api/v1/rounds/{prelimId}/scoring-progress` | ❌ Chưa có màn | Dashboard BTC theo track/judge |
-| Khóa chấm | `PATCH /api/v1/rounds/{prelimId}/lock-scoring` | ❌ Chưa có màn | Kết thúc GĐ3 nội bộ |
-| Xem ranking preview | `GET /api/v1/rounds/{prelimId}/ranking` | ❌ Chưa có màn | Chuyển sang GĐ4 publish/advance |
-
-**Đề xuất:** Tạo `Gd3CoordinatorOpsPage` hoặc mở rộng `RoundManagementPage` với các action trên khi round = prelim ACTIVE.
+| Kích hoạt vòng SL | `PATCH /rounds/{id}/activate` | ✅ | `RoundManagementPage` |
+| Phát đề bài | `PATCH /rounds/{id}/release-problem` | ✅ | `RoundManagementPage` |
+| Tiến độ chấm | `GET /rounds/{id}/scoring-progress` | ✅ | `ScoringProgressCard` |
+| Khóa chấm | `PATCH /rounds/{id}/lock-scoring` | ✅ | `RoundManagementPage` |
+| Coordinator stepper | — | ✅ | `PreliminaryRoundCoordinatorStepper` (RoundManagement + PresentationQueue) |
+| Badge nộp trễ | `GET /submissions?status=LATE_PENDING` | ✅ | `MainLayout` nav badge |
+| Xem ranking preview | `GET /rounds/{id}/ranking` | ⚠️ Một phần | Chuyển sang GĐ4 publish/advance |
 
 ---
 
-## 2. Student — Đề bài & leaderboard
+## 2. Student — Đề bài & nộp bài
 
 | Mục | API BE | Trạng thái FE | Ghi chú |
 |-----|--------|---------------|---------|
-| Xem đề bài | `GET /api/v1/me/rounds/{roundId}/problem` | ❌ Chưa có màn | `personBApi.getRoundProblem()` đã có, chưa gắn UI |
-| Leaderboard GĐ3 | `GET /api/v1/me/rounds/{id}/leaderboard` | ❌ BE stub `[]` | Chờ BE hoàn thiện |
-
-**Đề xuất:** Thêm tab "Đề bài" trong `StudentSubmissionPage` hoặc trang workspace riêng.
+| Status-driven UI | `GET /me/submission` | ✅ | `StudentSubmissionPage` — NONE/INCOMPLETE/LATE_PENDING/REJECTED/ON_TIME |
+| `late_reason` khi quá hạn | `POST /submissions` | ✅ | TextArea bắt buộc |
+| Tab Đề bài + PDF | `GET /me/rounds/{id}/problem` | ✅ | `getRoundProblem` + `downloadRoundProblemStatement` |
+| Checklist 5 bước | — | ✅ | Ant `Steps` trên submission page |
+| Leaderboard GĐ3 | `GET /me/rounds/{id}/leaderboard` | ❌ BE stub `[]` | Chờ BE |
 
 ---
 
@@ -36,88 +37,81 @@ File này ghi **những màn hình, API và luồng GĐ3 chưa có hoặc còn m
 
 | Mục | API BE | Trạng thái FE | Ghi chú |
 |-----|--------|---------------|---------|
-| Danh sách track được gán | `GET /api/v1/me/judge-track-assignments` | ❌ Chưa gọi | Cần thay mock dashboard |
-| Danh sách đội cần chấm | Theo submission/track | ❌ Mock cứng | `useLiveScoring.js` dùng data giả |
-| Nộp điểm | `POST /api/v1/scores` | ❌ Commented out | Payload: `submissionId`, `criterionId`, `scoreValue`, `comment`, `scoreType` |
-| Lấy tiêu chí | `GET /api/v1/tracks/{trackId}/criteria` | ⚠️ Một phần | `judgeService.getScoringCriteria` — cần gắn `trackId` từ assignment |
-
-**File liên quan:** `src/features/judging/hooks/useLiveScoring.js`, `src/features/judging/services/judgeService.js`, `LiveScoringPage.jsx`
+| Track assignments | `GET /me/judge-track-assignments` | ✅ | `JudgeDashboard` |
+| Live scoring E2E | `POST /scores` | ✅ | `useLiveScoringV2` + `judgeService.submitScore` |
+| SCORING_INCOMPLETE acknowledge | `PATCH queue/next` | ✅ | `Modal.confirm` + `acknowledgeIncompleteScoring` |
+| Calibration prelim + final | calibration-sessions | ✅ | `CalibrationSessionsPanel` (GĐ3 + GĐ5) |
 
 ---
 
-## 4. Calibration (tùy chọn)
+## 4. Calibration
 
 | API | Role | Trạng thái FE |
 |-----|------|---------------|
-| `GET /calibration-sessions?roundId=` | COORD | ❌ |
-| `POST /calibration-sessions` | COORD | ❌ |
-| `PATCH /calibration-sessions/{id}` | COORD | ❌ |
-| `POST /scores/calibration` | JUDGE/MENTOR | ❌ |
-
-PersonB không yêu cầu — chỉ làm khi có thiết kế UI phiên hiệu chuẩn.
+| `GET /calibration-sessions?roundId=` | COORD | ✅ `CalibrationSessionManager` (prelim trên RoundManagement) |
+| `POST /calibration-sessions` | COORD | ✅ |
+| `PATCH /calibration-sessions/{id}` | COORD | ✅ |
+| Judge panel | JUDGE | ✅ `CalibrationSessionsPanel` — prelim + final |
 
 ---
 
-## 5. Mentor — Fallback & thống kê
+## 5. Mentor
 
 | Mục | Trạng thái | Ghi chú |
 |-----|------------|---------|
-| Fallback đội theo track (§7.1) | ⚠️ Một phần | `getAssignedTeams` fallback qua `getMentorRounds().teams` khi `assigned-teams` trống |
-| Derive từ `mentor-track-assignments` + `team_round_tracks` | ❌ Thiếu API mentor | Cần BE expose hoặc BE populate `assigned-teams` từ track assignment |
-| Mentor stats (Efficiency, Avg Response) | ❌ BE chưa có | Ẩn UI hoặc giữ mock |
-| `GET /me/mentor/teams/{teamId}/presentation-slot` | ⚠️ Không dùng nữa | Lịch lấy từ `assigned-teams.presentationSchedule` |
+| Assigned teams + lịch | ✅ | `MentorSupportPage` |
+| Round picker (>1 vòng) | ✅ | `Select` |
+| Xem bài nộp / điểm | ✅ | Drawer `getMentorTeamSubmissions` / `getMentorTeamScores` |
+| Loading skeleton | ✅ | Tránh empty flash |
+| Stats giả (94.2%) | ✅ Đã xóa | Placeholder "Chưa có thống kê" |
+| Derive từ track assignment khi assigned-teams trống | ⚠️ | Phụ thuộc BE populate |
 
 ---
 
-## 6. Presentation queue — Cải tiến tiếp theo
+## 6. Presentation queue
 
 | Mục | Trạng thái | Ghi chú |
 |-----|------------|---------|
-| `roundId` từ URL / coordinator context | ⚠️ Một phần | Hiện lấy từ `GET /me/rounds/current/deadline` |
-| Polling / refetch sau `PATCH queue/next` | ❌ | Fire-and-forget — nên refetch queue sau mutate |
-| Coordinator chọn round khi nhiều vòng | ❌ | Cần selector khi hackathon có nhiều round active |
+| `roundId` từ URL | ✅ | Query param + `resolveActiveRoundId` fallback |
+| WebSocket STOMP | ✅ | `usePresentationQueueSocket` — topic `/topic/rounds/{id}/presentation-queue` |
+| Polling fallback | ✅ | 8s khi socket disconnect |
+| `display_code`, `slot_start_at`, ELIMINATED | ✅ | Queue rows |
+| `room_stats` | ✅ | Tag trên queue card |
+| Empty state sau shuffle | ✅ | |
 
 ---
 
 ## 7. Error handling chuẩn GĐ3
 
-| Code BE | UI hiện tại | Cần làm |
-|---------|-------------|---------|
-| `INVALID_SLIDE_FORMAT` | Hint text trên form slide | Map `error.code` → toast tiếng Việt |
-| `INVALID_REPO_PLATFORM` | Chưa map | Thêm message khi repo không phải GitHub/GitLab |
-| `JUDGE_NOT_ASSIGNED_TO_TRACK` | — | Khi tích hợp judge scoring |
-| `SUBMISSION_NOT_LATE_PENDING` | Toast chung | Late review page |
-| `TEAM_NOT_LOCKED` | — | Student submit khi chưa lottery |
-
-**Đề xuất:** Tạo `src/features/auth/constants/gd3Errors.js` (tương tự `oauthErrors.js`).
+| Code BE | Trạng thái |
+|---------|------------|
+| `INVALID_SLIDE_FORMAT`, `REPO_NOT_PUBLIC`, … | ✅ `preliminarySubmissionErrors.js` + `resolvePreliminarySubmissionError` |
+| Submit / review / judge score | ✅ Wired trong catch paths |
 
 ---
 
-## 8. Ma trận nhanh — Đã sửa vs Chưa làm
+## 8. Ma trận nhanh — Đã hoàn thành (2026-06-30)
 
-| Màn / API | Đã sửa (2026-05-27) |
-|-----------|---------------------|
-| `personB.api.ts` paths `/api/v1/...` | ✅ |
-| Student submit `teamId` + `trackId` | ✅ |
-| Không gửi `lateReason` | ✅ |
-| Mentor `assigned-teams` + lịch inline | ✅ |
-| Late list `GET /submissions?status=LATE_PENDING` | ✅ |
-| Queue map camelCase + `roundId` + `currentTeamId` | ✅ |
-| Coordinator activate/release/lock/ranking | ❌ Backlog §1 |
-| Student problem view | ❌ Backlog §2 |
-| Judge `POST /scores` | ❌ Backlog §3 |
-| Calibration | ❌ Backlog §4 |
+| Hạng mục | Trạng thái |
+|----------|------------|
+| `personB.api` blockReason, problemReleased, mentor wrappers | ✅ |
+| Student status views + problem tab | ✅ |
+| Judge E2E + acknowledge modal | ✅ |
+| Coordinator stepper + late review polish | ✅ |
+| Calibration GĐ3 prelim | ✅ |
+| WebSocket queue | ✅ |
+| Mentor polish | ✅ |
+| E2E smoke `preliminary-student-submit.spec.js` | ✅ (skip khi BE offline) |
 
 ---
 
-## 9. Thứ tự ưu tiên đề xuất
+## 9. Còn lại / chờ BE
 
-1. **Judge scoring** — `POST /scores` + `judge-track-assignments` (chặn GĐ3 E2E)
-2. **Coordinator lock + ranking** — kết thúc vòng SL
-3. **Student problem** — trải nghiệm sau `release-problem`
-4. **Queue refetch + round selector** — vận hành thực tế
-5. **Mentor track fallback đầy đủ** — phối hợp BE
+1. **Leaderboard GĐ3** — BE stub
+2. **Mentor stats** — BE chưa có API
+3. **Ranking preview coordinator** — luồng GĐ4
+4. **Repo validation async flag** — chỉ static hint sau submit (optional poll nếu BE thêm field)
 
 ---
 
-*Tài liệu tham chiếu BE: `fe-gd3-api-mapping.md` §5–§12, §16–§17.*
+*Tài liệu tham chiếu BE: `fe-gd3-api-mapping.md`, seed `seal-gd3-prelim-open`, `seal-gd3-scoring-live`.*

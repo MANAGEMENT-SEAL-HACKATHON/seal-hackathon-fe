@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Form, Input, InputNumber, Row, Col, Select, Alert, Button, message } from 'antd';
 import RoundProblemPdfUpload from '../../rounds/components/RoundProblemPdfUpload';
 import { trackService } from '../services/trackService';
@@ -90,20 +90,6 @@ const TrackFormModal = ({
           <Input placeholder="Ví dụ: Bảng đấu RAG" />
         </Form.Item>
 
-        {!isEditing && (
-          <Form.Item
-            name="round_id"
-            label="Vòng sơ loại"
-            rules={[{ required: true, message: 'Vui lòng chọn vòng sơ loại' }]}
-          >
-            <Select placeholder="Chọn vòng sơ loại">
-              {rounds?.map(r => (
-                <Select.Option key={r.id} value={r.id}>{r.name}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        )}
-
         <Form.Item name="description" label="Mô tả">
           <TextArea rows={3} placeholder="Mô tả ngắn (tuỳ chọn)" />
         </Form.Item>
@@ -139,6 +125,49 @@ const TrackFormModal = ({
               ]}
             >
               <InputNumber min={1} style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={24}>
+          <Col span={12}>
+            <Form.Item
+              name="presentation_minutes"
+              label="Thuyết trình (phút)"
+              extra="Để trống = mặc định 10 phút"
+              validateTrigger={['onChange', 'onBlur']}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (value == null || value === '' || (value >= 1 && value <= 60)) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('Nhập từ 1 đến 60 phút'));
+                  },
+                },
+              ]}
+            >
+              <InputNumber min={1} max={60} style={{ width: '100%' }} placeholder="10" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="qa_minutes"
+              label="Q&A (phút)"
+              extra="Để trống = mặc định 5 phút"
+              validateTrigger={['onChange', 'onBlur']}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (value == null || value === '' || (value >= 1 && value <= 60)) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('Nhập từ 1 đến 60 phút'));
+                  },
+                },
+              ]}
+            >
+              <InputNumber min={1} max={60} style={{ width: '100%' }} placeholder="5" />
             </Form.Item>
           </Col>
         </Row>

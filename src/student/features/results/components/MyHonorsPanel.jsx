@@ -1,13 +1,31 @@
-import React from 'react';
-import { Card, List, Typography, Space, Button, Empty, Tag } from 'antd';
+import { Card, List, Typography, Space, Button, Empty, Tag, message } from 'antd';
 import { Award, Download, FileText, Star } from 'lucide-react';
+import { studentPortalService } from '../../portal/services/studentPortal.service';
 
 const { Text, Title } = Typography;
 
-const MyHonorsPanel = ({ prizes, certificates, loading }) => {
+const MyHonorsPanel = ({ prizes, certificates }) => {
   
-  const handleDownload = (url) => {
-    window.open(url, '_blank');
+  const handleDownload = async (cert) => {
+    const certId = cert.id ?? cert.certificateId ?? cert.certificate_id;
+    const url = cert.downloadUrl ?? cert.download_url;
+    if (certId) {
+      try {
+        const blob = await studentPortalService.downloadCertificate(certId, true);
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `certificate-${certId}.pdf`;
+        link.click();
+        window.URL.revokeObjectURL(blobUrl);
+        return;
+      } catch {
+        message.error('Không thể tải chứng nhận.');
+      }
+    }
+    if (url) {
+      window.open(url, '_blank');
+    }
   };
 
   return (
@@ -43,9 +61,9 @@ const MyHonorsPanel = ({ prizes, certificates, loading }) => {
                   <Space direction="vertical" size={6}>
                     <Tag color="gold" style={{ border: 'none', fontWeight: 600, padding: '2px 10px', borderRadius: 12 }}>
                       <Star size={12} style={{ marginRight: 4, position: 'relative', top: 1 }} /> 
-                      Hạng {item.rank}
+                      Hạng {item.rank ?? item.prizeRank ?? item.prize_rank ?? '—'}
                     </Tag>
-                    <Text strong style={{ fontSize: 16 }}>{item.prizeName}</Text>
+                    <Text strong style={{ fontSize: 16 }}>{item.prizeName ?? item.prize_name}</Text>
                   </Space>
                 </Card>
               </List.Item>
@@ -67,7 +85,7 @@ const MyHonorsPanel = ({ prizes, certificates, loading }) => {
           <div style={{ padding: 8, background: 'var(--ant-color-success)', borderRadius: 12, display: 'flex' }}>
             <FileText size={20} color="#fff" />
           </div>
-          <Title level={4} style={{ margin: 0, color: 'var(--ant-color-success-text)' }}>Giấy Chứng Nhận</Title>
+          <Title level={4} style={{ margin: 0, color: 'var(--ant-color-success-text)' }}>Giấy chứng nhận</Title>
         </Space>
 
         {certificates.length === 0 ? (
@@ -83,7 +101,8 @@ const MyHonorsPanel = ({ prizes, certificates, loading }) => {
                   <Button 
                     type="primary" 
                     icon={<Download size={16} />} 
-                    onClick={() => handleDownload(cert.downloadUrl)}
+                    onClick={() => handleDownload(cert)}
+                    disabled={!(cert.downloadUrl ?? cert.download_url ?? cert.id ?? cert.certificateId)}
                     style={{ background: 'var(--ant-color-success)', borderColor: 'var(--ant-color-success)', borderRadius: 8, fontWeight: 600 }}
                   >
                     Tải PDF
@@ -92,7 +111,12 @@ const MyHonorsPanel = ({ prizes, certificates, loading }) => {
               >
                 <List.Item.Meta
                   title={<span style={{ fontWeight: 600 }}>{cert.hackathonName}</span>}
-                  description={<Text type="secondary">Cấp ngày: {new Date(cert.issuedAt).toLocaleDateString('vi-VN')}</Text>}
+                  description={
+                    <Text type="secondary">
+                      Cấp ngày: {new Date(cert.issuedAt ?? cert.issued_at).toLocaleDateString('vi-VN')}
+                      {!(cert.downloadUrl ?? cert.download_url) ? ' · Chưa sẵn sàng tải xuống' : ''}
+                    </Text>
+                  }
                 />
               </List.Item>
             )}

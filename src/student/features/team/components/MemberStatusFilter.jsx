@@ -1,4 +1,4 @@
-import { Segmented, Space, Typography, theme } from 'antd';
+import { Segmented, Typography, theme } from 'antd';
 import { MEMBER_STATUS } from '../constants/studentTeam.constants';
 
 const { Text } = Typography;

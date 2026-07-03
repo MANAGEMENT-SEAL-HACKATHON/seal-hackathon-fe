@@ -1,5 +1,5 @@
 // src/student/features/submission/components/FinalSubmissionPanel.jsx
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, Form, Input, Button, Typography, Tag, Space, Alert, Row, Col, Spin, Upload, Modal, message } from 'antd';
 import {
   CloudUploadOutlined,
@@ -23,13 +23,26 @@ const formatWeight = (weight) => {
   return value <= 1 ? `${(value * 100).toFixed(0)}%` : `${value}%`;
 };
 
+const validateOptionalUrl = (_, value) => {
+  if (!value) return Promise.resolve();
+  try {
+    const url = new URL(value);
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('invalid protocol');
+    }
+    return Promise.resolve();
+  } catch {
+    return Promise.reject(new Error('Vui lòng nhập URL hợp lệ bắt đầu bằng http:// hoặc https://'));
+  }
+};
+
 // ==========================================
 // SUB-COMPONENT CHỨA TOÀN BỘ LOGIC FORM/HOOKS
 // (Đảm bảo không bị vi phạm Rule of Hooks)
 // ==========================================
 const FinalSubmissionForm = ({ 
-  finalRound, existingSubmission, isEligible, isFinalRoundActive, 
-  isAdvanced, isLocked, timeLeft, isSubmitting, submitFinalWork 
+  finalRound, existingSubmission, isEligible,
+  isLocked, timeLeft, isSubmitting, submitFinalWork 
 }) => {
   const [form] = Form.useForm();
   const [slideFile, setSlideFile] = useState(null);
@@ -238,6 +251,16 @@ const FinalSubmissionForm = ({
         />
       )}
 
+      {isSubmitted && (
+        <Alert
+          message="Bài nộp đã được ghi nhận"
+          description="Nếu bạn vừa cập nhật repo hoặc demo, hệ thống có thể cần thêm thời gian để đồng bộ và kiểm tra quyền truy cập công khai."
+          type="success"
+          showIcon
+          style={{ marginBottom: 24, borderRadius: 8 }}
+        />
+      )}
+
       <Row gutter={48}>
         <Col xs={24} lg={8}>
           <div
@@ -297,7 +320,10 @@ const FinalSubmissionForm = ({
                 maxCount={1}
                 beforeUpload={(file) => {
                   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-                  if (!isPdf) return Upload.LIST_IGNORE;
+                  if (!isPdf) {
+                    message.error('Chỉ chấp nhận file PDF cho slide thuyết trình.');
+                    return Upload.LIST_IGNORE;
+                  }
                   setSlideFile(file);
                   return false;
                 }}
@@ -327,7 +353,7 @@ const FinalSubmissionForm = ({
 
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="demoUrl" label="Link Demo Sản phẩm (Nếu có)">
+                <Form.Item name="demoUrl" label="Link Demo Sản phẩm (Nếu có)" rules={[{ validator: validateOptionalUrl }]}>
                   <Input
                     prefix={<LinkOutlined style={{ color: '#bfbfbf' }} />}
                     placeholder="https://..."
@@ -337,7 +363,7 @@ const FinalSubmissionForm = ({
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="repoUrl" label="Link Source Code (Github/Gitlab)">
+                <Form.Item name="repoUrl" label="Link Source Code (Github/Gitlab)" rules={[{ validator: validateOptionalUrl }]}>
                   <Input
                     prefix={<LinkOutlined style={{ color: '#bfbfbf' }} />}
                     placeholder="https://github.com/..."
@@ -347,7 +373,7 @@ const FinalSubmissionForm = ({
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="reportUrl" label="Link Báo cáo (Nếu có)">
+                <Form.Item name="reportUrl" label="Link Báo cáo (Nếu có)" rules={[{ validator: validateOptionalUrl }]}>
                   <Input
                     prefix={<LinkOutlined style={{ color: '#bfbfbf' }} />}
                     placeholder="https://docs.example.com/final-report"
@@ -443,7 +469,23 @@ const FinalSubmissionPanel = ({ teamId, hackathonId }) => {
     );
   }
 
-  if (!submissionData.finalRound) return null;
+  if (!submissionData.finalRound) {
+    return (
+      <Card style={{ borderRadius: 16, border: '1px solid #d9d9d9', background: '#fafafa' }}>
+        <Space align="center">
+          <ClockCircleOutlined style={{ fontSize: 24, color: '#595959' }} />
+          <div>
+            <Title level={4} style={{ margin: 0 }}>
+              Cổng nộp bài Chung kết
+            </Title>
+            <Text type="secondary">
+              Chưa có thông tin vòng Chung kết cho hackathon này. Hãy quay lại sau khi Ban tổ chức hoàn tất cấu hình.
+            </Text>
+          </div>
+        </Space>
+      </Card>
+    );
+  }
 
   if (!submissionData.isAdvanced) {
     return (
@@ -481,7 +523,23 @@ const FinalSubmissionPanel = ({ teamId, hackathonId }) => {
     );
   }
 
-  if (!submissionData.isEligible) return null;
+  if (!submissionData.isEligible) {
+    return (
+      <Card style={{ borderRadius: 16, border: '1px solid #ffe58f', background: '#fffbe6' }}>
+        <Space align="center">
+          <ClockCircleOutlined style={{ fontSize: 24, color: '#d48806' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#ad6800' }}>
+              Chưa thể nộp bài Chung kết
+            </Title>
+            <Text style={{ color: '#ad6800' }}>
+              Hệ thống đã nhận diện vòng Chung kết nhưng đội của bạn chưa đủ điều kiện nộp bài ở thời điểm hiện tại. Vui lòng kiểm tra lại sau.
+            </Text>
+          </div>
+        </Space>
+      </Card>
+    );
+  }
 
   // Nếu qua hết các bài test trên, hiển thị Form
   return <FinalSubmissionForm {...submissionData} />;

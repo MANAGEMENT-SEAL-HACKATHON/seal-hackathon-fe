@@ -15,7 +15,20 @@ import {
 export const getCurrentStudentId = () => {
   try {
     const user = JSON.parse(localStorage.getItem('userInfo') || '{}');
-    return user.userId || user.id || null;
+    const fromUser = user.userId || user.id;
+    if (fromUser != null && fromUser !== '') {
+      return toNumber(fromUser);
+    }
+    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+    if (token) {
+      const base64 = token.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/');
+      if (base64) {
+        const payload = JSON.parse(atob(base64));
+        const sub = payload.sub ?? payload.userId;
+        if (sub != null) return toNumber(sub);
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -68,7 +81,24 @@ export const mapStudentTeam = (team) => {
   const participationMeta = PARTICIPATION_STATUS_META[participationRaw] || null;
   const acceptedMembers = members.filter((member) => member.isAccepted);
   const currentMember = members.find((member) => toNumber(member.userId) === toNumber(currentStudentId));
-  const isCurrentUserLeader = toNumber(team.leaderId) === toNumber(currentStudentId);
+  const userEmail = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('userInfo') || '{}').email;
+    } catch {
+      return null;
+    }
+  })();
+  const isCurrentUserLeader =
+    toNumber(team.leaderId) === toNumber(currentStudentId) ||
+    Boolean(
+      userEmail &&
+        members.some(
+          (member) =>
+            member.roleInTeam === 'LEADER' &&
+            member.isAccepted &&
+            member.email === userEmail,
+        ),
+    );
   const isLocked = Boolean(team.isLocked);
   const formationSubmitted = Boolean(team.formationSubmittedAt);
   const isPendingTeam = team.status === TEAM_STATUS.PENDING;

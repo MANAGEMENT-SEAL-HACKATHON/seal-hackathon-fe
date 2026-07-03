@@ -6,6 +6,8 @@ export const TEAM_ERROR_MESSAGES = {
   TRACK_GROUP_FULL: 'Bảng đấu này đã đạt giới hạn tối đa số lượng đội. Vui lòng chọn bảng khác.',
   TEAM_ALREADY_IN_TRACK_THIS_ROUND: 'Đội này đã được xếp vào một bảng đấu trong vòng thi này rồi.',
   HACKATHON_NOT_ONGOING: 'Kỳ Hackathon không ở trạng thái hoạt động (ONGOING).',
+  HACKATHON_ARCHIVED: 'Kỳ Hackathon đã kết thúc — chỉ xem lịch sử, không thể thay đổi.',
+  CROSS_HACKATHON_VIOLATION: 'Đội và tài nguyên không cùng một kỳ Hackathon.',
   TEAM_ROUND_PARTICIPATION_MISSING: 'Đội thi chưa có quyền tham gia vòng này. Vui lòng bốc thăm Sơ loại trước.',
   
   // Lỗi phân công Mentor (FR-13C)

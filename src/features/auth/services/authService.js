@@ -30,6 +30,8 @@ const postOnce = (cacheKey, postFn) => {
 const buildGithubExchangeKey = (action, code, redirectUri, existingAccountPassword) =>
   JSON.stringify([action, code, redirectUri, existingAccountPassword ?? '']);
 
+export const AUTH_TOKEN_CHANGED_EVENT = 'seal:auth-token-changed';
+
 export const persistAuthTokens = (authData) => {
   const accessToken = authData?.accessToken;
   const refreshToken = authData?.refreshToken;
@@ -40,6 +42,10 @@ export const persistAuthTokens = (authData) => {
 
   if (refreshToken) {
     localStorage.setItem('refreshToken', refreshToken);
+  }
+
+  if (accessToken) {
+    window.dispatchEvent(new CustomEvent(AUTH_TOKEN_CHANGED_EVENT));
   }
 };
 
@@ -54,6 +60,34 @@ export const authService = {
 
   logout: async (refreshToken) => {
     return axiosClient.post(ENDPOINTS.AUTH.LOGOUT, { refreshToken });
+  },
+
+  logoutAll: async () => {
+    return axiosClient.post(ENDPOINTS.AUTH.LOGOUT_ALL, {});
+  },
+
+  refresh: async (refreshToken) => {
+    return axiosClient.post(ENDPOINTS.AUTH.REFRESH, { refreshToken });
+  },
+
+  forgotPassword: async (email) => {
+    return axiosClient.post(ENDPOINTS.AUTH.FORGOT_PASSWORD, { email });
+  },
+
+  resetPassword: async ({ token, newPassword, confirmPassword }) => {
+    return axiosClient.post(ENDPOINTS.AUTH.RESET_PASSWORD, {
+      token,
+      newPassword,
+      confirmPassword,
+    });
+  },
+
+  verifyEmail: async (token) => {
+    return axiosClient.post(ENDPOINTS.AUTH.VERIFY_EMAIL, { token });
+  },
+
+  resendVerification: async (email) => {
+    return axiosClient.post(ENDPOINTS.AUTH.RESEND_VERIFICATION, { email });
   },
 
   loginWithGoogle: async (idToken, existingAccountPassword) => {

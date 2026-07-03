@@ -47,8 +47,25 @@ export const mapRoundToFE = (beData) => {
     is_active: beData.isActive,
     scoring_locked: beData.scoringLocked ?? beData.scoring_locked,
     is_published: beData.isPublished ?? beData.is_published,
+    default_presentation_minutes: beData.defaultPresentationMinutes ?? null,
+    default_qa_minutes: beData.defaultQaMinutes ?? null,
   };
 };
+
+export const mapRoundCkDurationToBE = (feData) => {
+  if (!feData) return {};
+  const payload = {};
+  if (feData.default_presentation_minutes != null && feData.default_presentation_minutes !== '') {
+    payload.defaultPresentationMinutes = parseInt(feData.default_presentation_minutes, 10);
+  }
+  if (feData.default_qa_minutes != null && feData.default_qa_minutes !== '') {
+    payload.defaultQaMinutes = parseInt(feData.default_qa_minutes, 10);
+  }
+  return payload;
+};
+
+export const hasRoundCkDurationInput = (feData) =>
+  Object.keys(mapRoundCkDurationToBE(feData)).length > 0;
 
 export const mapRoundToBE = (feData) => {
   if (!feData) return null;
@@ -78,6 +95,10 @@ export const mapRoundToBE = (feData) => {
     payload.minTeamsFinal = feData.min_teams_final
       ? parseInt(feData.min_teams_final, 10)
       : null;
+  }
+
+  if (isFinal) {
+    Object.assign(payload, mapRoundCkDurationToBE(feData));
   }
 
   return payload;

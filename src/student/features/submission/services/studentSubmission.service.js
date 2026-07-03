@@ -17,7 +17,7 @@ export const studentSubmissionService = {
     reportUrl,
     lateReason,
     slideFile,
-  }) => {
+  } = {}) => {
     const formData = new FormData();
     formData.append('teamId', String(teamId));
     appendIfPresent(formData, 'trackId', trackId);

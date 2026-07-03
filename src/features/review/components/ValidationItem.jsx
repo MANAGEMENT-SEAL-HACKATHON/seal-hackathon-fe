@@ -1,4 +1,3 @@
-import React from "react";
 import { theme, Typography } from "antd";
 import { XCircle, AlertTriangle } from "lucide-react";
 

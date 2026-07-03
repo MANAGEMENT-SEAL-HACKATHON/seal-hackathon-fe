@@ -34,3 +34,21 @@ export const mapStudentScoreboard = (response) => ({
         right.score - left.score,
     ),
 });
+
+export const mapStudentLeaderboard = (response) => {
+  const items = Array.isArray(response) ? response : getItems(response);
+  return {
+    roundName: "Kết quả vòng thi",
+    publishedAt: null,
+    items: items
+      .map((item, index) => ({
+        key: String(firstDefined(item.teamId, item.team_id, item.id, index)),
+        teamName: firstDefined(item.teamName, item.team_name, item.name, `Đội ${index + 1}`),
+        rank: Number(firstDefined(item.rank, index + 1)),
+        groupLabel: "Tất cả",
+        score: Number(firstDefined(item.totalScore, item.total_score, item.score, 0)) || 0,
+        isAdvanced: false,
+      }))
+      .sort((left, right) => left.rank - right.rank || right.score - left.score),
+  };
+};

@@ -33,6 +33,16 @@ export const userService = {
   },
 
   /**
+   * Download current user's student card image (blob).
+   * GET /api/v1/users/me/student-card
+   */
+  getMyStudentCardBlob: async () => {
+    return axiosClient.get(ENDPOINTS.USERS.ME_STUDENT_CARD, {
+      responseType: 'blob',
+    });
+  },
+
+  /**
    * Admin / Coordinator: update user status to APPROVED, REJECTED or PENDING.
    * PATCH /api/v1/users/{userId}/status
    * @param {string|number} userId
@@ -82,5 +92,13 @@ export const userService = {
    */
   resendInvitation: async (invitationId) => {
     return axiosClient.post(ENDPOINTS.USERS.RESEND_INVITATION(invitationId));
+  },
+
+  /**
+   * Coordinator: search judge/mentor accounts for invite autocomplete.
+   * GET /api/v1/users/lookup/coordinator?q=
+   */
+  searchCoordinatorInviteCandidates: async (q) => {
+    return axiosClient.get(ENDPOINTS.USERS.LOOKUP_COORDINATOR, { params: { q } });
   },
 };

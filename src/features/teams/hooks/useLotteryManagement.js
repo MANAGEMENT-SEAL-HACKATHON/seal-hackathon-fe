@@ -52,10 +52,15 @@ export const useLotteryManagement = (hackathonId) => {
     fetchLotteryData();
   }, [fetchLotteryData]);
 
+  const selectedRound = useMemo(
+    () => rounds.find((r) => r.id === selectedRoundId) ?? null,
+    [rounds, selectedRoundId],
+  );
+
   const lotteryGate = useMemo(() => {
-    const reason = getLotteryGateReason(hackathon, activeTeams);
+    const reason = getLotteryGateReason(hackathon, activeTeams, selectedRound);
     return { allowed: !reason, reason };
-  }, [hackathon, activeTeams]);
+  }, [hackathon, activeTeams, selectedRound]);
 
   const handleAssignTopic = async (trackId, newTopic, currentTrackData) => {
     setIsLoading(true);

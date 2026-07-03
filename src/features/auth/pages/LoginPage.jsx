@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Form, Input, Button, message, Modal } from 'antd';
 import { MailOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone, ArrowRightOutlined, GithubOutlined } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { GoogleSocialButton } from '../components/GoogleSocialButton';
 import { ROUTES } from '../../../shared/constants/routes';
 import { authService, persistAuthTokens } from '../services/authService';
@@ -13,11 +13,13 @@ import { startGithubOAuth } from '../utils/githubOAuth';
 // ---------------------------------------------------------------------------
 const LOGIN_ERROR_MESSAGES = {
   INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',
-  ACCOUNT_PENDING: 'Tài khoản của bạn đang chờ xét duyệt. Sinh viên có thể đăng nhập và hoàn thiện hồ sơ.',
-  ACCOUNT_PENDING_NOT_ALLOWED_LOGIN: 'Tài khoản của bạn chưa được phê duyệt. Vui lòng đợi Coordinator duyệt hồ sơ.',
+  // BE trả code "ACCOUNT_PENDING" chỉ khi login bị chặn (mentor/judge chờ duyệt).
+  // Sinh viên PENDING vẫn đăng nhập được nên không rơi vào nhánh này.
+  ACCOUNT_PENDING: 'Tài khoản của bạn chưa được phê duyệt. Vui lòng đợi Coordinator duyệt hồ sơ trước khi đăng nhập.',
   REJECTED_NOT_ALLOWED_LOGIN: 'Tài khoản đã bị từ chối. Vui lòng liên hệ Coordinator để được hỗ trợ.',
   INVITATION_EXPIRED: 'Lời mời tham gia của bạn đã hết hạn.',
   TEMP_JUDGE_HACKATHON_ENDED: 'Sự kiện Hackathon đã kết thúc. Tài khoản giám khảo tạm thời không còn hiệu lực.',
+  EMAIL_NOT_VERIFIED: 'Email chưa được xác thực. Kiểm tra hộp thư hoặc gửi lại email xác thực bên dưới.',
 };
 
 const resolveLoginError = (error) => {
@@ -34,13 +36,29 @@ const resolvePostLoginRoute = (authData) => {
   return ROUTES.DASHBOARD;
 };
 
+const decodeJwtSub = (token) => {
+  try {
+    const base64 = token.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/');
+    if (!base64) return null;
+    const payload = JSON.parse(atob(base64));
+    const sub = payload.sub ?? payload.userId;
+    return sub != null ? Number(sub) : null;
+  } catch {
+    return null;
+  }
+};
+
 const persistUserInfo = (authData) => {
   try {
     const userInfo = {
       email: authData?.email || authData?.user?.email,
       status: authData?.status || authData?.user?.status,
       role: authData?.role || authData?.user?.role,
-      userId: authData?.userId || authData?.user?.userId || authData?.user?.id,
+      userId:
+        authData?.userId ||
+        authData?.user?.userId ||
+        authData?.user?.id ||
+        decodeJwtSub(authData?.accessToken),
     };
     localStorage.setItem('userInfo', JSON.stringify(userInfo));
   } catch {
@@ -53,6 +71,9 @@ const LoginPage = () => {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [pendingOAuthAction, setPendingOAuthAction] = useState(null);
   const [passwordConfirmLoading, setPasswordConfirmLoading] = useState(false);
+  const [resendEmail, setResendEmail] = useState('');
+  const [showResendVerification, setShowResendVerification] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [passwordForm] = Form.useForm();
   const navigate = useNavigate();
   const location = useLocation();
@@ -152,6 +173,22 @@ const LoginPage = () => {
     []
   );
 
+  const handleResendVerification = async () => {
+    if (!resendEmail) {
+      message.warning('Nhập email để gửi lại xác thực.');
+      return;
+    }
+    setResendLoading(true);
+    try {
+      await authService.resendVerification(resendEmail);
+      message.success('Nếu email tồn tại và chưa xác thực, chúng tôi đã gửi lại link.');
+    } catch (error) {
+      message.error(error?.message || 'Không gửi được email xác thực.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const onFinish = async (values) => {
     setLoading(true);
     try {
@@ -174,6 +211,11 @@ const LoginPage = () => {
       navigate(destination);
     } catch (error) {
       console.error('Login error:', error);
+      const code = error?.code || error?.data?.error?.code;
+      if (code === 'EMAIL_NOT_VERIFIED') {
+        setShowResendVerification(true);
+        setResendEmail(values.email);
+      }
       message.error(resolveLoginError(error));
     } finally {
       setLoading(false);
@@ -309,9 +351,9 @@ const LoginPage = () => {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ color: '#4b5563', fontSize: '12px', fontWeight: '600', letterSpacing: '0.5px' }}>MẬT KHẨU</span>
-              <a href="#" style={{ color: '#0072ff', fontSize: '12px', textDecoration: 'none', fontWeight: '600' }}>
+              <Link to={ROUTES.FORGOT_PASSWORD} style={{ color: '#0072ff', fontSize: '12px', textDecoration: 'none', fontWeight: '600' }}>
                 Quên mật khẩu?
-              </a>
+              </Link>
             </div>
             <Form.Item
               name="password"
@@ -392,6 +434,19 @@ const LoginPage = () => {
                 Đăng ký ngay
               </a>
             </div>
+            {showResendVerification && (
+              <div style={{ marginTop: 16, padding: 12, background: '#fffbeb', borderRadius: 12, border: '1px solid #fde68a' }}>
+                <div style={{ fontSize: 13, color: '#92400e', marginBottom: 8 }}>
+                  Chưa nhận email xác thực?
+                </div>
+                <Button block loading={resendLoading} onClick={handleResendVerification}>
+                  Gửi lại email xác thực
+                </Button>
+                <Button type="link" block onClick={() => navigate(ROUTES.VERIFY_EMAIL)}>
+                  Mở trang xác thực email
+                </Button>
+              </div>
+            )}
           </Form>
         </div>
       </main>

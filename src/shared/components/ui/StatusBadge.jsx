@@ -1,15 +1,16 @@
-import React from 'react';
 import { Tag } from 'antd';
+import LiveRecordIndicator from './LiveRecordIndicator';
+import './LiveRecordIndicator.css';
 
 const StatusBadge = ({ status }) => {
   const getStatusConfig = (status) => {
     switch (status?.toUpperCase()) {
       case 'DRAFT':
-        return { color: 'default', text: 'Nháp' };
+        return { color: 'warning', text: 'Nháp', bold: true };
       case 'PUBLISHED':
         return { color: 'blue', text: 'Đã công bố' };
       case 'ONGOING':
-        return { color: 'green', text: 'Đang diễn ra' };
+        return { color: 'error', text: 'Đang diễn ra', live: true, bold: true };
       case 'FINISHED':
         return { color: 'orange', text: 'Đã hoàn thành' };
       case 'OPEN':
@@ -33,9 +34,22 @@ const StatusBadge = ({ status }) => {
     }
   };
 
-  const { color, text } = getStatusConfig(status);
+  const { color, text, bold, live } = getStatusConfig(status);
 
-  return <Tag color={color}>{text}</Tag>;
+  return (
+    <Tag
+      color={color}
+      style={{
+        fontWeight: bold ? 700 : undefined,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+      }}
+    >
+      {live ? <LiveRecordIndicator size={8} /> : null}
+      {text}
+    </Tag>
+  );
 };
 
 export default StatusBadge;

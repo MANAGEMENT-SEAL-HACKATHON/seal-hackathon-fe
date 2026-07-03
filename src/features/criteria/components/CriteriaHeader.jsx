@@ -1,5 +1,4 @@
-import React from "react";
-import { Space, Select, Typography, Switch, Card, theme } from "antd";
+import { Space, Select, Typography, Card, theme } from "antd";
 
 const { Title, Text } = Typography;
 const { Option } = Select;

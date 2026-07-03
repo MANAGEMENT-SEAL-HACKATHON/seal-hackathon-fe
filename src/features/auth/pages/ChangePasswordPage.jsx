@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Form, Input, Button, message, Card } from 'antd';
-import { LockOutlined, EyeInvisibleOutlined, EyeTwoTone, ArrowRightOutlined } from '@ant-design/icons';
+import { Form, Input, Button, message } from 'antd';
+import { LockOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { ROUTES } from '../../../shared/constants/routes';

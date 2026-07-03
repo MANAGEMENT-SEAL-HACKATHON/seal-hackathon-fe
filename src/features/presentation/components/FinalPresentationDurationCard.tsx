@@ -116,7 +116,7 @@ const FinalPresentationDurationCard: React.FC<Props> = ({ roundId, timerStarted 
               name="presentationMinutes"
               rules={[{ required: true, message: 'Nhập số phút' }]}
             >
-              <InputNumber min={1} max={120} style={{ width: '100%' }} disabled={timerStarted} />
+              <InputNumber min={1} max={60} style={{ width: '100%' }} disabled={timerStarted} />
             </Form.Item>
             <Form.Item
               label="Q&A (phút)"

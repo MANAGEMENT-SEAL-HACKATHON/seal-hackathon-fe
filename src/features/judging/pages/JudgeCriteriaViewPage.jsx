@@ -155,7 +155,7 @@ const JudgeCriteriaViewPage = () => {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
         <FileTextOutlined style={{ fontSize: 24, color: '#1677ff', marginRight: 12 }} />
-        <Title level={2} style={{ margin: 0 }}>Từ điển Tiêu chí Đánh giá</Title>
+        <Title level={2} style={{ margin: 0 }}>Từ điển tiêu chí đánh giá</Title>
       </div>
 
       <Card style={{ borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>

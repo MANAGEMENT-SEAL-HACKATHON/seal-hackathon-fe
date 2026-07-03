@@ -38,6 +38,10 @@ export const trackService = {
     });
   },
 
+  releaseProblem: async (id) => {
+    return axiosClient.patch(ENDPOINTS.TRACKS.RELEASE_PROBLEM(id));
+  },
+
   // Dành riêng cho việc gán Topic bằng PATCH
   updateTopic: async (id, topicStr) => {
     // API: PATCH /api/v1/tracks/{id} Body: { "topic": "..." }

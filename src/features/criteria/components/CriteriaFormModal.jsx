@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { Modal, Form, Input, InputNumber, Select, theme } from "antd";
 import { CRITERIA_TYPE_OPTIONS } from "../constants/criteria.constants";
 
@@ -33,7 +33,7 @@ export const CriteriaFormModal = ({
           const v = await form.validateFields();
           onFinish(v);
           form.resetFields();
-        } catch {}
+        } catch { /* validation errors shown by form */ }
       }}
       onCancel={() => {
         form.resetFields();

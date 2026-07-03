@@ -109,7 +109,7 @@ const RegisterPage = () => {
         password: values.password,
         confirmPassword: values.confirmPassword,
       });
-      message.success('Đăng ký thành công! Vui lòng đăng nhập để hoàn thiện hồ sơ.');
+      message.success('Đăng ký thành công! Kiểm tra email để xác thực tài khoản trước khi đăng nhập.');
       navigate(ROUTES.LOGIN);
     } catch (error) {
       console.error('Register error:', error);
@@ -219,7 +219,7 @@ const RegisterPage = () => {
             lineHeight: 1.5,
           }}>
             <strong>Quy trình mới:</strong> Đăng ký chỉ cần Email + Mật khẩu.
-            Sau khi đăng nhập bạn sẽ điền thông tin hồ sơ và tải thẻ sinh viên để chờ Coordinator duyệt.
+            Kiểm tra email để xác thực tài khoản, sau đó đăng nhập và hoàn thiện hồ sơ để chờ Coordinator duyệt.
           </div>
 
           <Form

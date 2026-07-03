@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Table, Button, Space, Popconfirm, message, Card, Spin, Alert } from 'antd';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import TrackFormModal from '../components/TrackFormModal';
@@ -6,7 +6,8 @@ import StatusBadge from '../../../shared/components/ui/StatusBadge';
 import { trackService } from '../services/trackService';
 import { roundService } from '../../rounds/services/roundService';
 import { mapRoundToFE } from '../../rounds/mappers/roundMapper';
-import { mapTrackToFE, mapTrackToBE } from '../mappers/trackMapper';
+import { mapTrackToFE, mapTrackToBE, mapTrackDurationToBE, formatTrackDurationLabel, hasTrackDurationInput, isTrackDurationCleared, trackHasDurationOverride } from '../mappers/trackMapper';
+import { presentationService } from '../../judging/services/presentationService';
 
 const TrackManagementPage = ({ hackathonId }) => {
   const [tracks, setTracks] = useState([]);
@@ -28,7 +29,7 @@ const TrackManagementPage = ({ hackathonId }) => {
           try {
             const detail = await roundService.getById(r.id);
             return mapRoundToFE(detail);
-          } catch (e) {
+          } catch (_e) {
             return mapRoundToFE(r);
           }
         })
@@ -84,19 +85,30 @@ const TrackManagementPage = ({ hackathonId }) => {
       const { problem_file: problemFileListValue, ...trackValues } = values;
       const payload = mapTrackToBE(trackValues);
       let trackId = editingTrack?.id;
+      const roundIdForCreate = editingTrack?.round_id ?? prelimRounds[0]?.id;
+      const roundId = editingTrack ? editingTrack.round_id : roundIdForCreate;
 
       if (editingTrack) {
         await trackService.update(editingTrack.id, payload);
         trackId = editingTrack.id;
+        if (trackHasDurationOverride(editingTrack) && isTrackDurationCleared(trackValues)) {
+          await presentationService.clearTrackOverride(roundId, trackId);
+        }
         message.success('Đã cập nhật bảng đấu');
       } else {
-        const created = await trackService.createByRound(values.round_id, payload);
+        const createPayload = { ...payload };
+        delete createPayload.presentationMinutes;
+        delete createPayload.qaMinutes;
+        const created = await trackService.createByRound(roundIdForCreate, createPayload);
         trackId = created.id;
+        if (hasTrackDurationInput(trackValues)) {
+          // PUT yêu cầu đủ field bắt buộc (name, min/max team size), không chỉ duration.
+          await trackService.update(trackId, payload);
+        }
         message.success('Đã thêm bảng đấu');
       }
 
       const problemFile = problemFileListValue?.[0]?.originFileObj ?? problemFileListValue?.[0];
-      const roundId = editingTrack?.round_id ?? values.round_id;
       const roundReleased = rounds.find((r) => r.id === roundId)?.problem_released_at;
       if (problemFile && trackId && !roundReleased) {
         try {
@@ -141,6 +153,13 @@ const TrackManagementPage = ({ hackathonId }) => {
       title: 'Thành viên / đội',
       key: 'team_size',
       render: (_, record) => `${record.min_team_size || '-'} - ${record.max_team_size || '-'} người`,
+    },
+    {
+      title: 'Timer TT / Q&A',
+      key: 'presentation_duration',
+      render: (_, record) => (
+        <span style={{ fontSize: 12 }}>{formatTrackDurationLabel(record)}</span>
+      ),
     },
     {
       title: 'Đề bài',

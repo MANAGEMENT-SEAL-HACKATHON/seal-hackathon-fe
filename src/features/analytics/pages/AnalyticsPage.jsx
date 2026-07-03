@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Typography, Alert, Button, Table, Tag, Space, Spin, Row, Col, Progress, message } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DownloadOutlined, SyncOutlined, FileExcelOutlined, LockOutlined } from '@ant-design/icons';
@@ -101,7 +101,7 @@ const AnalyticsPage = ({ hackathonId, hackathon, rounds }) => {
             const res = await analyticsService.getExportJobStatus(job.id);
             const jobData = res?.data || res;
             return jobData || job;
-          } catch (e) {
+          } catch (_e) {
             return { ...job, status: 'FAILED', errorMessage: 'Mất kết nối' };
           }
         }
@@ -149,7 +149,7 @@ const AnalyticsPage = ({ hackathonId, hackathon, rounds }) => {
     return (
       <Card style={{ textAlign: 'center', padding: '60px 20px', borderRadius: 16, border: '1px solid #ffccc7', background: '#fff2f0' }}>
         <LockOutlined style={{ fontSize: 48, color: '#cf1322', marginBottom: 16 }} />
-        <Title level={3} style={{ color: '#cf1322', margin: 0 }}>Dữ liệu Phân tích đang khóa</Title>
+        <Title level={3} style={{ color: '#cf1322', margin: 0 }}>Dữ liệu phân tích đang khóa</Title>
         <Text style={{ color: '#cf1322', fontSize: 16, display: 'block', marginTop: 12 }}>
           Tính năng Dashboard RBL và Xuất dữ liệu (Export) chỉ khả dụng khi Hackathon ở trạng thái <strong>Đã hoàn thành (FINISHED)</strong>.
         </Text>

@@ -1,8 +1,9 @@
 // src/features/judging/components/JudgeSidebarQueue.jsx
 import React from 'react';
 import { Card, Typography, List, Tag } from 'antd';
-import { PlayCircleOutlined, CheckCircleFilled, ClockCircleOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, ClockCircleOutlined } from '@ant-design/icons';
 import { formatJudgeQueueTeamLabel } from '../utils/liveScoringUtils';
+import LiveRecordIndicator from '../../../shared/components/ui/LiveRecordIndicator';
 
 const { Text } = Typography;
 
@@ -49,15 +50,33 @@ const JudgeSidebarQueue = ({
           const isPresenting = item.status === 'PRESENTING';
           const isDone = item.status === 'DONE';
           const myPersonalScore = myScores[String(subId)];
+          const isScored = Boolean(myPersonalScore) || isDone;
+          const isUnscored = !isScored && !isPresenting;
           const teamLabel = formatJudgeQueueTeamLabel(item);
+
+          let rowBackground = '#fff';
+          let rowBorder = '4px solid transparent';
+          if (isSelected) {
+            rowBackground = '#eff6ff';
+            rowBorder = '4px solid #2563eb';
+          } else if (isScored) {
+            rowBackground = '#f0fdf4';
+            rowBorder = '4px solid #22c55e';
+          } else if (isUnscored) {
+            rowBackground = '#fef2f2';
+            rowBorder = '4px solid #fca5a5';
+          } else if (isPresenting) {
+            rowBackground = '#fff7ed';
+            rowBorder = '4px solid #fb923c';
+          }
 
           return (
             <div
               style={{
                 padding: '16px 20px',
                 borderBottom: '1px solid #f1f5f9',
-                background: isSelected ? '#eff6ff' : isDone ? '#f8fafc' : '#fff',
-                borderLeft: isSelected ? '4px solid #2563eb' : '4px solid transparent',
+                background: rowBackground,
+                borderLeft: rowBorder,
                 transition: 'all 0.3s ease',
               }}
             >
@@ -83,7 +102,13 @@ const JudgeSidebarQueue = ({
                     strong
                     style={{
                       fontSize: 14,
-                      color: isSelected ? '#1d4ed8' : isDone ? '#94a3b8' : '#1e293b',
+                      color: isSelected
+                        ? '#1d4ed8'
+                        : isScored
+                          ? '#166534'
+                          : isUnscored
+                            ? '#b91c1c'
+                            : '#1e293b',
                       textDecoration: isDone ? 'line-through' : 'none',
                     }}
                   >
@@ -109,18 +134,31 @@ const JudgeSidebarQueue = ({
                     </Tag>
                   ) : isPresenting ? (
                     <Tag
-                      color="blue"
-                      icon={<PlayCircleOutlined />}
-                      style={{ borderRadius: 6, fontWeight: 700, margin: 0, fontSize: 11 }}
+                      style={{
+                        borderRadius: 6,
+                        fontWeight: 700,
+                        margin: 0,
+                        fontSize: 11,
+                        background: '#fef2f2',
+                        color: '#b91c1c',
+                        border: '1px solid #fecaca',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
                     >
+                      <LiveRecordIndicator size={8} />
                       LIVE
                     </Tag>
                   ) : isDone ? (
                     <CheckCircleFilled style={{ color: '#10b981', fontSize: 16 }} />
                   ) : (
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      <ClockCircleOutlined /> Chờ
-                    </Text>
+                    <Tag
+                      color="error"
+                      style={{ borderRadius: 6, fontWeight: 700, margin: 0, fontSize: 11 }}
+                    >
+                      Chưa chấm
+                    </Tag>
                   )}
                 </div>
               </div>

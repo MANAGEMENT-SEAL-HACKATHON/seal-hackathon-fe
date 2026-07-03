@@ -18,7 +18,9 @@ const JudgeDashboardPage = () => {
       try {
         const info = JSON.parse(localStorage.getItem('userInfo') || '{}');
         setUserProfile(info);
-      } catch (e) {}
+      } catch {
+        // ignore stale localStorage
+      }
     };
     window.addEventListener('userInfoUpdated', handleUserInfoUpdated);
     return () => window.removeEventListener('userInfoUpdated', handleUserInfoUpdated);

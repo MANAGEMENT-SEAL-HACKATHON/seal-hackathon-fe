@@ -30,7 +30,7 @@ export const useCriteriaManagement = (hackathonId) => {
           try {
             const detail = await roundService.getById(r.id);
             return mapRoundToFE(detail);
-          } catch (e) {
+          } catch (_e) {
             return mapRoundToFE(r);
           }
         }),
@@ -38,7 +38,7 @@ export const useCriteriaManagement = (hackathonId) => {
       setRounds(fullRounds);
       setTracks((tracksRes || []).map(mapTrackToFE));
       setIsDataLoaded(true);
-    } catch (err) {
+    } catch (_err) {
       message.error("Lỗi khi tải dữ liệu Vòng thi/Bảng đấu");
     } finally {
       setIsLoading(false);
@@ -214,6 +214,29 @@ export const useCriteriaManagement = (hackathonId) => {
     [currentRound, selectedRoundId, selectedTrackId, fetchCriteria],
   );
 
+  const handleApplyStandardCriteria = useCallback(
+    async (itemsData, replaceExisting = false) => {
+      setIsLoading(true);
+      try {
+        if (replaceExisting && currentCriteria.length > 0) {
+          await Promise.all(currentCriteria.map((c) => criteriaService.delete(c.id)));
+        }
+        if (currentRound?.is_final) {
+          await criteriaService.createBatchForFinalRound(selectedRoundId, itemsData);
+        } else {
+          await criteriaService.createBatchForTrack(selectedTrackId, itemsData);
+        }
+        message.success("Đã áp dụng bộ tiêu chí chuẩn");
+        fetchCriteria();
+      } catch (error) {
+        message.error("Không thể áp dụng tiêu chí chuẩn");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [currentRound, selectedRoundId, selectedTrackId, currentCriteria, fetchCriteria],
+  );
+
   const handleDeleteCriteria = useCallback(
     async (id) => {
       setIsLoading(true);
@@ -249,13 +272,14 @@ export const useCriteriaManagement = (hackathonId) => {
     handleCloneCriteria,
     handleSaveCriteria,
     handleBatchSaveCriteria,
+    handleApplyStandardCriteria,
     deleteCriteria: handleDeleteCriteria,
     updateRound: async (id, data) => {
       try {
         await roundService.update(id, data);
         message.success("Cập nhật trạng thái vòng thi thành công");
         fetchBaseData();
-      } catch (err) {
+      } catch (_err) {
         message.error("Lỗi khi cập nhật vòng thi");
       }
     },

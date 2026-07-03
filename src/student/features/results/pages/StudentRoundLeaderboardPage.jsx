@@ -11,7 +11,9 @@ const StudentRoundLeaderboardPage = ({ roundId: roundIdProp, source = "public" }
   const params = useParams();
   const roundId = roundIdProp || params.roundId || params.id;
   const { scoreboard, isLoading, error, fetchScoreboard } = useStudentRoundResults(roundId, source);
-  const notPublished = error?.code === "RESULT_NOT_PUBLISHED" || error?.response?.data?.code === "RESULT_NOT_AVAILABLE" || error?.status === 403 || error?.status === 422 || error?.response?.status === 422;
+  const notPublished =
+    error?.code === "RESULT_NOT_PUBLISHED" ||
+    error?.data?.error?.code === "RESULT_NOT_PUBLISHED";
 
   if (!roundId) {
     return <Alert showIcon type="warning" message="Thiếu roundId" description="Trang kết quả cần roundId để tải scoreboard." />;

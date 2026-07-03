@@ -6,7 +6,6 @@ import {
   MenuFoldOutlined, 
   MenuUnfoldOutlined, 
   SearchOutlined, 
-  BellOutlined, 
   SettingOutlined, 
   QuestionCircleOutlined,
   LogoutOutlined,
@@ -16,14 +15,17 @@ import {
   LinkOutlined
 } from '@ant-design/icons';
 import {
-  LayoutDashboard, Trophy, Users, Activity, BarChart3, Settings, HelpCircle,
-  Mail, CalendarClock, AlertTriangle, CheckCheck, UserCheck, UserPlus, User,
-  FileText, ClipboardCheck, History
+  LayoutDashboard, Trophy, Users, HelpCircle,
+  UserCheck, UserPlus, User,
+  FileText, ClipboardCheck, History, CheckSquare, BarChart3, Settings
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../constants/routes';
 import { useAppContext } from '../../../app/AppContext';
 import SocialLinkManager from '../../../features/auth/components/SocialLinkManager';
+import { useCoordinatorTodos } from '../../../features/notifications/hooks/useCoordinatorTodos';
+import { authService } from '../../../features/auth/services/authService';
+import NotificationBell from '../ui/NotificationBell';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -93,34 +95,46 @@ const MainLayout = ({ children }) => {
   // PHÂN LUỒNG MENU DỰA VÀO ROLE
   const userRole = currentUser?.role;
   const isCoordinatorOrAdmin = userRole === 'COORDINATOR' || userRole === 'ADMIN';
+
+  const { items: todoItems, total: todoTotal } = useCoordinatorTodos(isCoordinatorOrAdmin);
+  const latePendingCount = todoItems.find((item) => item.key === 'late-submissions')?.count ?? 0;
+
   let menuItems;
 
   if (userRole === 'COORDINATOR' || userRole === 'ADMIN') {
     menuItems = [
       { key: ROUTES.DASHBOARD, icon: <LayoutDashboard size={18} />, label: 'Tổng quan' },
       { key: ROUTES.PROFILE, icon: <User size={18} />, label: 'Trang cá nhân' },
-      { key: ROUTES.HACKATHONS, icon: <Trophy size={18} />, label: 'Cấu hình Sự kiện' },
-      { key: ROUTES.GLOBAL_TEAMS, icon: <Users size={18} />, label: 'Quản lý Đội thi' },
-      { key: ROUTES.COORDINATOR_LATE_SUBMISSIONS, icon: <ClipboardCheck size={18} />, label: 'Duyệt nộp muộn' },
+      { key: ROUTES.HACKATHONS, icon: <Trophy size={18} />, label: 'Cấu hình sự kiện' },
+      { key: ROUTES.GLOBAL_TEAMS, icon: <Users size={18} />, label: 'Quản lý đội thi' },
+      { key: ROUTES.COORDINATOR_ANALYTICS, icon: <BarChart3 size={18} />, label: 'Phân tích & dữ liệu' },
+      { key: ROUTES.COORDINATOR_FINAL_CONFIG, icon: <Settings size={18} />, label: 'Cấu hình chung kết' },
+      {
+        key: ROUTES.COORDINATOR_LATE_SUBMISSIONS,
+        icon: <ClipboardCheck size={18} />,
+        label: (
+          <Badge count={latePendingCount || 0} size="small" offset={[10, 0]} showZero={false}>
+            <span>Duyệt nộp muộn</span>
+          </Badge>
+        ),
+      },
       { key: ROUTES.PRESENTATION_QUEUE, icon: <History size={18} />, label: 'Hàng đợi thuyết trình' },
       { key: ROUTES.USER_APPROVAL, icon: <UserCheck size={18} />, label: 'Duyệt tài khoản' },
       { key: ROUTES.TEMP_JUDGES, icon: <UserPlus size={18} />, label: 'Giám khảo khách' },
-      { key: 'monitor', icon: <Activity size={18} />, label: 'Giám sát Real-time' },
-      { key: 'analytics', icon: <BarChart3 size={18} />, label: 'Phân tích dữ liệu' },
-      { key: 'settings', icon: <Settings size={18} />, label: 'Cài đặt Hệ thống' },
     ];
   } else if (userRole === 'JUDGE' || userRole === 'TEMP_JUDGE') {
     menuItems = [
       { key: ROUTES.JUDGE_DASHBOARD, icon: <LayoutDashboard size={18} />, label: 'Tổng quan' },
       // THÊM MENU PHÒNG CHẤM THI VÀO ĐÂY
-      { key: '/judge/assignments', icon: <ClipboardCheck size={18} />, label: 'Phòng Chấm Thi' },
-      { key: ROUTES.JUDGE_CRITERIA, icon: <FileText size={18} />, label: 'Tiêu chí Đánh giá' },
+      { key: '/judge/assignments', icon: <ClipboardCheck size={18} />, label: 'Phòng chấm thi' },
+      { key: ROUTES.JUDGE_CRITERIA, icon: <FileText size={18} />, label: 'Tiêu chí đánh giá' },
       { key: ROUTES.PROFILE, icon: <User size={18} />, label: 'Trang cá nhân' },
     ];
   } else if (userRole === 'MENTOR') {
     menuItems = [
       { key: ROUTES.DASHBOARD, icon: <LayoutDashboard size={18} />, label: 'Overview' },
       { key: ROUTES.MENTOR_ROUNDS, icon: <Users size={18} />, label: 'Support Teams' },
+      { key: ROUTES.MENTOR_HISTORY, icon: <History size={18} />, label: 'Lịch sử mentor' },
       { key: ROUTES.PRESENTATION_QUEUE, icon: <History size={18} />, label: 'Presentation Queue' },
       { key: ROUTES.PROFILE, icon: <User size={18} />, label: 'Profile' },
     ];
@@ -139,15 +153,20 @@ const MainLayout = ({ children }) => {
 
   const bottomMenuItems = [
     { key: 'help', icon: <HelpCircle size={18} />, label: 'Trung tâm Hỗ trợ' },
+    { key: 'logout-all', icon: <LogoutOutlined />, label: 'Đăng xuất tất cả thiết bị' },
     { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true },
   ];
 
+  const clearSessionAndRedirect = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userInfo');
+    navigate(ROUTES.LOGIN);
+  };
+
   const handleMenuClick = ({ key }) => {
     if (isMobile) setDrawerVisible(false);
-    // Bỏ qua các key dùng tạm làm UI (chưa có route thật)
-    if (key !== 'monitor' && key !== 'analytics' && key !== 'settings') {
-      navigate(key);
-    }
+    navigate(key);
   };
 
   const handleBottomMenuClick = async ({ key }) => {
@@ -161,76 +180,62 @@ const MainLayout = ({ children }) => {
       } catch (error) {
         console.error('Logout error:', error);
       } finally {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        navigate(ROUTES.LOGIN);
+        clearSessionAndRedirect();
+      }
+    }
+    if (key === 'logout-all') {
+      try {
+        await authService.logoutAll();
+      } catch (error) {
+        console.error('Logout all error:', error);
+      } finally {
+        clearSessionAndRedirect();
       }
     }
   };
 
-  // UI Helpers cho Notification
-  const unreadCount = notifications.filter(n => !n.is_read).length;
-
-  const getNotifConfig = (type) => {
-    switch(type) {
-      case 'INVITATION': return { icon: <Mail size={16} color={token.colorPrimary} />, bg: darkMode ? '#111a2c' : '#e6f4ff' };
-      case 'REMINDER': return { icon: <CalendarClock size={16} color={token.colorSuccess} />, bg: darkMode ? '#11211b' : '#f6ffed' };
-      case 'WARNING': return { icon: <AlertTriangle size={16} color={token.colorWarning} />, bg: darkMode ? '#272015' : '#fffbe6' };
-      default: return { icon: <BellOutlined style={{color: token.colorPrimary}}/>, bg: darkMode ? '#111a2c' : '#e6f4ff' };
-    }
-  };
-
-  const notificationContent = (
-    <div style={{ width: 340 }}>
-      <div style={{ padding: '8px 0', borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text strong>Thông báo hệ thống</Text>
-        <Button type="link" size="small" onClick={() => markAsRead('ALL')} disabled={unreadCount === 0} icon={<CheckCheck size={14} />}>
-          Đã đọc tất cả
-        </Button>
+  // UI Helpers
+  const todoContent = (
+    <div style={{ width: 300 }}>
+      <div style={{ padding: '8px 0', borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
+        <Text strong>Việc cần làm</Text>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {notifications.length === 0 ? (
-          <div style={{ padding: '24px 0', textAlign: 'center', color: token.colorTextDisabled }}>
-            Không có thông báo mới
-          </div>
-        ) : (
-          notifications.slice(0, 5).map(item => {
-            const config = getNotifConfig(item.type);
-            return (
-              <div 
-                key={item.id}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'flex-start',
-                  padding: '12px 8px', 
-                  cursor: 'pointer', 
-                  opacity: item.is_read ? 0.6 : 1, 
-                  transition: 'background 0.3s', 
-                  borderRadius: 6 
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = token.colorBgTextHover}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                onClick={() => markAsRead(item.id)}
-              >
-                <Avatar 
-                  style={{ backgroundColor: config.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: 12 }} 
-                  icon={config.icon} 
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: item.is_read ? 400 : 600, color: token.colorText, marginBottom: 4 }}>
-                    {item.title}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>{item.description}</Text>
-                    <Text type="secondary" style={{ fontSize: 11, marginTop: 4 }}>{item.time}</Text>
-                  </div>
-                </div>
-                {!item.is_read && <div style={{ width: 8, height: 8, borderRadius: '50%', background: token.colorPrimary, marginLeft: 8, marginTop: 6, flexShrink: 0 }} />}
+      {todoItems.length === 0 ? (
+        <div style={{ padding: '20px 0', textAlign: 'center', color: token.colorTextDisabled }}>
+          Không có việc cần làm
+        </div>
+      ) : (
+        todoItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div
+              key={item.key}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(item.route)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') navigate(item.route);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 8px',
+                cursor: 'pointer',
+                borderRadius: 6,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = token.colorBgTextHover; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Icon size={16} />
+                <Text>{item.label}</Text>
               </div>
-            );
-          })
-        )}
-      </div>
+              <Badge count={item.count} showZero style={{ backgroundColor: item.count > 0 ? token.colorWarning : token.colorTextDisabled }} />
+            </div>
+          );
+        })
+      )}
     </div>
   );
 
@@ -262,7 +267,7 @@ const MainLayout = ({ children }) => {
       
       {(!collapsed || isMobile) && (userRole === 'COORDINATOR' || userRole === 'ADMIN') && (
         <div style={{ padding: '0 16px 24px' }}>
-          <Button type="primary" icon={<PlusOutlined />} block size="large" style={{ height: 48, borderRadius: 8, fontWeight: 600 }} onClick={() => { if(isMobile) setDrawerVisible(false); navigate(ROUTES.HACKATHON_CREATE); }}>Tạo Sự kiện Mới</Button>
+          <Button type="primary" icon={<PlusOutlined />} block size="large" style={{ height: 48, borderRadius: 8, fontWeight: 600 }} onClick={() => { if(isMobile) setDrawerVisible(false); navigate(ROUTES.HACKATHON_CREATE); }}>Tạo sự kiện mới</Button>
         </div>
       )}
       
@@ -314,6 +319,18 @@ const MainLayout = ({ children }) => {
               }} onClick={() => navigate('/support-center')}>
                 <HelpCircle size={18} />
                 <span>Support Center</span>
+              </div>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px', 
+                fontSize: '14px', 
+                color: '#6B7280',
+                cursor: 'pointer',
+                padding: '6px 0'
+              }} onClick={() => handleBottomMenuClick({ key: 'logout-all' })}>
+                <LogoutOutlined style={{ fontSize: '18px' }} />
+                <span>Logout all devices</span>
               </div>
               <div style={{ 
                 display: 'flex', 
@@ -395,11 +412,18 @@ const MainLayout = ({ children }) => {
           
           <Space size={isMobile ? 8 : 20}>
             {isMobile && <Button type="text" icon={<SearchOutlined style={{ fontSize: 20 }} />} />}
-            <Popover content={notificationContent} trigger="click" placement="bottomRight" arrow={false}>
-              <Badge count={unreadCount} offset={[-4, 4]}>
-                <Button type="text" icon={<BellOutlined style={{ fontSize: 20 }} />} />
-              </Badge>
-            </Popover>
+            {isCoordinatorOrAdmin && (
+              <Popover content={todoContent} trigger="click" placement="bottomRight" arrow={false}>
+                <Badge count={todoTotal} offset={[-4, 4]} showZero={false}>
+                  <Button type="text" icon={<CheckSquare size={20} />} title="Việc cần làm" />
+                </Badge>
+              </Popover>
+            )}
+            <NotificationBell
+              notifications={notifications}
+              markAsRead={markAsRead}
+              darkMode={darkMode}
+            />
             <Button 
               type="text" 
               icon={darkMode ? <SunOutlined style={{ fontSize: 20 }} /> : <MoonOutlined style={{ fontSize: 20 }} />} 

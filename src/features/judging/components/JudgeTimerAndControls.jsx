@@ -4,7 +4,7 @@ import { Card, Typography, Space, Button, Modal, Spin, Popconfirm, Divider } fro
 import { 
   ClockCircleOutlined, GithubOutlined, FilePdfOutlined, TeamOutlined, 
   PlayCircleOutlined, PauseCircleOutlined, MessageOutlined, StepForwardOutlined,
-  GlobalOutlined 
+  GlobalOutlined, ReloadOutlined
 } from '@ant-design/icons';
 import { judgeService } from '../services/judgeService';
 import toast from 'react-hot-toast';
@@ -125,6 +125,25 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
               <Popconfirm title="Chốt sổ và gọi đội kế tiếp?" onConfirm={() => handleTimerAction('NEXT')} okText="Chuyển đội" cancelText="Hủy" okButtonProps={{ danger: true }}>
                 <Button type="primary" danger icon={<StepForwardOutlined />} loading={isTimerActionLoading} style={{ fontWeight: 800, width: '100%', marginTop: 8, minHeight: 48, borderRadius: 10, fontSize: 15 }}>
                   Kết Thúc & Gọi Đội Kế Tiếp
+                </Button>
+              </Popconfirm>
+            )}
+
+            {localTimerPhase !== 'IDLE' && localTimerPhase !== 'SETUP' && (
+              <Popconfirm
+                title="Reset timer về trạng thái chờ?"
+                description="Slot đang thuyết trình sẽ về IDLE. Chỉ dùng khi điều phối nhầm."
+                onConfirm={() => handleTimerAction('RESET')}
+                okText="Reset"
+                cancelText="Hủy"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  icon={<ReloadOutlined />}
+                  loading={isTimerActionLoading}
+                  style={{ fontWeight: 700, width: '100%', minHeight: 44, borderRadius: 10 }}
+                >
+                  Reset Timer
                 </Button>
               </Popconfirm>
             )}

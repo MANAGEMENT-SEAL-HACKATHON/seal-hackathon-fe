@@ -9,7 +9,7 @@ import { mapHackathonToFE } from '../../hackathons/mappers/hackathonMapper';
 import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
 import { EVENT_TYPE_LABELS, UNIQUE_EVENT_TYPES } from '../utils/eventTypeRules';
 
-export const useEventManagement = (hackathonId, addNotification) => {
+export const useEventManagement = (hackathonId, refreshNotifications) => {
   const [events, setEvents] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [currentHackathon, setCurrentHackathon] = useState(null);
@@ -126,12 +126,10 @@ export const useEventManagement = (hackathonId, addNotification) => {
         const payload = mapEventToBE(values);
         await eventService.create(hackathonId, payload);
         message.success('Đã tạo sự kiện thành công!');
-        
-        addNotification({
-          type: 'REMINDER',
-          title: 'Đã lên lịch sự kiện',
-          description: `Hệ thống đã tự động lên lịch nhắc nhở cho sự kiện: ${values.title}`
-        });
+
+        if (typeof refreshNotifications === 'function') {
+          await refreshNotifications();
+        }
         notification.info({
           message: 'Đã lên lịch nhắc nhở',
           description: `Sự kiện ${values.title} đã được thêm vào lịch trình.`,

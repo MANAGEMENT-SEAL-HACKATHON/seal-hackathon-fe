@@ -17,8 +17,7 @@ import {
 } from '@ant-design/icons';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import StudentDashboardPage from '../student/dashboard/pages/StudentDashboardPage';
-import { useAppContext } from './AppContext';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { ROUTES } from '../shared/constants/routes';
 
 const { Title, Text } = Typography;
@@ -76,7 +75,7 @@ const CoordinatorDashboard = () => {
       <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
         <Col xs={24} sm={12} lg={6}>
           <StatCard 
-            title="Tổng Lượt Đăng Ký" 
+            title="Tổng lượt đăng ký" 
             value="1,248" 
             trend={12} 
             icon={<UserAddOutlined />} 
@@ -85,7 +84,7 @@ const CoordinatorDashboard = () => {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard 
-            title="Nhóm Đang Hoạt Động" 
+            title="Nhóm đang hoạt động" 
             value="312" 
             trend={5} 
             icon={<TeamOutlined />} 
@@ -94,7 +93,7 @@ const CoordinatorDashboard = () => {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard 
-            title="Tỷ Lệ Nộp Bài" 
+            title="Tỷ lệ nộp bài" 
             value="84.5%" 
             trend={0} 
             icon={<SendOutlined />} 
@@ -103,7 +102,7 @@ const CoordinatorDashboard = () => {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard 
-            title="Tiến Độ Chấm Điểm" 
+            title="Tiến độ chấm điểm" 
             value="42/150" 
             trend={-2} 
             icon={<RocketOutlined />} 
@@ -117,7 +116,7 @@ const CoordinatorDashboard = () => {
           <Card 
             title={
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Tình Trạng Sự Kiện (Thời gian thực)</span>
+                <span>Tình trạng sự kiện (thời gian thực)</span>
                 <Button type="text" icon={<MoreOutlined />} />
               </div>
             }
@@ -152,12 +151,12 @@ const CoordinatorDashboard = () => {
           </Card>
         </Col>
         <Col xs={24} lg={6}>
-          <Card title="Thao Tác Nhanh" style={{ borderRadius: 16, height: '100%' }}>
+          <Card title="Thao tác nhanh" style={{ borderRadius: 16, height: '100%' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[
-                { title: 'Thêm Giám Khảo', icon: <UserAddOutlined />, color: '#1677ff' },
-                { title: 'Gửi Thông Báo', icon: <SendOutlined />, color: '#52c41a' },
-                { title: 'Quản Lý Vai Trò', icon: <TeamOutlined />, color: '#faad14' },
+                { title: 'Thêm giám khảo', icon: <UserAddOutlined />, color: '#1677ff' },
+                { title: 'Gửi thông báo', icon: <SendOutlined />, color: '#52c41a' },
+                { title: 'Quản lý vai trò', icon: <TeamOutlined />, color: '#faad14' },
               ].map((item, index) => (
                 <div 
                   key={index}

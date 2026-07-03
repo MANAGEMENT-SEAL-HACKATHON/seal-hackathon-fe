@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Tabs, Badge, Space, Typography, theme } from "antd";
 import {
   LayoutGrid,

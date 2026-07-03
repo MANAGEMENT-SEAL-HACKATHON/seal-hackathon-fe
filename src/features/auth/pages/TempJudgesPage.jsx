@@ -4,19 +4,20 @@ import {
   Typography, Tooltip, Empty, message, Alert
 } from 'antd';
 import {
-  UserAddOutlined, MailOutlined, BankOutlined, CalendarOutlined,
+  UserAddOutlined, BankOutlined,
   SendOutlined, CheckCircleOutlined, ExclamationCircleOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import UserInviteAutoComplete, { personnelSecondaryLine } from '../../../shared/components/ui/UserInviteAutoComplete';
 import { userService } from '../services/userService';
-import { useAppContext } from '../../../app/AppContext';
+import { hackathonService } from '../../hackathons/services/hackathonService';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
 const TempJudgesPage = () => {
-  const { hackathons } = useAppContext();
+  const [hackathons, setHackathons] = useState([]);
   const [judges, setJudges] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,7 +31,7 @@ const TempJudgesPage = () => {
 
   const saveInvitationMap = (map) => {
     setInvitationMap(map);
-    try { localStorage.setItem('tempJudgeInvitationMap', JSON.stringify(map)); } catch {}
+    try { localStorage.setItem('tempJudgeInvitationMap', JSON.stringify(map)); } catch { /* ignore quota */ }
   };
 
   const fetchTempJudges = async () => {
@@ -63,8 +64,19 @@ const TempJudgesPage = () => {
     }
   };
 
+  const fetchHackathons = async () => {
+    try {
+      const res = await hackathonService.search({ size: 100 });
+      const dataArray = res?.items || res?.content || res;
+      setHackathons(Array.isArray(dataArray) ? dataArray : []);
+    } catch (error) {
+      console.error('Fetch hackathons error:', error);
+    }
+  };
+
   useEffect(() => {
     fetchTempJudges();
+    fetchHackathons();
   }, []);
 
   const handleCreate = async (values) => {
@@ -259,7 +271,7 @@ const TempJudgesPage = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <Title level={2} style={{ margin: 0, background: 'linear-gradient(90deg, #ff4d4f, #ff7875)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Quản lý Giám khảo khách mời
+              Quản lý giám khảo khách mời
             </Title>
             <Text type="secondary">Tạo lời mời cho các chuyên gia chấm thi ngoài hệ thống và quản lý hạn của thư mời.</Text>
           </div>
@@ -270,7 +282,7 @@ const TempJudgesPage = () => {
               onClick={() => setIsModalOpen(true)}
               style={{ borderRadius: '12px', backgroundColor: '#ff4d4f', borderColor: '#ff4d4f' }}
             >
-              Mời Giám khảo mới
+              Mời giám khảo mới
             </Button>
             <Button
               type="default"
@@ -312,7 +324,7 @@ const TempJudgesPage = () => {
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item
             name="fullName"
-            label="Họ và tên Giám khảo"
+            label="Họ và tên giám khảo"
             rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
           >
             <Input prefix={<UserAddOutlined style={{ color: '#ff4d4f' }} />} placeholder="VD: TS. Nguyễn Văn A" style={{ borderRadius: '10px' }} />
@@ -320,13 +332,22 @@ const TempJudgesPage = () => {
 
           <Form.Item
             name="email"
-            label="Địa chỉ Email"
-            rules={[
-              { required: true, message: 'Vui lòng nhập email!' },
-              { type: 'email', message: 'Email không hợp lệ!' }
-            ]}
+            label="Địa chỉ email"
+            rules={[{ required: true, message: 'Chọn hoặc nhập email từ gợi ý.' }]}
           >
-            <Input prefix={<MailOutlined style={{ color: '#ff4d4f' }} />} placeholder="VD: judge@example.com" style={{ borderRadius: '10px' }} />
+            <UserInviteAutoComplete
+              placeholder="Tìm theo email hoặc tên..."
+              searchFn={userService.searchCoordinatorInviteCandidates}
+              getSecondaryLine={personnelSecondaryLine}
+              onUserSelect={(user) => {
+                form.setFieldsValue({
+                  fullName: user.fullName || user.full_name,
+                  email: user.email,
+                  institution: user.institution || form.getFieldValue('institution'),
+                });
+              }}
+              inputStyle={{ borderRadius: '10px' }}
+            />
           </Form.Item>
 
           <Form.Item
