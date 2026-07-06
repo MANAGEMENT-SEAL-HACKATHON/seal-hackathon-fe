@@ -1,4 +1,3 @@
-// src/features/judging/pages/LiveScoringPage.jsx
 import React from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Row, Col, Typography, Button, Spin, Layout, Space, Tag, Avatar } from 'antd';
@@ -16,6 +15,7 @@ import LiveRecordIndicator from '../../../shared/components/ui/LiveRecordIndicat
 const { Title, Text } = Typography;
 const { Header, Content } = Layout;
 
+// Cấu hình Sticky (Ghim cứng) của đồng đội bạn cho cột 3 (Timer)
 const STICKY_TOP = 160;
 const stickyColumnStyle = {
   position: 'sticky',
@@ -67,9 +67,9 @@ const LiveScoringPage = () => {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f4f7fe' }}>
+    <Layout style={{ height: '100vh', overflow: 'hidden', background: '#f4f7fe' }}>
       
-      {/* HEADER FIXED: Chỉnh lại layout Flex, reset margin/line-height để không bị tràn lề */}
+      {/* HEADER FIXED */}
       <Header style={{ 
         background: '#ffffff', 
         padding: '0 24px', 
@@ -82,7 +82,7 @@ const LiveScoringPage = () => {
         lineHeight: 1,
         boxShadow: '0 4px 20px rgba(0,0,0,0.03)', 
         position: 'sticky', 
-        top: 72,
+        top: 0, // Đã fix lại thành top 0 để header luôn nằm trên cùng
         zIndex: 100,
       }}>
         {/* KHU VỰC BÊN TRÁI: Nút Back + Tiêu đề */}
@@ -150,6 +150,8 @@ const LiveScoringPage = () => {
 
       <Content style={{ padding: '32px', maxWidth: 1600, margin: '0 auto', width: '100%' }}>
         <Row gutter={32} align="stretch">
+          
+          {/* CỘT 1: HÀNG ĐỢI (Danh sách đội) - Kết hợp Sticky của Upstream */}
           <Col xs={24} lg={6} style={{ display: 'flex', flexDirection: 'column', ...stickyColumnStyle }}>
              <JudgeSidebarQueue
                queue={scoringLogic.trackQueue}
@@ -159,10 +161,14 @@ const LiveScoringPage = () => {
              />
           </Col>
 
+          {/* CỘT 2: KHÔNG GIAN CHẤM ĐIỂM (WORKSPACE) */}
           <Col xs={24} lg={12} style={{ display: 'flex', flexDirection: 'column' }}>
-             <JudgeScoringWorkspace logic={scoringLogic} />
+             <div style={{ flex: 1, overflowY: 'auto', borderRadius: 20, paddingBottom: 24, height: `calc(100vh - ${STICKY_TOP}px)` }}>
+               <JudgeScoringWorkspace logic={scoringLogic} />
+             </div>
           </Col>
 
+          {/* CỘT 3: ĐỒNG HỒ VÀ CHECKLIST - Kết hợp Sticky của Upstream */}
           <Col xs={24} lg={6} style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start' }}>
             <div style={timerPinnedStyle}>
               <JudgeTimerAndControls logic={scoringLogic} isFinal={isFinal} />
@@ -181,6 +187,7 @@ const LiveScoringPage = () => {
               />
             </div>
           </Col>
+          
         </Row>
       </Content>
     </Layout>
