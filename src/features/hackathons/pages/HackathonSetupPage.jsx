@@ -1,13 +1,7 @@
-// src/features/hackathons/pages/HackathonSetupPage.jsx
-import React, { useState, useCallback } from 'react';
-<<<<<<< Updated upstream
-import { Card, Tabs, Typography, Button } from 'antd';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-=======
-import { Card, Tabs, Typography, Select, Space, Button, Alert, Row, Col, List, Tag } from 'antd';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Card, Tabs, Typography, Space, Button, Alert, Row, Col, List, Tag } from 'antd';
 import { CheckCircleFilled, MinusCircleFilled, ExclamationCircleFilled, SyncOutlined } from '@ant-design/icons';
-import { useParams, useNavigate } from 'react-router-dom';
->>>>>>> Stashed changes
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../../../shared/components/ui/PageHeader';
 import TrackManagementPage from '../../tracks/pages/TrackManagementPage';
 import RoundManagementPage from '../../rounds/pages/RoundManagementPage';
@@ -27,7 +21,11 @@ import HackathonGeneralConfig from '../components/HackathonGeneralConfig';
 import HackathonSetupChecklist from '../components/HackathonSetupChecklist';
 import { useReadiness } from '../../review/hooks/useReadiness';
 
-<<<<<<< Updated upstream
+// IMPORT TRANG MỚI CỦA BẠN
+import AnalyticsPage from '../../analytics/pages/AnalyticsPage';
+import FinalRoundConfigPage from '../../coordinator/pages/FinalRoundConfigPage';
+
+// Kết hợp các Tabs hợp lệ của cả 2 nhánh
 const VALID_TABS = new Set([
   'general',
   'rounds',
@@ -37,42 +35,29 @@ const VALID_TABS = new Set([
   'people',
   'events',
   'review',
+  'analytics',
+  'final-config',
 ]);
-=======
-// 1. IMPORT TRANG ANALYTICS MỚI
-import AnalyticsPage from '../../analytics/pages/AnalyticsPage.jsx';
-import FinalRoundConfigPage from '../../coordinator/pages/FinalRoundConfigPage';
->>>>>>> Stashed changes
 
 const getValidTab = (tab) => (VALID_TABS.has(tab) ? tab : 'tracks');
 
 const HackathonSetupPage = () => {
   const { hackathonId } = useParams();
   const navigate = useNavigate();
+  // Logic đồng bộ Tab lên URL từ Upstream
   const [searchParams, setSearchParams] = useSearchParams();
+  
   const [hackathon, setHackathon] = useState(null);
   const [rounds, setRounds] = useState([]);
   const [tracksCount, setTracksCount] = useState(0);
   const [eventsCount, setEventsCount] = useState(0);
   const [loading, setLoading] = useState(true);
-<<<<<<< Updated upstream
   const [activeTab, setActiveTab] = useState(() => getValidTab(searchParams.get('tab')));
 
+  // Từ Upstream
   const { readinessData } = useReadiness(hackathonId);
 
-  const changeTab = useCallback((nextTab) => {
-    if (nextTab === '_divider') return;
-    const tab = getValidTab(nextTab);
-    setActiveTab(tab);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('tab', tab);
-    setSearchParams(nextParams, { replace: true });
-  }, [searchParams, setSearchParams]);
-=======
-  const [selectedRoundId, setSelectedRoundId] = useState(null);
-  const [activeTab, setActiveTab] = useState('tracks');
-
-  // --- BẮT ĐẦU: LOGIC TO-DO LIST ---
+  // --- BẮT ĐẦU: LOGIC TO-DO LIST TỪ STASHED CỦA BẠN ---
   const [readiness, setReadiness] = useState(null);
   const [loadingReadiness, setLoadingReadiness] = useState(false);
 
@@ -90,7 +75,7 @@ const HackathonSetupPage = () => {
   }, [hackathonId]);
 
   // TỰ ĐỘNG CẬP NHẬT 1: Mỗi khi chuyển Tab, tự động gọi API lấy trạng thái mới nhất
-  React.useEffect(() => {
+  useEffect(() => {
     fetchReadiness();
   }, [fetchReadiness, activeTab]);
 
@@ -115,7 +100,7 @@ const HackathonSetupPage = () => {
 
   const prelimStatus = getTodoStatus(['PRELIM', 'TRACK']); 
   const finalStatus = getTodoStatus(['FINAL']); 
-  let criteriaStatus = getTodoStatus(['CRITERIA', 'WEIGHT']); // Bắt mọi mã lỗi có chứa chữ CRITERIA
+  let criteriaStatus = getTodoStatus(['CRITERIA', 'WEIGHT']); 
   const eventStatus = getTodoStatus(['KICKOFF', 'EVENT']);
 
   // VÁ LỖI XANH ẢO: Phụ thuộc dây chuyền
@@ -130,7 +115,16 @@ const HackathonSetupPage = () => {
     { title: 'Sự kiện Khai mạc', status: eventStatus, desc: 'Cần lên lịch sự kiện Kickoff.' }
   ];
   // --- KẾT THÚC LOGIC TO-DO LIST ---
->>>>>>> Stashed changes
+
+  // Hàm chuyển Tab kết hợp lưu URL
+  const changeTab = useCallback((nextTab) => {
+    if (nextTab === '_divider') return;
+    const tab = getValidTab(nextTab);
+    setActiveTab(tab);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('tab', tab);
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const refreshHackathon = useCallback(async () => {
     try {
@@ -144,7 +138,7 @@ const HackathonSetupPage = () => {
     }
   }, [hackathonId, fetchReadiness]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -179,7 +173,7 @@ const HackathonSetupPage = () => {
     fetchData();
   }, [hackathonId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const urlTab = getValidTab(searchParams.get('tab'));
     if (urlTab !== activeTab) {
       setActiveTab(urlTab);
@@ -227,7 +221,6 @@ const HackathonSetupPage = () => {
     {
       key: 'tracks',
       label: 'Bảng đấu',
-      // Thêm prop onUpdated để nó có thể gọi refreshHackathon (nếu component con có hỗ trợ)
       children: <TrackManagementPage hackathonId={hackathon.id} onUpdated={refreshHackathon} />,
     },
     {
@@ -238,11 +231,7 @@ const HackathonSetupPage = () => {
     {
       key: 'criteria',
       label: 'Tiêu chí đánh giá',
-<<<<<<< Updated upstream
-      children: <CriteriaManagementPage hackathonId={hackathon.id} />,
-=======
       children: <CriteriaManagementPage hackathonId={hackathon.id} onUpdated={refreshHackathon} />, 
->>>>>>> Stashed changes
     },
     {
       key: 'people',
@@ -251,16 +240,6 @@ const HackathonSetupPage = () => {
     },
     {
       key: 'events',
-<<<<<<< Updated upstream
-      label: 'Lịch trình & sự kiện',
-      children: <EventManagementPage hackathonId={hackathon.id} />,
-    },
-    {
-      key: 'review',
-      label: 'Đánh giá & kiểm tra',
-      children: activeTab === 'review' ? <ReviewValidatePage hackathonId={hackathon.id} /> : null,
-    },
-=======
       label: 'Lịch trình & Sự kiện',
       children: <EventManagementPage hackathonId={hackathon.id} onUpdated={refreshHackathon} />,
     },
@@ -279,7 +258,6 @@ const HackathonSetupPage = () => {
       label: 'Cấu hình Chung kết',
       children: null, 
     }
->>>>>>> Stashed changes
   ];
 
   return (
@@ -290,7 +268,7 @@ const HackathonSetupPage = () => {
         onBack={() => navigate(ROUTES.HACKATHONS)}
       />
 
-<<<<<<< Updated upstream
+      {/* Component từ Upstream */}
       <HackathonSetupChecklist
         rounds={rounds}
         tracksCount={tracksCount}
@@ -300,56 +278,6 @@ const HackathonSetupPage = () => {
         onStepClick={changeTab}
       />
 
-      <style>{`
-        .hackathon-setup-tabs .ant-tabs-nav::before {
-          border-bottom: 1px solid #e8edf5 !important;
-        }
-        .hackathon-setup-tabs .ant-tabs-tab {
-          font-size: 13px !important;
-          font-weight: 600 !important;
-          color: #8fa3bf !important;
-        }
-        .hackathon-setup-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
-          color: #0f3d8a !important;
-          font-weight: 700 !important;
-        }
-        .hackathon-setup-tabs .ant-tabs-ink-bar {
-          background: #0f3d8a !important;
-        }
-        .hackathon-setup-tabs .ant-tabs-tab-disabled {
-          cursor: default !important;
-          padding-left: 4px !important;
-          padding-right: 4px !important;
-        }
-        .hackathon-setup-card.ant-card {
-          border: 1px solid #e8edf5 !important;
-          box-shadow: 0 1px 6px rgba(15,61,138,0.05) !important;
-        }
-        .hackathon-setup-card .ant-card-body {
-          padding: 0 24px !important;
-        }
-      `}</style>
-
-      <Card
-        bordered={false}
-        className="hackathon-setup-card"
-        style={{
-          borderRadius: 12,
-          border: '1px solid #e8edf5',
-          boxShadow: '0 1px 6px rgba(15,61,138,0.05)',
-          marginBottom: undefined,
-        }}
-        bodyStyle={{ padding: '0 24px' }}
-      >
-        <Tabs
-          destroyInactiveTabPane
-          activeKey={activeTab}
-          items={items}
-          onChange={changeTab}
-          className="hackathon-setup-tabs"
-        />
-      </Card>
-=======
       <Row gutter={24}>
         <Col xs={24} xl={17}>
           <Alert
@@ -381,6 +309,11 @@ const HackathonSetupPage = () => {
             .hackathon-setup-tabs .ant-tabs-ink-bar {
               background: #0f3d8a !important;
             }
+            .hackathon-setup-tabs .ant-tabs-tab-disabled {
+              cursor: default !important;
+              padding-left: 4px !important;
+              padding-right: 4px !important;
+            }
             .hackathon-setup-card.ant-card {
               border: 1px solid #e8edf5 !important;
               box-shadow: 0 1px 6px rgba(15,61,138,0.05) !important;
@@ -400,13 +333,16 @@ const HackathonSetupPage = () => {
               destroyInactiveTabPane
               activeKey={activeTab}
               items={items}
-              onChange={setActiveTab}
+              onChange={changeTab}
               className="hackathon-setup-tabs"
             />
           </Card>
+          
+          {/* Logic render bên ngoài Tabs của nhánh bạn */}
           {activeTab === 'final-config' && <FinalRoundConfigPage hackathonId={hackathon.id} />}
         </Col>
 
+        {/* CỘT PHẢI - CHECKLIST KHỞI ĐỘNG TỪ NHÁNH BẠN */}
         <Col xs={24} xl={7}>
           <Card
             title={
@@ -460,7 +396,6 @@ const HackathonSetupPage = () => {
           </Card>
         </Col>
       </Row>
->>>>>>> Stashed changes
     </div>
   );
 };
