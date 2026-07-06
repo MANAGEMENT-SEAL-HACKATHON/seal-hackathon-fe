@@ -46,5 +46,12 @@ export const trackService = {
   updateTopic: async (id, topicStr) => {
     // API: PATCH /api/v1/tracks/{id} Body: { "topic": "..." }
     return axiosClient.patch(ENDPOINTS.TRACKS.DETAIL(id), { topic: topicStr });
+  },
+
+  // ==========================================
+  // TASK 19: API PHÁT ĐỀ CHO TỪNG TRACK
+  // ==========================================
+  releaseProblem: async (id) => {
+    return axiosClient.patch(`/api/v1/tracks/${id}/release-problem`);
   }
 };

@@ -9,9 +9,9 @@ import {
   Spin,
   message,
   theme,
-  Radio,
   Table,
   Tag,
+  Segmented
 } from "antd";
 import axiosClient from "../../../shared/api/axiosClient";
 import { ENDPOINTS } from "../../../shared/api/endpoints";
@@ -55,10 +55,13 @@ export const CriteriaCloneModal = ({
   const [sourceRounds, setSourceRounds] = useState([]);
   const [trackCloneSources, setTrackCloneSources] = useState([]);
   const [selectedHackathonId, setSelectedHackathonId] = useState(null);
+  
   const [cloneSourceId, setCloneSourceId] = useState(null);
   const [cloneSourceType, setCloneSourceType] = useState("TRACK");
   const [replaceExisting, setReplaceExisting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // State quản lý Source Mode và Preview của đồng đội bạn
   const [sourceMode, setSourceMode] = useState("clone");
   const [previewItems, setPreviewItems] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -104,6 +107,7 @@ export const CriteriaCloneModal = ({
       fetchRoundsForFinal(selectedHackathonId);
   }, [selectedHackathonId, visible, currentRound]);
 
+  // Logic gọi API lấy preview của đồng đội bạn
   useEffect(() => {
     if (!visible || sourceMode !== "clone" || !cloneSourceId) {
       setPreviewItems([]);
@@ -173,6 +177,7 @@ export const CriteriaCloneModal = ({
   };
 
   const handleOk = () => {
+    // Gọi hàm xử lý backend chuẩn từ đồng đội của bạn
     if (sourceMode === "standard") {
       onApplyStandard?.(replaceExisting);
       return;
@@ -194,7 +199,7 @@ export const CriteriaCloneModal = ({
     <Modal
       title={
         <span style={{ fontSize: 18, fontWeight: 600 }}>
-          Sao chép / áp dụng tiêu chí
+          Sao chép / Áp dụng Tiêu chí đánh giá
         </span>
       }
       open={visible}
@@ -212,19 +217,22 @@ export const CriteriaCloneModal = ({
       styles={{ content: { borderRadius: 16 } }}
     >
       <div style={{ paddingTop: 8 }}>
-        <Radio.Group
-          value={sourceMode}
-          onChange={(e) => {
-            setSourceMode(e.target.value);
-            setCloneSourceId(null);
-          }}
-          style={{ marginBottom: 20 }}
-          optionType="button"
-          buttonStyle="solid"
-        >
-          <Radio.Button value="clone">Sao chép từ mùa trước</Radio.Button>
-          <Radio.Button value="standard">Tiêu chí chuẩn hệ thống</Radio.Button>
-        </Radio.Group>
+        
+        {/* TASK 17: DÙNG SEGMENTED TẠO CẢM GIÁC HIỆN ĐẠI CHO GIAO DIỆN (Trộn code 2 bên) */}
+        <div style={{ marginBottom: 20 }}>
+          <Segmented
+            block
+            options={[
+              { label: 'Sao chép từ Lịch sử (Mùa trước)', value: 'clone' },
+              { label: 'Tiêu chí Chuẩn (Hệ thống)', value: 'standard' },
+            ]}
+            value={sourceMode}
+            onChange={(val) => {
+              setSourceMode(val);
+              setCloneSourceId(null);
+            }}
+          />
+        </div>
 
         <div
           style={{
@@ -276,6 +284,7 @@ export const CriteriaCloneModal = ({
           </div>
         </div>
 
+        {/* NẾU CHỌN TỪ LỊCH SỬ THÌ HIỂN THỊ DROPDOWN CHỌN */}
         {sourceMode === "clone" && (
           <Spin spinning={isLoading}>
             <div style={{ marginBottom: 20 }}>
@@ -348,7 +357,7 @@ export const CriteriaCloneModal = ({
                           value={`ROUND_${r.id}`}
                           disabled={isSameRound}
                         >
-                          Vòng Chung kết: {r.name}
+                          🏆 Vòng Chung kết: {r.name}
                         </Option>
                       );
                     })
@@ -370,14 +379,14 @@ export const CriteriaCloneModal = ({
             type="info"
             showIcon
             style={{ marginBottom: 16, borderRadius: 8 }}
-            message="Bộ tiêu chí chuẩn SEAL"
-            description="4 tiêu chí mặc định (tổng trọng số = 1.0): 2 kỹ thuật + 2 kỹ năng mềm. Xem preview bên dưới trước khi áp dụng."
+            message="Bộ tiêu chí chuẩn hệ thống"
+            description="Các tiêu chí mặc định giúp đánh giá dự án đồng đều. Xem preview bên dưới trước khi áp dụng."
           />
         )}
 
         <div style={{ marginBottom: 16 }}>
           <Text strong style={{ display: "block", marginBottom: 8 }}>
-            Preview tiêu chí
+            👀 Xem trước danh sách Tiêu chí
             {sourceMode === "clone" && cloneSourceId ? " (nguồn đã chọn)" : ""}
           </Text>
           <Table
@@ -408,6 +417,7 @@ export const CriteriaCloneModal = ({
             }
           />
         )}
+
       </div>
     </Modal>
   );

@@ -1,11 +1,11 @@
-// src/features/rounds/ranking/pages/RoundRankingPreviewPage.jsx
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Alert, Button, Space } from "antd";
 import PageHeader from "../../../shared/components/ui/PageHeader";
+// Upstream update path imports
 import EliminateTeamModal from "../../teams/components/EliminateTeamModal";
 import { useEliminateTeam } from "../../teams/hooks/useEliminateTeam";
-import { roundService } from "../services/roundService";
+import { roundService } from "../../rounds/services/roundService";
 import RankingPreviewPanel from "../components/RankingPreviewPanel";
 import RankingRealtimeToolbar from "../components/RankingRealtimeToolbar";
 import { useRankMovement } from "../hooks/useRankMovement";
@@ -40,6 +40,9 @@ const RoundRankingPreviewPage = ({
 
   const { isEliminating, eliminatingTeamId, eliminateTeam } = useEliminateTeam();
   const movements = useRankMovement(visibleItems);
+
+  // Lấy dữ liệu tiebreak từ backend thay vì tự đếm (Logic Upstream)
+  const tiebreakCount = summary?.tiebreakCount || 0;
 
   useEffect(() => {
     if (canEliminateProp !== undefined || !roundId) return undefined;
@@ -111,12 +114,18 @@ const RoundRankingPreviewPage = ({
         description="Điểm và thứ hạng có thể tiếp tục thay đổi cho đến khi Coordinator khóa chấm. Đội bị loại vi phạm được xếp cuối bảng; các đội còn lại được cập nhật hạng tự động. Cảnh báo đồng điểm ở màn này chưa phải kết quả tiebreak chính thức."
       />
 
-      {summary.tiebreakCount > 0 && (
+      {/* HIỂN THỊ CẢNH BÁO TIEBREAK (Giữ format UI của bạn, dùng data của Upstream) */}
+      {tiebreakCount > 0 && (
         <Alert
           type="warning"
           showIcon
-          message={`Có ${summary.tiebreakCount} đội nguy cơ đồng điểm`}
-          description="Một hoặc nhiều đội đang có điểm sát ranh giới thăng hạng. Sau khi khóa chấm, hãy xử lý tiebreak tại tab Kết quả nếu cần."
+          message={
+            <span style={{ fontWeight: 600, fontSize: 15 }}>
+              Phát hiện tranh chấp thứ hạng ({tiebreakCount} đội)
+            </span>
+          }
+          description={`Hệ thống phát hiện đang có ${tiebreakCount} đội bị trùng điểm số và thứ hạng. Vui lòng sử dụng tính năng "Tiebreak" hoặc xem xét lại điểm số trước khi Chốt sổ để phân định rõ ràng.`}
+          style={{ border: '1px solid #fde047', background: '#fefce8' }}
         />
       )}
 

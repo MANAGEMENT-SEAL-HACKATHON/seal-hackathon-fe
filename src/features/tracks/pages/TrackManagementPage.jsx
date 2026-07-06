@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Table, Button, Space, Popconfirm, message, Card, Spin, Alert } from 'antd';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Send } from 'lucide-react'; // Đã import thêm icon Send
 import TrackFormModal from '../components/TrackFormModal';
 import StatusBadge from '../../../shared/components/ui/StatusBadge';
 import { trackService } from '../services/trackService';
@@ -15,6 +15,9 @@ const TrackManagementPage = ({ hackathonId }) => {
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingTrack, setEditingTrack] = useState(null);
+  
+  // TASK 19: State quản lý loading khi đang bấm nút Phát đề
+  const [releasingTrackId, setReleasingTrackId] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -76,6 +79,23 @@ const TrackManagementPage = ({ hackathonId }) => {
     } catch (error) {
       message.error(error.message || 'Không xóa được bảng đấu');
       setLoading(false);
+    }
+  };
+
+  // ==========================================
+  // TASK 19: HÀM XỬ LÝ PHÁT ĐỀ THI
+  // ==========================================
+  const handleReleaseProblem = async (track) => {
+    try {
+      setReleasingTrackId(track.id);
+      await trackService.releaseProblem(track.id);
+      message.success(`Đã phát đề thi thành công cho bảng đấu: ${track.name}`);
+      await fetchData(); // Cập nhật lại giao diện sau khi phát đề
+    } catch (error) {
+      const errorMsg = error?.response?.data?.message || error?.response?.data?.error?.message || error.message;
+      message.error(errorMsg || 'Không thể phát đề thi. Vòng thi có thể chưa kích hoạt.');
+    } finally {
+      setReleasingTrackId(null);
     }
   };
 
@@ -177,6 +197,56 @@ const TrackManagementPage = ({ hackathonId }) => {
       key: 'status',
       render: (status) => <StatusBadge status={status} />,
     },
+    // ==========================================
+    // TASK 19: CỘT PHÁT ĐỀ TỪNG BẢNG ĐẤU
+    // ==========================================
+    {
+      title: 'Phát đề',
+      key: 'release',
+      align: 'center',
+      render: (_, record) => {
+        // Kiểm tra xem đã upload file chưa
+        const hasProblem = record.problem_statement_filename || record.problem_statement_url;
+        // Kiểm tra xem đã được phát trước đó chưa
+        const isReleased = record.is_released || record.problem_released_at;
+        
+        if (isReleased) {
+          return (
+            <span style={{ color: '#16a34a', fontWeight: 600, fontSize: 13 }}>
+              ✓ Đã phát
+            </span>
+          );
+        }
+
+        return (
+          <Popconfirm
+            title="Xác nhận phát đề thi"
+            description="Sinh viên trong bảng này sẽ ngay lập tức nhận được đề thi. Xác nhận phát?"
+            onConfirm={() => handleReleaseProblem(record)}
+            okText="Phát"
+            cancelText="Hủy"
+            disabled={!hasProblem}
+          >
+            <Button 
+              type="primary" 
+              size="small" 
+              icon={<Send size={14} style={{ marginRight: 4 }} />} 
+              disabled={!hasProblem}
+              loading={releasingTrackId === record.id}
+              style={{ 
+                background: hasProblem ? '#2563eb' : undefined, 
+                fontSize: 13, 
+                display: 'inline-flex', 
+                alignItems: 'center',
+                borderRadius: 6 
+              }}
+            >
+              Phát đề
+            </Button>
+          </Popconfirm>
+        );
+      }
+    },
     {
       title: 'Thao tác',
       key: 'actions',
@@ -214,7 +284,7 @@ const TrackManagementPage = ({ hackathonId }) => {
         showIcon
         style={{ marginBottom: 16 }}
         message="Bảng đấu (chủ đề thi)"
-        description={<span style={{ fontSize: 12 }}>Chỉ thêm trong vòng Sơ loại. Mỗi bảng đấu cần bộ tiêu chí riêng và file PDF đề bài riêng.</span>}
+        description={<span style={{ fontSize: 12 }}>Chỉ thêm trong vòng Sơ loại. Mỗi bảng đấu cần bộ tiêu chí riêng và file PDF đề bài riêng. Bấm "Phát đề" để mở quyền truy cập tài liệu cho sinh viên.</span>}
       />
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
         <Button 
