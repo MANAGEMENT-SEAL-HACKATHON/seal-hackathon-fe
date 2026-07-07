@@ -1,8 +1,8 @@
-// src/features/judging/components/JudgeSidebarQueue.jsx
 import React from 'react';
 import { Card, Typography, List, Tag } from 'antd';
 import { CheckCircleFilled, ClockCircleOutlined } from '@ant-design/icons';
 import { formatJudgeQueueTeamLabel } from '../utils/liveScoringUtils';
+// Đồng đội của bạn đã tạo Component LiveRecordIndicator cực xịn!
 import LiveRecordIndicator from '../../../shared/components/ui/LiveRecordIndicator';
 
 const { Text } = Typography;
@@ -37,6 +37,10 @@ const JudgeSidebarQueue = ({
           borderTopRightRadius: 20,
           borderBottom: '1px solid #e2e8f0',
           padding: '16px 20px',
+          // TASK 22: Giữ lại thuộc tính ghim cứng Header của chúng ta
+          position: 'sticky',
+          top: 0,
+          zIndex: 2,
         },
         body: { padding: 0, overflowY: 'auto', flex: 1, background: '#fff' },
       }}
@@ -50,10 +54,13 @@ const JudgeSidebarQueue = ({
           const isPresenting = item.status === 'PRESENTING';
           const isDone = item.status === 'DONE';
           const myPersonalScore = myScores[String(subId)];
+          
+          // Logic Upstream: Quản lý biến rõ ràng cho TASK 20
           const isScored = Boolean(myPersonalScore) || isDone;
           const isUnscored = !isScored && !isPresenting;
           const teamLabel = formatJudgeQueueTeamLabel(item);
 
+          // Xử lý background color theo trạng thái
           let rowBackground = '#fff';
           let rowBorder = '4px solid transparent';
           if (isSelected) {
@@ -133,6 +140,7 @@ const JudgeSidebarQueue = ({
                       ĐIỂM: {myPersonalScore}
                     </Tag>
                   ) : isPresenting ? (
+                    // TASK 18: Dùng component LiveRecordIndicator của đồng đội
                     <Tag
                       style={{
                         borderRadius: 6,

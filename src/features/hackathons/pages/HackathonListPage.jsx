@@ -40,9 +40,11 @@ const HackathonListPage = () => {
       setLoading(true);
       const res = await hackathonService.search({ size: 100 });
       const dataArray = res.items || res.content || res;
-      setHackathons(
-        (Array.isArray(dataArray) ? dataArray : []).map((item) => mapHackathonToFE(item)),
-      );
+      
+      const mappedData = (Array.isArray(dataArray) ? dataArray : []).map((item) => mapHackathonToFE(item));
+      const sortedData = mappedData.sort((a, b) => b.id - a.id);
+      
+      setHackathons(sortedData);
     } catch (error) {
       message.error(error.message || "Lỗi khi tải danh sách Hackathon");
     } finally {
@@ -155,9 +157,11 @@ const HackathonListPage = () => {
       ) : (
         <Row gutter={[24, 24]}>
           {filteredHackathons.map((hackathon) => (
-            <Col xs={24} sm={12} lg={8} key={hackathon.id}>
+            <Col xs={24} sm={12} lg={8} key={hackathon.id} style={{ display: 'flex' }}>
               <Card
                 hoverable
+                style={{ width: '100%', display: 'flex', flexDirection: 'column' }}
+                styles={{ body: { flex: 1 } }}
                 cover={
                   <div
                     style={{

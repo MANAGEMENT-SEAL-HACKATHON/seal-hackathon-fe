@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Modal, Space, Table, Tag, Upload, message } from 'antd';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Space, Table, Tag, Upload, message, Popconfirm } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, EyeOutlined, SendOutlined } from '@ant-design/icons';
 import { trackService } from '../../tracks/services/trackService';
 import { mapTrackToFE } from '../../tracks/mappers/trackMapper';
@@ -7,7 +7,8 @@ import { mapTrackToFE } from '../../tracks/mappers/trackMapper';
 const hasTrackProblem = (track) =>
   Boolean(track?.problem_statement_filename || track?.problem_statement_url);
 
-const isTrackReleased = (track) => Boolean(track?.problem_released_at);
+const isTrackReleased = (track) => 
+  Boolean(track?.is_released || track?.problem_released_at);
 
 const PrelimReleaseChecklist = ({ roundId, roundProblemReleased, onReadyChange, onTrackReleased }) => {
   const [tracks, setTracks] = useState([]);
@@ -80,36 +81,18 @@ const PrelimReleaseChecklist = ({ roundId, roundProblemReleased, onReadyChange, 
     return Upload.LIST_IGNORE;
   };
 
-  const handleReleaseTrack = (track) => {
-    const pdfName = track.problem_statement_filename || 'Đã có PDF';
-    Modal.confirm({
-      title: `Phát đề cho bảng «${track.name}»?`,
-      content: (
-        <div>
-          <p style={{ marginBottom: 8 }}>
-            File đề: <strong>{pdfName}</strong>
-          </p>
-          <p style={{ margin: 0 }}>
-            Sinh viên thuộc bảng này sẽ nhận thông báo và tải được đề. Thao tác one-way — không đổi PDF sau khi phát.
-          </p>
-        </div>
-      ),
-      okText: 'Phát đề',
-      cancelText: 'Hủy',
-      onOk: async () => {
-        setReleasingTrackId(track.id);
-        try {
-          await trackService.releaseProblem(track.id);
-          message.success(`Đã phát đề cho bảng «${track.name}».`);
-          await loadTracks();
-          onTrackReleased?.();
-        } catch (error) {
-          message.error(error?.message || 'Không phát được đề cho bảng đấu.');
-        } finally {
-          setReleasingTrackId(null);
-        }
-      },
-    });
+  const handleReleaseTrack = async (track) => {
+    setReleasingTrackId(track.id);
+    try {
+      await trackService.releaseProblem(track.id);
+      message.success(`Đã phát đề cho bảng «${track.name}».`);
+      await loadTracks();
+      onTrackReleased?.(); 
+    } catch (error) {
+      message.error(error?.message || 'Không phát được đề cho bảng đấu.');
+    } finally {
+      setReleasingTrackId(null);
+    }
   };
 
   const columns = [
@@ -120,7 +103,7 @@ const PrelimReleaseChecklist = ({ roundId, roundProblemReleased, onReadyChange, 
       render: (name) => <strong>{name}</strong>,
     },
     {
-      title: 'Trạng thái đề',
+      title: 'Tình trạng Upload',
       key: 'status',
       render: (_, record) => {
         const released = isTrackReleased(record) || roundProblemReleased;
@@ -146,11 +129,10 @@ const PrelimReleaseChecklist = ({ roundId, roundProblemReleased, onReadyChange, 
       },
     },
     {
-      title: 'Thao tác',
+      title: 'Thao tác Tài liệu',
       key: 'actions',
       render: (_, record) => {
         const released = isTrackReleased(record) || roundProblemReleased;
-        const canRelease = hasTrackProblem(record) && !released;
         const canUpload = !released && !roundProblemReleased;
 
         return (
@@ -165,32 +147,79 @@ const PrelimReleaseChecklist = ({ roundId, roundProblemReleased, onReadyChange, 
                 Xem
               </Button>
             )}
+            
             {canUpload && (
               <Upload
                 accept="application/pdf,.pdf"
                 showUploadList={false}
                 beforeUpload={(file) => handleReplacePdf(record.id, file)}
               >
-                <Button size="small" loading={uploadingTrackId === record.id}>
+                <Button 
+                  size="small" 
+                  loading={uploadingTrackId === record.id}
+                >
                   {hasTrackProblem(record) ? 'Đổi PDF' : 'Upload PDF'}
                 </Button>
               </Upload>
-            )}
-            {canRelease && (
-              <Button
-                size="small"
-                type="primary"
-                icon={<SendOutlined />}
-                loading={releasingTrackId === record.id}
-                onClick={() => handleReleaseTrack(record)}
-              >
-                Phát đề
-              </Button>
             )}
           </Space>
         );
       },
     },
+    {
+      title: 'Phát Đề Thi',
+      key: 'release',
+      align: 'center',
+      render: (_, record) => {
+        const hasProblem = hasTrackProblem(record);
+        const released = isTrackReleased(record) || roundProblemReleased;
+
+        if (released) {
+          return (
+            <Tag color="green" style={{ margin: 0, padding: '4px 8px', fontWeight: 600 }}>
+              ✓ Đã Phát
+            </Tag>
+          );
+        }
+
+        const pdfName = record.problem_statement_filename || 'Đã có PDF';
+
+        return (
+          <Popconfirm
+            title={`Phát đề cho bảng «${record.name}»?`}
+            description={
+              <div style={{ maxWidth: 300, marginTop: 8 }}>
+                <p style={{ marginBottom: 8 }}>
+                  File đề: <strong>{pdfName}</strong>
+                </p>
+                <p style={{ margin: 0 }}>
+                  Sinh viên thuộc bảng này sẽ nhận thông báo và tải được đề. Thao tác one-way — không đổi PDF sau khi phát.
+                </p>
+              </div>
+            }
+            onConfirm={() => handleReleaseTrack(record)}
+            okText="Phát Đề"
+            cancelText="Hủy"
+            disabled={!hasProblem}
+          >
+            <Button
+              type="primary"
+              size="small"
+              icon={<SendOutlined />}
+              disabled={!hasProblem}
+              loading={releasingTrackId === record.id}
+              style={{
+                background: hasProblem ? '#2563eb' : '#94a3b8',
+                fontWeight: 600,
+                borderRadius: 6
+              }}
+            >
+              Phát Đề
+            </Button>
+          </Popconfirm>
+        );
+      },
+    }
   ];
 
   return (
@@ -203,7 +232,7 @@ const PrelimReleaseChecklist = ({ roundId, roundProblemReleased, onReadyChange, 
         description={
           <span style={{ fontSize: 13 }}>
             Chỉ phát đề sau khi vòng đã <strong>kích hoạt</strong>. Có thể phát từng bảng hoặc «Phát tất cả».
-            Sau khi phát, thao tác <strong>one-way</strong> — không đổi file đề nữa.
+            Sau khi bấm phát, thao tác <strong>one-way</strong> — không đổi file đề trên bảng đấu nữa. Mỗi đội chỉ nhận đề của bảng mình được phân.
           </span>
         }
       />
@@ -216,6 +245,7 @@ const PrelimReleaseChecklist = ({ roundId, roundProblemReleased, onReadyChange, 
         pagination={false}
         locale={{ emptyText: 'Chưa có bảng đấu — tạo bảng và upload đề trước khi phát.' }}
       />
+      
       {!loading && tracks.length > 0 && !allReady && !roundProblemReleased && (
         <Alert
           type="info"
