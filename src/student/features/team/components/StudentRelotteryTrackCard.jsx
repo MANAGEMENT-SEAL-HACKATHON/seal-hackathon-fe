@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Select, Space, message } from 'antd';
 import { studentPortalService } from '../../portal/services/studentPortal.service';
-import { trackService } from '../../../../features/tracks/services/trackService';
-import { roundService } from '../../../../features/rounds/services/roundService';
-import { getRoundId, isPreliminaryRound, unwrapRoundList } from '../../../../shared/utils/roundUtils';
+import { teamService } from '../../../../features/teams/services/teamService';
+import { getRoundId, isPreliminaryRound } from '../../../../shared/utils/roundUtils';
 
 const StudentRelotteryTrackCard = ({ hackathonId, teamId, team, onChanged }) => {
   const [tracks, setTracks] = useState([]);
@@ -11,34 +10,56 @@ const StudentRelotteryTrackCard = ({ hackathonId, teamId, team, onChanged }) => 
   const [selectedTrackId, setSelectedTrackId] = useState(team?.trackId ?? null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [errorState, setErrorState] = useState(null);
 
-  const isLeader = Boolean(team?.canTransferLeader);
+  const isLeader = Boolean(team?.canTransferLeader || team?.isCurrentUserLeader);
   const hasTrack = Boolean(team?.trackId);
 
   useEffect(() => {
-    if (!hackathonId || !isLeader || !hasTrack) return undefined;
+    if (!hackathonId || !teamId || !isLeader || !hasTrack) return undefined;
     let cancelled = false;
     setLoading(true);
+    setErrorState(null);
 
     Promise.all([
-      trackService.listByHackathon(hackathonId),
-      roundService.listByHackathon(hackathonId),
+      studentPortalService.listSelectableFallTracks(hackathonId),
+      teamService.getJourney(teamId).catch(() => null),
     ])
-      .then(([trackRes, roundRes]) => {
+      .then(([trackListRes, journeyRes]) => {
         if (cancelled) return;
-        const trackList = Array.isArray(trackRes) ? trackRes : trackRes?.items || [];
+        const trackList = Array.isArray(trackListRes) ? trackListRes : trackListRes?.items || [];
         setTracks(trackList);
 
-        const rounds = unwrapRoundList(roundRes);
-        const prelim = rounds.find(
-          (round) => isPreliminaryRound(round) && !(round?.isActive ?? round?.is_active)
-        );
-        setPrelimRoundId(getRoundId(prelim));
+        // Lấy roundId từ team/journey hiện có hoặc từ metadata track trả về (Không gọi coordinator-only /rounds)
+        let foundRoundId = team?.roundId ?? team?.preliminaryRoundId ?? null;
+
+        if (!foundRoundId && journeyRes?.steps) {
+          const steps = Array.isArray(journeyRes.steps) ? journeyRes.steps : [];
+          const prelim = steps.find(
+            (round) => isPreliminaryRound(round) && !(round?.isActive ?? round?.is_active)
+          );
+          if (prelim) {
+            foundRoundId = getRoundId(prelim);
+          }
+        }
+
+        if (!foundRoundId && trackList.length > 0) {
+          const firstTrack = trackList[0];
+          foundRoundId = firstTrack?.roundId ?? firstTrack?.round_id ?? null;
+        }
+
+        if (foundRoundId) {
+          setPrelimRoundId(foundRoundId);
+        } else {
+          setPrelimRoundId(null);
+          setErrorState('Không thể xác định vòng Sơ loại hoặc vòng thi đã bắt đầu (Active).');
+        }
       })
       .catch(() => {
         if (!cancelled) {
           setTracks([]);
           setPrelimRoundId(null);
+          setErrorState('Không thể tải danh sách track.');
         }
       })
       .finally(() => {
@@ -48,31 +69,13 @@ const StudentRelotteryTrackCard = ({ hackathonId, teamId, team, onChanged }) => 
     return () => {
       cancelled = true;
     };
-  }, [hackathonId, isLeader, hasTrack]);
-
-  const handleRelottery = async () => {
-    if (!teamId || !prelimRoundId || !selectedTrackId) {
-      message.warning('Thiếu thông tin vòng hoặc track.');
-      return;
-    }
-    if (Number(selectedTrackId) === Number(team?.trackId)) {
-      message.info('Track đã được chọn.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await studentPortalService.relotteryTrackAsStudent(teamId, prelimRoundId, selectedTrackId);
-      message.success('Đã đổi track thành công.');
-      onChanged?.(selectedTrackId);
-    } catch (error) {
-      message.error(error?.message || 'Không thể đổi track. Vòng thi có thể đã bắt đầu.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  }, [hackathonId, teamId, isLeader, hasTrack, team]);
 
   if (!isLeader || !hasTrack || !hackathonId || !teamId) return null;
-  if (!prelimRoundId) return null;
+  if (!prelimRoundId && !loading && errorState) {
+    return null; // Ẩn card nếu không đủ dữ liệu hoặc vòng thi đã active theo đúng Plan, không gọi API sai quyền
+  }
+  if (!prelimRoundId && !loading) return null;
 
   return (
     <Card size="small" title="Đổi track (re-lottery)" style={{ marginBottom: 16 }}>
@@ -101,6 +104,27 @@ const StudentRelotteryTrackCard = ({ hackathonId, teamId, team, onChanged }) => 
       </Space>
     </Card>
   );
+
+  async function handleRelottery() {
+    if (!teamId || !prelimRoundId || !selectedTrackId) {
+      message.warning('Thiếu thông tin vòng hoặc track.');
+      return;
+    }
+    if (Number(selectedTrackId) === Number(team?.trackId)) {
+      message.info('Track đã được chọn.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await studentPortalService.relotteryTrackAsStudent(teamId, prelimRoundId, selectedTrackId);
+      message.success('Đã đổi track thành công.');
+      onChanged?.(selectedTrackId);
+    } catch (error) {
+      message.error(error?.message || 'Không thể đổi track. Vòng thi có thể đã bắt đầu.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
 };
 
 export default StudentRelotteryTrackCard;

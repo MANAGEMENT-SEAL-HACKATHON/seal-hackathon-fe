@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Card, Col, Empty, Grid, Row, Spin, Typography, message, theme } from 'antd';
+import { Alert, Card, Col, Empty, Grid, Row, Spin, Typography, message, theme, Skeleton } from 'antd';
 import { CopyOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { studentTeamService } from '../../team/services/studentTeam.service';
 import { matchmakingService } from '../services/matchmaking.service';
 
@@ -78,16 +78,52 @@ const MatchmakingBoardPage = () => {
           <Alert type="error" message={error} showIcon style={{ marginBottom: 16, borderRadius: 8 }} />
         )}
 
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 48 }}>
-            <Spin size="large" />
-          </div>
-        ) : !hackathonId ? (
-          <Empty description="Chưa đăng ký hackathon — hãy đăng ký sự kiện trước khi xem bảng ghép đội" />
-        ) : teams.length === 0 ? (
-          <Empty description="Hiện không có đội nào đang tìm thành viên" />
-        ) : (
-          <Row gutter={[24, 24]}>
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                padding: 48,
+                background: token.colorBgContainer !== '#ffffff' ? 'rgba(30, 41, 59, 0.5)' : '#FFFFFF',
+                borderRadius: 28,
+                border: `1.5px solid ${token.colorBorderSecondary}`,
+                boxShadow: '0 20px 48px rgba(0,0,0,0.06)',
+              }}
+            >
+              <Skeleton active avatar paragraph={{ rows: 8 }} />
+            </motion.div>
+          ) : !hackathonId ? (
+            <motion.div
+              key="empty-hackathon"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+            >
+              <Empty description="Chưa đăng ký hackathon — hãy đăng ký sự kiện trước khi xem bảng ghép đội" />
+            </motion.div>
+          ) : teams.length === 0 ? (
+            <motion.div
+              key="empty-teams"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+            >
+              <Empty description="Hiện không có đội nào đang tìm thành viên" />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="matchmaking-grid"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+            >
+              <Row gutter={[24, 24]}>
             {teams.map((team) => (
               <Col xs={24} md={12} lg={8} key={team.teamId}>
                 <Card
@@ -152,7 +188,9 @@ const MatchmakingBoardPage = () => {
               </Col>
             ))}
           </Row>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );

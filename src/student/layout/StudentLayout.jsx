@@ -72,7 +72,7 @@ const StudentLayout = ({ children }) => {
       {
         key: ROUTES.STUDENT_SUBMIT,
         icon: <FileCheck2 size={18} />,
-        label: 'Nộp bài thi',
+        label: 'Đề thi & Nộp bài',
         disabled: currentUser.status !== 'APPROVED',
       },
       {

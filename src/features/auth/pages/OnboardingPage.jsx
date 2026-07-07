@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
-  Form, Input, Select, Button, Upload, message, Steps, Result, Spin, Tag, Modal, theme
+  Form, Input, Select, Button, Upload, message, Steps, Result, Spin, Tag, Modal, theme, Skeleton, Avatar, Row, Col, Card
 } from 'antd';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   UserOutlined, IdcardOutlined, BankOutlined, PhoneOutlined,
-  UploadOutlined, CheckCircleOutlined, ClockCircleOutlined,
+  UploadOutlined, CheckCircleOutlined, ClockCircleOutlined, SafetyCertificateOutlined, MailOutlined, HomeOutlined, TrophyOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { userService } from '../services/userService';
@@ -55,6 +56,8 @@ const StudentCardPreview = ({ userId }) => {
   const [cloudinaryFailed, setCloudinaryFailed] = useState(false);
   const [fallbackUrl, setFallbackUrl] = useState(null);
   const [loadingFallback, setLoadingFallback] = useState(false);
+  const { token } = theme.useToken();
+  const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
 
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'drrd1a7jd';
   const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/student-cards/student-card-${userId}`;
@@ -91,25 +94,27 @@ const StudentCardPreview = ({ userId }) => {
   const displayUrl = cloudinaryFailed ? fallbackUrl : cloudinaryUrl;
 
   return (
-    <div style={{ marginTop: 12 }}>
+    <div style={{ marginTop: 16, textAlign: 'center' }}>
       {loadingFallback && <Spin size="small" />}
       {displayUrl ? (
-        <img
-          src={displayUrl}
-          alt="Ảnh thẻ sinh viên hiện tại"
-          style={{
-            maxWidth: '100%',
-            maxHeight: 180,
-            objectFit: 'contain',
-            borderRadius: 12,
-            border: '1px solid #e5e7eb',
-          }}
-          onError={() => {
-            if (!cloudinaryFailed) setCloudinaryFailed(true);
-          }}
-        />
+        <div style={{ display: 'inline-block', position: 'relative', borderRadius: 16, overflow: 'hidden', border: `2px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`, boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
+          <img
+            src={displayUrl}
+            alt="Ảnh thẻ sinh viên hiện tại"
+            style={{
+              maxWidth: '100%',
+              maxHeight: 220,
+              objectFit: 'contain',
+              display: 'block',
+              background: isDark ? '#0f172a' : '#f8fafc',
+            }}
+            onError={() => {
+              if (!cloudinaryFailed) setCloudinaryFailed(true);
+            }}
+          />
+        </div>
       ) : cloudinaryFailed && !loadingFallback ? (
-        <Tag color="warning">Không tải được ảnh thẻ — vui lòng upload lại.</Tag>
+        <Tag color="warning">Không tải được ảnh thẻ — vui lòng tải lên lại.</Tag>
       ) : null}
     </div>
   );
@@ -122,8 +127,9 @@ const OnboardingPage = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const { token } = theme.useToken();
+  const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
 
-  const [currentStep, setCurrentStep] = useState(0); // 0 = profile, 1 = student card, 2 = waiting
+  const [currentStep, setCurrentStep] = useState(0); // 0 = profile, 1 = student card, 2 = waiting, 3 = approved
   const [userType, setUserType] = useState('INTERNAL');
   const [loading, setLoading] = useState(false);
   const [cardLoading, setCardLoading] = useState(false);
@@ -140,10 +146,8 @@ const OnboardingPage = () => {
         const freshUser = await userService.getMe();
         if (!active) return;
         
-        // Sync local storage userInfo with fresh info
         const stored = getUserInfo() || {};
         
-        // Detect transition to APPROVED
         if (stored.status && stored.status !== 'APPROVED' && freshUser.status === 'APPROVED') {
           Modal.success({
             title: '🎉 Hồ sơ đã được phê duyệt!',
@@ -164,7 +168,6 @@ const OnboardingPage = () => {
         window.dispatchEvent(new Event('userInfoUpdated'));
         setUserInfo(merged);
 
-        // Populate form with existing data
         form.setFieldsValue({
           fullName: merged.fullName,
           userType: merged.userType || 'INTERNAL',
@@ -178,7 +181,6 @@ const OnboardingPage = () => {
         if (freshUser.status === 'APPROVED') {
           setCurrentStep(3);
         } else {
-          // Determine step using fresh database fields
           const hasCompletedProfile = Boolean(freshUser.fullName && (freshUser.studentCode || freshUser.institution));
           const hasUploadedCard = Boolean(freshUser.studentCardImagePath || freshUser.studentCardUrl || freshUser.studentCardUploaded);
           
@@ -201,7 +203,7 @@ const OnboardingPage = () => {
 
     fetchFreshStatus();
     return () => { active = false; };
-  }, [navigate]);
+  }, [form]);
 
   // -------------------------------------------------------------------------
   // Step 1 – Profile
@@ -220,7 +222,6 @@ const OnboardingPage = () => {
 
       await userService.patchMe(payload);
 
-      // Persist progress locally
       const updated = { ...getUserInfo(), profileCompleted: true };
       localStorage.setItem('userInfo', JSON.stringify(updated));
       window.dispatchEvent(new Event('userInfoUpdated'));
@@ -253,7 +254,6 @@ const OnboardingPage = () => {
         throw new Error('Không xác định được ID người dùng!');
       }
 
-      // 1. Prepare Cloudinary parameters for signed upload
       const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
       const apiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;
       const apiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
@@ -265,11 +265,9 @@ const OnboardingPage = () => {
       const publicId = `student-cards/student-card-${userId}`;
       const timestamp = Math.round(new Date().getTime() / 1000);
 
-      // Alphabetical ordering: public_id, timestamp
       const signatureString = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
       const signature = await generateSHA1(signatureString);
 
-      // 2. Upload to Cloudinary via Fetch API (direct, bypasses global interceptors)
       const cloudinaryFormData = new FormData();
       cloudinaryFormData.append('file', file);
       cloudinaryFormData.append('api_key', apiKey);
@@ -287,10 +285,6 @@ const OnboardingPage = () => {
         throw new Error(errorData?.error?.message || 'Không thể upload ảnh lên Cloudinary');
       }
 
-      const cloudinaryData = await cloudinaryResponse.json();
-      console.log('Uploaded to Cloudinary successfully. URL:', cloudinaryData.secure_url);
-
-      // 3. Register image upload on local backend to set studentCardImagePath
       await userService.uploadStudentCard(file);
 
       const updated = { ...getUserInfo(), studentCardUploaded: true };
@@ -320,10 +314,11 @@ const OnboardingPage = () => {
   // Render helpers
   // -------------------------------------------------------------------------
   const dynamicInputStyle = {
-    ...inputStyle,
     backgroundColor: token.colorFillAlter,
     borderColor: token.colorBorder,
     color: token.colorText,
+    height: 48,
+    borderRadius: 16,
   };
 
   const renderProfileStep = () => (
@@ -341,12 +336,11 @@ const OnboardingPage = () => {
       }}
       requiredMark={false}
     >
-      {/* Email – read-only */}
-      <Form.Item label={<Label>EMAIL (CHỈ XEM)</Label>}>
+      <Form.Item label={<Label token={token}>EMAIL (CHỈ XEM)</Label>}>
         <Input
           value={userInfo?.email || ''}
           readOnly
-          prefix={<UserOutlined style={iconStyle} />}
+          prefix={<MailOutlined style={{ color: '#00529C', marginRight: 8 }} />}
           style={dynamicInputStyle}
           className="custom-ob-input"
         />
@@ -358,7 +352,7 @@ const OnboardingPage = () => {
         rules={[{ required: true, message: 'Vui lòng nhập họ tên!' }]}
       >
         <Input
-          prefix={<UserOutlined style={iconStyle} />}
+          prefix={<UserOutlined style={{ color: '#00529C', marginRight: 8 }} />}
           placeholder="Nguyễn Văn A"
           style={dynamicInputStyle}
           className="custom-ob-input"
@@ -396,7 +390,7 @@ const OnboardingPage = () => {
             rules={[{ required: true, message: 'Vui lòng nhập mã sinh viên!' }]}
           >
             <Input
-              prefix={<IdcardOutlined style={iconStyle} />}
+              prefix={<IdcardOutlined style={{ color: '#00529C', marginRight: 8 }} />}
               placeholder="VD: SE123456"
               style={dynamicInputStyle}
               className="custom-ob-input"
@@ -412,7 +406,7 @@ const OnboardingPage = () => {
           rules={[{ required: true, message: 'Vui lòng nhập tên trường!' }]}
         >
           <Input
-            prefix={<BankOutlined style={iconStyle} />}
+            prefix={<BankOutlined style={{ color: '#00529C', marginRight: 8 }} />}
             placeholder="Đại học Bách Khoa..."
             style={dynamicInputStyle}
             className="custom-ob-input"
@@ -422,20 +416,29 @@ const OnboardingPage = () => {
 
       <Form.Item label={<Label token={token}>SỐ ĐIỆN THOẠI (TÙY CHỌN)</Label>} name="phone">
         <Input
-          prefix={<PhoneOutlined style={iconStyle} />}
+          prefix={<PhoneOutlined style={{ color: '#00529C', marginRight: 8 }} />}
           placeholder="0912345678"
           style={dynamicInputStyle}
           className="custom-ob-input"
         />
       </Form.Item>
 
-      <Form.Item style={{ marginTop: 8 }}>
+      <Form.Item style={{ marginTop: 16 }}>
         <Button
           type="primary"
           htmlType="submit"
           loading={loading}
           block
-          style={primaryBtnStyle}
+          style={{
+            height: 48,
+            borderRadius: 16,
+            fontSize: 15,
+            fontWeight: 800,
+            border: 'none',
+            background: 'linear-gradient(135deg, #00529C 0%, #003366 100%)',
+            color: '#fff',
+            boxShadow: '0 8px 20px rgba(0, 82, 156, 0.25)',
+          }}
         >
           Lưu hồ sơ & tiếp tục →
         </Button>
@@ -447,7 +450,7 @@ const OnboardingPage = () => {
     <div>
       <p style={{ color: token.colorTextSecondary, marginBottom: 16, lineHeight: 1.6 }}>
         Vui lòng tải lên <strong>ảnh thẻ sinh viên</strong> của bạn.
-        Ảnh rõ nét, không bị che khuất để Coordinator có thể kiểm tra.
+        Ảnh rõ nét, không bị che khuất để Ban Tổ Chức có thể xác thực.
       </p>
 
       <Upload
@@ -465,7 +468,7 @@ const OnboardingPage = () => {
             return Upload.LIST_IGNORE;
           }
           setFileList([file]);
-          return false; // prevent auto-upload
+          return false;
         }}
         onRemove={() => { setFileList([]); setHasCard(false); }}
         maxCount={1}
@@ -473,8 +476,8 @@ const OnboardingPage = () => {
       >
         {fileList.length === 0 && (
           <div>
-            <UploadOutlined style={{ fontSize: 24, color: '#0072ff' }} />
-            <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>Chọn ảnh</div>
+            <UploadOutlined style={{ fontSize: 24, color: '#00529C' }} />
+            <div style={{ marginTop: 8, fontSize: 12, color: token.colorTextSecondary }}>Chọn ảnh</div>
           </div>
         )}
       </Upload>
@@ -482,21 +485,25 @@ const OnboardingPage = () => {
       {hasCard && fileList.length === 0 && (
         <>
           <StudentCardPreview userId={userInfo?.id || userInfo?.userId} />
-          <Tag color="success" style={{ marginTop: 8 }} icon={<CheckCircleOutlined />}>
-            Đã có ảnh thẻ — có thể dùng lại hoặc upload mới
-          </Tag>
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <Tag color="success" icon={<CheckCircleOutlined />} style={{ padding: '4px 12px', borderRadius: 12, fontWeight: 700 }}>
+              Đã có ảnh thẻ — có thể dùng lại hoặc tải lên ảnh mới
+            </Tag>
+          </div>
         </>
       )}
 
       {hasCard && fileList.length > 0 && (
-        <Tag color="success" style={{ marginTop: 8 }} icon={<CheckCircleOutlined />}>
-          Đã chọn ảnh mới
-        </Tag>
+        <div style={{ textAlign: 'center', marginTop: 12 }}>
+          <Tag color="processing" icon={<CheckCircleOutlined />} style={{ padding: '4px 12px', borderRadius: 12, fontWeight: 700 }}>
+            Đã chọn ảnh mới để tải lên
+          </Tag>
+        </div>
       )}
 
-      <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+      <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
         <Button
-          style={{ flex: 1 }}
+          style={{ flex: 1, height: 48, borderRadius: 16, fontWeight: 700 }}
           onClick={() => setCurrentStep(0)}
           disabled={cardLoading}
         >
@@ -505,7 +512,15 @@ const OnboardingPage = () => {
         {fileList.length > 0 ? (
           <Button
             type="primary"
-            style={{ flex: 2, ...primaryBtnStyle }}
+            style={{
+              flex: 2,
+              height: 48,
+              borderRadius: 16,
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #F37021 0%, #FF8C42 100%)',
+              border: 'none',
+              boxShadow: '0 8px 20px rgba(243, 112, 33, 0.25)',
+            }}
             onClick={handleCardUpload}
             loading={cardLoading}
           >
@@ -514,7 +529,14 @@ const OnboardingPage = () => {
         ) : (
           <Button
             type="primary"
-            style={{ flex: 2, ...primaryBtnStyle }}
+            style={{
+              flex: 2,
+              height: 48,
+              borderRadius: 16,
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #00529C 0%, #003366 100%)',
+              border: 'none',
+            }}
             onClick={() => setCurrentStep(2)}
             disabled={!hasCard}
           >
@@ -527,113 +549,315 @@ const OnboardingPage = () => {
 
   const renderWaitingStep = () => (
     <Result
-      icon={<ClockCircleOutlined style={{ color: '#0072ff', fontSize: 56 }} />}
-      title="Hồ sơ đã được gửi!"
+      icon={<ClockCircleOutlined style={{ color: '#F37021', fontSize: 64 }} />}
+      title={<span style={{ fontWeight: 900, color: token.colorTextHeading, fontSize: 24 }}>Hồ Sơ Đã Được Gửi Xét Duyệt!</span>}
       subTitle={
-        <span style={{ color: token.colorTextSecondary }}>
-          Coordinator đang xem xét hồ sơ của bạn. Khi được duyệt, tài khoản của bạn sẽ
-          chuyển sang trạng thái Đã phê duyệt.
+        <span style={{ color: token.colorTextSecondary, fontSize: 15, display: 'block', maxWidth: 500, margin: '0 auto', lineHeight: 1.6 }}>
+          Ban Tổ Chức và Coordinator đang kiểm duyệt hồ sơ của bạn. Khi được duyệt, tài khoản sẽ tự động mở khóa toàn bộ quyền tham gia Hackathon.
         </span>
       }
       extra={[
-        <Button key="dashboard" type="primary" onClick={() => navigate(ROUTES.DASHBOARD)} style={{ borderRadius: 12, backgroundColor: '#0072ff', borderColor: '#0072ff' }}>
-          Về Trang chủ
+        <Button
+          key="dashboard"
+          type="primary"
+          onClick={() => navigate(ROUTES.DASHBOARD)}
+          style={{
+            height: 46,
+            borderRadius: 14,
+            fontWeight: 800,
+            padding: '0 28px',
+            background: 'linear-gradient(135deg, #00529C 0%, #003366 100%)',
+            border: 'none',
+            boxShadow: '0 8px 20px rgba(0, 82, 156, 0.25)',
+          }}
+        >
+          Về Trang Chủ
         </Button>,
-        <Button key="edit" onClick={() => setCurrentStep(0)} style={{ borderRadius: 12 }}>
-          Chỉnh sửa hồ sơ
+        <Button key="edit" onClick={() => setCurrentStep(0)} style={{ height: 46, borderRadius: 14, fontWeight: 700, padding: '0 24px' }}>
+          Chỉnh sửa thông tin
         </Button>,
       ]}
     />
   );
 
-  const renderApprovedStep = () => (
-    <div style={{ textAlign: 'left', marginTop: 16 }}>
-      <Result
-        status="success"
-        icon={<CheckCircleOutlined style={{ color: '#13c2c2', fontSize: 48 }} />}
-        title="Hồ sơ hợp lệ & Đã duyệt"
-        subTitle={<span style={{ color: token.colorTextSecondary }}>Hồ sơ của bạn đã được kiểm duyệt. Các thông tin hiện tại không thể chỉnh sửa để đảm bảo tính minh bạch.</span>}
-        style={{ padding: '0 0 24px 0' }}
-      />
-      <div style={{ background: token.colorFillAlter, padding: 20, borderRadius: 16, border: `1px solid ${token.colorBorder}` }}>
-        <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Họ và tên:</strong> {userInfo.fullName}</p>
-        <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Email:</strong> {userInfo.email}</p>
-        {userInfo.phone && (
-          <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Số điện thoại:</strong> {userInfo.phone}</p>
-        )}
-        <p style={{ margin: '0 0 8px', color: token.colorText }}>
-          <strong>Tổ chức:</strong> {userInfo.userType === 'INTERNAL' ? 'Sinh viên FPT' : (userInfo.institution || 'Sinh viên trường')}
-        </p>
-        {userInfo.studentCode && (
-          <p style={{ margin: '0 0 8px', color: token.colorText }}><strong>Mã sinh viên:</strong> {userInfo.studentCode}</p>
-        )}
-        
+  const renderApprovedStep = () => {
+    const chapterName = CHAPTERS.find(c => c.id === userInfo.chapterId)?.name || 'FPT University';
+    const orgName = userInfo.userType === 'INTERNAL' ? 'Sinh viên FPT (Nội bộ)' : (userInfo.institution || 'Sinh viên trường');
+
+    return (
+      <div style={{ textAlign: 'left' }}>
+        {/* HERO PASSPORT CARD */}
+        <Card
+          style={{
+            borderRadius: 24,
+            background: isDark
+              ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)'
+              : 'linear-gradient(135deg, #00244D 0%, #00529C 60%, #003366 100%)',
+            color: '#fff',
+            border: `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.2)'}`,
+            boxShadow: '0 16px 40px rgba(0, 82, 156, 0.25)',
+            marginBottom: 24,
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+          styles={{ body: { padding: '28px 32px' } }}
+        >
+          {/* Decorative glow */}
+          <div style={{ position: 'absolute', top: -60, right: -40, width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(243, 112, 33, 0.4) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: -50, left: '20%', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20, position: 'relative', zIndex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <Avatar
+                size={76}
+                style={{
+                  background: 'linear-gradient(135deg, #F37021 0%, #FF8C42 100%)',
+                  color: '#fff',
+                  fontSize: 32,
+                  fontWeight: 900,
+                  border: '3px solid rgba(255,255,255,0.8)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                  flexShrink: 0,
+                }}
+              >
+                {(userInfo.fullName || userInfo.email || 'S').charAt(0).toUpperCase()}
+              </Avatar>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <Tag color="success" icon={<SafetyCertificateOutlined />} style={{ padding: '3px 12px', borderRadius: 20, fontWeight: 800, fontSize: 12, border: 'none', background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7' }}>
+                    TÀI KHOẢN CHÍNH THỨC
+                  </Tag>
+                  <Tag color="orange" style={{ padding: '3px 10px', borderRadius: 20, fontWeight: 800, fontSize: 11, border: 'none', background: 'rgba(243, 112, 33, 0.25)', color: '#fdba74' }}>
+                    STUDENT
+                  </Tag>
+                </div>
+                <h2 style={{ margin: 0, color: '#fff', fontSize: 24, fontWeight: 900, letterSpacing: '-0.02em' }}>
+                  {userInfo.fullName || 'Sinh Viên FPTU'}
+                </h2>
+                <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                  <MailOutlined /> {userInfo.email}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              type="primary"
+              size="large"
+              icon={<TrophyOutlined />}
+              onClick={() => navigate(ROUTES.DASHBOARD)}
+              style={{
+                height: 48,
+                borderRadius: 14,
+                fontWeight: 800,
+                fontSize: 15,
+                padding: '0 24px',
+                background: 'linear-gradient(135deg, #F37021 0%, #FF8C42 100%)',
+                border: 'none',
+                boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
+              }}
+            >
+              Vào Không Gian Thi Đấu
+            </Button>
+          </div>
+        </Card>
+
+        {/* IDENTITY DETAILS BENTO GRID */}
+        <Row gutter={[20, 20]}>
+          <Col xs={24} md={14}>
+            <Card
+              title={<span style={{ fontWeight: 800, fontSize: 16, color: token.colorTextHeading }}>📌 Thông Tin Hồ Sơ Thi Đấu</span>}
+              style={{
+                borderRadius: 24,
+                background: isDark ? 'rgba(30, 41, 59, 0.6)' : '#fff',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0'}`,
+                boxShadow: '0 12px 32px rgba(0,0,0,0.04)',
+                height: '100%',
+              }}
+              styles={{ body: { padding: 24 } }}
+            >
+              <Row gutter={[16, 20]}>
+                <Col span={12}>
+                  <div style={{ color: token.colorTextSecondary, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
+                    Đơn vị / Trường
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: token.colorTextHeading }}>
+                    <HomeOutlined style={{ color: '#00529C', marginRight: 6 }} /> {orgName}
+                  </div>
+                </Col>
+                <Col span={12}>
+                  <div style={{ color: token.colorTextSecondary, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
+                    Cơ sở (Chapter)
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: token.colorTextHeading }}>
+                    <BankOutlined style={{ color: '#00529C', marginRight: 6 }} /> {chapterName}
+                  </div>
+                </Col>
+                <Col span={12}>
+                  <div style={{ color: token.colorTextSecondary, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
+                    Mã sinh viên
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: token.colorTextHeading }}>
+                    <IdcardOutlined style={{ color: '#00529C', marginRight: 6 }} /> {userInfo.studentCode || '—'}
+                  </div>
+                </Col>
+                <Col span={12}>
+                  <div style={{ color: token.colorTextSecondary, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
+                    Số điện thoại
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: token.colorTextHeading }}>
+                    <PhoneOutlined style={{ color: '#00529C', marginRight: 6 }} /> {userInfo.phone || 'Chưa cập nhật'}
+                  </div>
+                </Col>
+              </Row>
+
+              <div style={{ marginTop: 24, padding: 14, background: isDark ? 'rgba(16, 185, 129, 0.1)' : '#f0fdf4', borderRadius: 14, border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#bbf7d0'}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <CheckCircleOutlined style={{ color: '#10b981', fontSize: 18 }} />
+                <span style={{ fontSize: 13, color: isDark ? '#6ee7b7' : '#065f46', fontWeight: 600 }}>
+                  Hồ sơ đã được kiểm duyệt hợp lệ. Thông tin định danh được khóa để bảo đảm tính minh bạch trong suốt giải đấu.
+                </span>
+              </div>
+            </Card>
+          </Col>
+
+          <Col xs={24} md={10}>
+            <Card
+              title={<span style={{ fontWeight: 800, fontSize: 16, color: token.colorTextHeading }}>🪪 Thẻ Sinh Viên</span>}
+              style={{
+                borderRadius: 24,
+                background: isDark ? 'rgba(30, 41, 59, 0.6)' : '#fff',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0'}`,
+                boxShadow: '0 12px 32px rgba(0,0,0,0.04)',
+                height: '100%',
+                textAlign: 'center',
+              }}
+              styles={{ body: { padding: 20 } }}
+            >
+              <StudentCardPreview userId={userInfo?.id || userInfo?.userId} />
+              <div style={{ marginTop: 14 }}>
+                <Tag color="success" style={{ fontWeight: 700, borderRadius: 12, padding: '4px 12px' }}>
+                  🟢 Đã xác thực bởi Coordinator
+                </Tag>
+              </div>
+            </Card>
+          </Col>
+        </Row>
       </div>
-      <div style={{ marginTop: 24, textAlign: 'center' }}>
-        <Button type="primary" onClick={() => navigate(ROUTES.DASHBOARD)} style={{ borderRadius: 12, backgroundColor: '#13c2c2', borderColor: '#13c2c2', height: 44, padding: '0 24px' }}>
-          Vào trang chủ thi đấu
-        </Button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // -------------------------------------------------------------------------
   // Main render
   // -------------------------------------------------------------------------
-  if (checkingStatus) {
-    return (
-      <div style={{ ...pageStyle, minHeight: '80vh', display: 'flex', flexDirection: 'column', gap: 16, backgroundColor: token.colorBgLayout }}>
-        <Spin size="large" />
-        <span style={{ color: token.colorTextSecondary, fontSize: '14px', fontWeight: 500 }}>
-          Đang tải thông tin hồ sơ...
-        </span>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ ...pageStyle, backgroundColor: token.colorBgLayout }}>
-      <div style={{ ...cardContainerStyle, backgroundColor: token.colorBgContainer, borderColor: token.colorBorderSecondary, boxShadow: token.boxShadow }}>
-        {/* Gradient top bar */}
-        <div style={gradientBarStyle} />
+    <div
+      style={{
+        padding: '24px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 'calc(100vh - 68px)',
+        background: token.colorBgLayout,
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: currentStep >= 3 ? 880 : 620,
+          backgroundColor: token.colorBgContainer,
+          borderRadius: 28,
+          padding: currentStep >= 3 ? '36px 32px' : '40px 36px',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.06)',
+          border: `1px solid ${token.colorBorderSecondary}`,
+          position: 'relative',
+          overflow: 'hidden',
+          transition: 'max-width 0.4s ease',
+        }}
+      >
+        {/* Gradient top bar - Official FPT Triad */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 5,
+            background: 'linear-gradient(90deg, #00529C 0%, #F37021 100%)',
+          }}
+        />
 
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <h1 style={titleStyle}>Hoàn thiện hồ sơ</h1>
-          <p style={{ color: token.colorTextSecondary, fontSize: 14, margin: 0 }}>
-            Bước cuối cùng trước khi tham gia Hackathon
+          <h1
+            style={{
+              fontSize: 28,
+              fontWeight: 900,
+              margin: '0 0 6px 0',
+              background: 'linear-gradient(90deg, #00529C 0%, #F37021 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {currentStep >= 3 ? 'Hồ Sơ & Định Danh Sinh Viên' : 'Hoàn Thiện Hồ Sơ'}
+          </h1>
+          <p style={{ color: token.colorTextSecondary, fontSize: 14, margin: 0, fontWeight: 600 }}>
+            {currentStep >= 3
+              ? 'Thông tin xác thực và quyền truy cập không gian thi đấu Hackathon'
+              : 'Bước xác thực thông tin trước khi tham gia giải đấu Hackathon FPTU'}
           </p>
         </div>
 
-        <Steps
-          current={currentStep > 2 ? 2 : currentStep}
-          size="small"
-          style={{ marginBottom: 28 }}
-          items={[
-            { title: 'Thông tin', icon: <UserOutlined /> },
-            { title: 'Thẻ SV', icon: <IdcardOutlined /> },
-            { title: 'Trạng thái', icon: currentStep > 2 ? <CheckCircleOutlined /> : <ClockCircleOutlined /> },
-          ]}
-        />
-
-        {currentStep === 0 && renderProfileStep()}
-        {currentStep === 1 && renderCardStep()}
-        {currentStep === 2 && renderWaitingStep()}
-        {currentStep === 3 && renderApprovedStep()}
-        {currentStep >= 3 && <AccountSecurityPanel />}
-
-        {currentStep < 2 && (
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <button
-              onClick={handleLogout}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: token.colorTextQuaternary, fontSize: 12,
-              }}
+        <AnimatePresence mode="wait">
+          {checkingStatus ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ padding: '24px 0' }}
             >
-              Đăng xuất
-            </button>
-          </div>
-        )}
+              <Skeleton active avatar paragraph={{ rows: 8 }} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="profile-content"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Steps
+                current={currentStep > 2 ? 2 : currentStep}
+                size="small"
+                style={{ marginBottom: 32 }}
+                items={[
+                  { title: 'Thông tin', icon: <UserOutlined /> },
+                  { title: 'Thẻ SV', icon: <IdcardOutlined /> },
+                  { title: 'Xác thực', icon: currentStep > 2 ? <CheckCircleOutlined /> : <ClockCircleOutlined /> },
+                ]}
+              />
+
+              {currentStep === 0 && renderProfileStep()}
+              {currentStep === 1 && renderCardStep()}
+              {currentStep === 2 && renderWaitingStep()}
+              {currentStep === 3 && renderApprovedStep()}
+              {currentStep >= 3 && <AccountSecurityPanel />}
+
+              {currentStep < 2 && (
+                <div style={{ textAlign: 'center', marginTop: 20 }}>
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: token.colorTextQuaternary, fontSize: 13, fontWeight: 600,
+                    }}
+                  >
+                    Đăng xuất tài khoản
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <style>{`
@@ -643,8 +867,8 @@ const OnboardingPage = () => {
           background-color: transparent !important; color: ${token.colorText} !important; border-radius: 16px !important;
         }
         .custom-ob-input:hover, .custom-ob-input:focus-within {
-          border-color: #0072ff !important;
-          box-shadow: 0 0 0 2px rgba(0,114,255,0.1) !important;
+          border-color: #00529C !important;
+          box-shadow: 0 0 0 2px rgba(0, 82, 156, 0.15) !important;
         }
         .custom-ob-select .ant-select-selector {
           background-color: ${token.colorFillAlter} !important; border: 1px solid ${token.colorBorder} !important;
@@ -653,79 +877,20 @@ const OnboardingPage = () => {
         }
         .custom-ob-select:hover .ant-select-selector,
         .custom-ob-select.ant-select-focused .ant-select-selector {
-          border-color: #0072ff !important;
-          box-shadow: 0 0 0 2px rgba(0,114,255,0.1) !important;
+          border-color: #00529C !important;
+          box-shadow: 0 0 0 2px rgba(0, 82, 156, 0.15) !important;
         }
-        .ant-upload-select { border-radius: 12px !important; }
-        .ant-upload-list-item { border-color: ${token.colorBorder} !important; }
+        .ant-upload-select { border-radius: 16px !important; }
+        .ant-upload-list-item { border-color: ${token.colorBorder} !important; border-radius: 16px !important; }
       `}</style>
     </div>
   );
 };
 
-// ---------------------------------------------------------------------------
-// Sub-components & styles
-// ---------------------------------------------------------------------------
 const Label = ({ children, token }) => (
-  <span style={{ color: token?.colorTextSecondary || '#4b5563', fontSize: 12, fontWeight: 600, letterSpacing: '0.5px' }}>
+  <span style={{ color: token?.colorTextSecondary || '#4b5563', fontSize: 12, fontWeight: 700, letterSpacing: '0.5px' }}>
     {children}
   </span>
 );
-
-const pageStyle = {
-  padding: '24px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontFamily: "'Inter', sans-serif",
-};
-
-const cardContainerStyle = {
-  width: '100%',
-  maxWidth: 600,
-  backgroundColor: '#ffffff',
-  borderRadius: 24,
-  padding: 40,
-  boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-  border: '1px solid #e5e7eb',
-  position: 'relative',
-  overflow: 'hidden',
-};
-
-const gradientBarStyle = {
-  position: 'absolute',
-  top: 0, left: 0, right: 0,
-  height: 4,
-  background: 'linear-gradient(90deg, #0072ff, #00e5ff)',
-};
-
-const titleStyle = {
-  fontSize: 26,
-  fontWeight: 'bold',
-  margin: '0 0 8px 0',
-  background: 'linear-gradient(90deg, #0072ff, #00e5ff)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-};
-
-const iconStyle = { color: '#0072ff', marginRight: 8 };
-
-const inputStyle = {
-  backgroundColor: '#f9fafb',
-  border: '1px solid #e5e7eb',
-  color: '#111827',
-  height: 48,
-  borderRadius: 16,
-};
-
-const primaryBtnStyle = {
-  height: 48,
-  borderRadius: 16,
-  fontSize: 15,
-  fontWeight: 'bold',
-  border: 'none',
-  background: 'linear-gradient(90deg, #0072ff, #00e5ff)',
-  color: '#fff',
-};
 
 export default OnboardingPage;

@@ -250,7 +250,7 @@ const AppRouter = () => {
         } />
         <Route path={ROUTES.STUDENT_ROUND_RESULTS} element={
           <ProtectedRoute allowedRoles={['STUDENT']}>
-            <StudentRoundLeaderboardPage source="student" />
+            <StudentRoundLeaderboardPage />
           </ProtectedRoute>
         } />
         <Route path="/student/hackathons/:hackathonId/results" element={

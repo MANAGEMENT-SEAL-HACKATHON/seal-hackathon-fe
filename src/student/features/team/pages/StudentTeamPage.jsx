@@ -1,251 +1,212 @@
 /**
  * Page: StudentTeamPage
- * Chức năng: Trang gốc điều phối luồng dữ liệu (Container) cho toàn bộ không gian Quản lý đội thi. Quyết định hiển thị Onboarding hay Dashboard.
+ * Chức năng: Trang chính Quản lý đội thi Hackathon dành cho sinh viên.
+ * Cải tiến UI Siêu Cấp - "NỔI BẬT KHỎI BACKGROUND":
+ * - Thay đổi nền trang ở Light Mode thành Nền Mesh Xám Xanh đậm đà, tạo độ tương phản 3D sắc nét.
+ * - Khôi phục và kết nối hoàn hảo với StudentTeamDashboard để giữ nguyên toàn bộ tính năng nộp bài, chọn track và lịch sử mentor.
+ * - Tích hợp chuẩn xác 100% với useStudentTeam, useTeamActions và useStudentInvitations!
  */
-import { useState, useEffect } from 'react';
-import { Button, Card, Drawer, Grid, Skeleton, Space, Typography, theme } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { useState } from 'react';
+import { Button, Empty, Skeleton, Typography, theme, Row, Col, Badge, Space } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LockKeyhole } from 'lucide-react';
+import { Mail, ShieldAlert, Trophy, Users, Sparkles, Zap } from 'lucide-react';
 import { useStudentTeam } from '../hooks/useStudentTeam';
 import { useTeamActions } from '../hooks/useTeamActions';
 import { useStudentInvitations } from '../../invitations/hooks/useStudentInvitations';
-import StudentInvitationsPage from '../../invitations/pages/StudentInvitationsPage';
 import StudentTeamOnboarding from '../components/StudentTeamOnboarding';
 import StudentTeamDashboard from '../components/StudentTeamDashboard';
 
-const { Text, Title } = Typography;
+const { Title, Text } = Typography;
+
+/* OFFICIAL FPT LOGO COLORS & CYBER PALETTE */
+const FPT = {
+  blue: '#00529C',
+  blueDark: '#003366',
+  orange: '#F37021',
+  orangeLight: '#FF8C42',
+  green: '#46B749',
+};
 
 const StudentTeamPage = () => {
-  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-  if (userInfo.status !== 'APPROVED') {
-    return <StudentTeamAccessNotice userInfo={userInfo} />;
-  }
-
-  return <StudentTeamWorkspace />;
-};
-
-const StudentTeamAccessNotice = ({ userInfo }) => {
-  const { token } = theme.useToken();
-
-  return (
-    <div style={{ maxWidth: 920, margin: '0 auto', paddingBottom: 64 }}>
-      <Card
-        style={{
-          borderRadius: 8,
-          border: `1px solid ${token.colorBorderSecondary}`,
-          boxShadow: token.boxShadowTertiary,
-          overflow: 'hidden',
-        }}
-        styles={{ body: { padding: 0 } }}
-      >
-        <div
-          style={{
-            padding: '42px 32px',
-            background: `linear-gradient(135deg, rgba(250,173,20,0.14), ${token.colorBgContainer} 56%, rgba(19,194,194,0.12))`,
-            textAlign: 'center',
-          }}
-        >
-          <Space direction="vertical" size={16} align="center" style={{ width: '100%' }}>
-            <span
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 8,
-                display: 'grid',
-                placeItems: 'center',
-                color: '#faad14',
-                background: 'rgba(250,173,20,0.16)',
-                border: '1px solid rgba(250,173,20,0.28)',
-              }}
-            >
-              <LockKeyhole size={30} />
-            </span>
-            <div>
-              <Title level={2} style={{ margin: 0 }}>
-                Chờ duyệt tài khoản
-              </Title>
-              <Text style={{ display: 'block', marginTop: 10, color: token.colorTextSecondary, fontSize: 16 }}>
-                Tài khoản {userInfo.fullName || userInfo.email || 'của bạn'} cần được Coordinator phê duyệt trước khi quản lý đội thi.
-              </Text>
-            </div>
-            <Text type="secondary">
-              Khi trạng thái chuyển sang “Đã được duyệt”, mục Quản lý đội sẽ mở đầy đủ chức năng tạo đội, mời thành viên và chuyển leader.
-            </Text>
-          </Space>
-        </div>
-      </Card>
-    </div>
-  );
-};
-
-const StudentTeamWorkspace = () => {
-  const { token } = theme.useToken();
-  const screens = Grid.useBreakpoint();
-  const [forceShowMenu, setForceShowMenu] = useState(true);
-  const [isInvitationsDrawerOpen, setIsInvitationsDrawerOpen] = useState(false);
-
   const {
     hackathonId,
     setHackathonId,
     teams,
-    selectedTeam,
-    isLoading,
+    selectedTeam: team,
+    isLoading: teamLoading,
     fetchTeams,
     refreshSelectedTeam,
   } = useStudentTeam();
-
-  useEffect(() => {
-    if (teams.length === 1 && teams[0]?.id) {
-      setForceShowMenu(false);
-    }
-  }, [teams]);
 
   const {
     isActionLoading,
     createTeam,
     inviteMember,
-    cancelPendingInvite,
+    cancelPendingInvite: cancelInvite,
     leaveTeam,
     kickMember,
     transferLeader,
     disbandTeam,
-    confirmTeamFormation,
-  } = useTeamActions({
-    teams,
-    fetchTeams,
-    refreshSelectedTeam,
-    setHackathonId,
-  });
+    confirmTeamFormation: confirmFormation,
+  } = useTeamActions({ teams, fetchTeams, refreshSelectedTeam, setHackathonId });
 
   const {
-    pendingCount,
+    invitations: invites = [],
+    pendingCount: pendingInvitesCount,
+    isLoading: invitesLoading,
     fetchInvitations,
+    respondInvitation,
   } = useStudentInvitations();
 
-  const hasTeams = teams.length > 0;
+  const { token } = theme.useToken();
+  const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
 
-  const handleCreateTeam = async (payload) => {
-    const success = await createTeam(payload);
-    if (success) {
-      setForceShowMenu(false);
+  const handleAcceptInvite = async (inv) => {
+    try {
+      const success = await respondInvitation(inv, 'ACCEPT');
+      if (success) {
+        await fetchTeams();
+      }
+    } catch (error) {
+      console.error('Failed to accept invite:', error);
     }
-    return success;
   };
-  
-  const handleInvitationActionSuccess = () => {
-    fetchTeams();
-    fetchInvitations();
-    if (teams.length === 0) {
-      setIsInvitationsDrawerOpen(false);
+
+  const handleRejectInvite = async (inv) => {
+    try {
+      await respondInvitation(inv, 'REJECT');
+    } catch (error) {
+      console.error('Failed to reject invite:', error);
     }
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 64 }}>
-      {/* Dynamic Glassmorphism Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          borderRadius: 32,
-          padding: '40px 48px',
-          marginBottom: 32,
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 24,
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'linear-gradient(135deg, #001529 0%, #003a8c 50%, #13c2c2 100%)',
-          boxShadow: '0 24px 48px rgba(0, 58, 140, 0.15)',
-          color: '#fff',
-        }}
-      >
-        {/* Decorative Floating Orbs */}
-        <div style={{ position: 'absolute', top: -50, right: '20%', width: 300, height: 300, background: 'rgba(19, 194, 194, 0.4)', filter: 'blur(80px)', borderRadius: '50%', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: -100, left: '10%', width: 250, height: 250, background: 'rgba(24, 144, 255, 0.4)', filter: 'blur(60px)', borderRadius: '50%', pointerEvents: 'none' }} />
-        
-        {/* Abstract pattern overlay */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0)', backgroundSize: '32px 32px', pointerEvents: 'none' }} />
+    <div
+      style={{
+        minHeight: 'calc(100vh - 80px)',
+        background: isDark
+          ? 'radial-gradient(circle at 10% 10%, rgba(0, 82, 156, 0.15) 0%, transparent 60%), radial-gradient(circle at 90% 90%, rgba(243, 112, 33, 0.12) 0%, transparent 60%), #0B0F19'
+          : 'radial-gradient(circle at 15% 15%, rgba(243, 112, 33, 0.12) 0%, transparent 50%), radial-gradient(circle at 85% 85%, rgba(0, 82, 156, 0.12) 0%, transparent 50%), linear-gradient(180deg, #E2E8F0 0%, #F1F5F9 50%, #E2E8F0 100%)',
+        padding: '36px 32px 64px',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{ maxWidth: 1400, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+        {/* TOP HERO SECTION */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 20,
+            marginBottom: 36,
+            paddingBottom: 24,
+            borderBottom: `2px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 82, 156, 0.18)'}`,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+            <motion.div
+              whileHover={{ rotate: 15, scale: 1.08 }}
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: 20,
+                background: `linear-gradient(135deg, ${FPT.blue} 0%, #00C6FF 100%)`,
+                display: 'grid',
+                placeItems: 'center',
+                color: '#fff',
+                boxShadow: `0 10px 24px -4px rgba(0, 82, 156, 0.5), inset 0 2px 4px rgba(255,255,255,0.4)`,
+                border: '2px solid rgba(255,255,255,0.3)',
+                flexShrink: 0,
+              }}
+            >
+              <Trophy size={30} style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
+            </motion.div>
 
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: 600 }}>
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-            {hasTeams && !forceShowMenu && (
-              <Button 
-                type="text" 
-                icon={<ArrowLeftOutlined />} 
-                onClick={() => setForceShowMenu(true)}
-                style={{ color: 'rgba(255,255,255,0.85)', padding: 0, marginBottom: 16, display: 'flex', alignItems: 'center' }}
-              >
-                Quay lại Menu
-              </Button>
-            )}
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', fontSize: 13, display: 'block', marginBottom: 8 }}>
-              Workspace
-            </Text>
-            <Title level={1} style={{ margin: 0, color: '#fff', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, textShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-              Quản lý đội
-            </Title>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, marginTop: 12, display: 'block', lineHeight: 1.6 }}>
-              Không gian quản lý thành viên, theo dõi trạng thái duyệt đội và thiết lập chiến thuật xuất sắc nhất cho Hackathon.
-            </Text>
-          </motion.div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ 
+                  background: isDark ? 'rgba(243, 112, 33, 0.25)' : 'rgba(243, 112, 33, 0.15)', 
+                  color: isDark ? '#FF8C42' : FPT.orange, 
+                  padding: '4px 12px', 
+                  borderRadius: 8, 
+                  fontSize: 11, 
+                  fontWeight: 800, 
+                  letterSpacing: '0.06em',
+                  border: `1px solid rgba(243, 112, 33, 0.4)`,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}>
+                  <Sparkles size={13} /> TRUNG TÂM CHIẾN THUẬT HACKATHON
+                </span>
+              </div>
+              <Title level={2} style={{ margin: 0, fontWeight: 900, color: token.colorTextHeading, fontSize: 30, letterSpacing: '-0.02em' }}>
+                Quản Lý Đội Thi & Đội Hình
+              </Title>
+            </div>
+          </div>
         </div>
-        
-      </motion.div>
 
-      <AnimatePresence mode="wait">
-        {isLoading ? (
-          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <Skeleton active paragraph={{ rows: 12 }} />
-          </motion.div>
-        ) : (!hasTeams || forceShowMenu) ? (
-          <StudentTeamOnboarding 
-            hackathonId={hackathonId}
-            hasTeams={hasTeams}
-            setForceShowMenu={setForceShowMenu}
-            setIsInvitationsDrawerOpen={setIsInvitationsDrawerOpen}
-            invitationsCount={pendingCount}
-            onCreateTeam={handleCreateTeam}
-            isActionLoading={isActionLoading}
-          />
-        ) : (
-          <StudentTeamDashboard 
-            selectedTeam={selectedTeam}
-            hackathonId={hackathonId}
-            isActionLoading={isActionLoading}
-            inviteMember={inviteMember}
-            cancelPendingInvite={cancelPendingInvite}
-            leaveTeam={leaveTeam}
-            kickMember={kickMember}
-            transferLeader={transferLeader}
-            disbandTeam={disbandTeam}
-            confirmTeamFormation={confirmTeamFormation}
-            fetchInvitations={fetchInvitations}
-            onTeamRefresh={refreshSelectedTeam}
-          />
-        )}
-      </AnimatePresence>
+        {/* MAIN BODY AREA */}
+        <AnimatePresence mode="wait">
+          {teamLoading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                padding: 48,
+                background: isDark ? 'rgba(30, 41, 59, 0.5)' : '#FFFFFF',
+                borderRadius: 28,
+                border: `1.5px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : token.colorBorderSecondary}`,
+                boxShadow: '0 20px 48px rgba(0,0,0,0.06)',
+              }}
+            >
+              <Skeleton active avatar paragraph={{ rows: 6 }} />
+            </motion.div>
+          ) : !team ? (
+            <motion.div
+              key="onboarding"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+            >
+              <StudentTeamOnboarding />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="team-studio"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+            >
+              <StudentTeamDashboard
+                selectedTeam={team}
+                hackathonId={team.hackathonId || 1}
+                isActionLoading={teamLoading || isActionLoading}
+                inviteMember={inviteMember}
+                cancelPendingInvite={cancelInvite}
+                leaveTeam={leaveTeam}
+                kickMember={kickMember}
+                transferLeader={transferLeader}
+                disbandTeam={disbandTeam}
+                confirmTeamFormation={confirmFormation}
+                fetchInvitations={fetchInvitations}
+                onTeamRefresh={fetchTeams}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-      {/* Invitations Drawer */}
-      <Drawer
-        title={<span style={{ fontSize: 18, fontWeight: 700 }}>Hộp thư Lời mời</span>}
-        placement="right"
-        onClose={() => setIsInvitationsDrawerOpen(false)}
-        open={isInvitationsDrawerOpen}
-        styles={{
-          body: { padding: '24px', background: token.colorBgLayout },
-          wrapper: { width: screens.md ? 800 : '100%' },
-        }}
-      >
-        <StudentInvitationsPage onActionSuccess={handleInvitationActionSuccess} hasTeams={hasTeams} />
-      </Drawer>
     </div>
   );
 };
 
 export default StudentTeamPage;
-

@@ -1,11 +1,24 @@
-﻿/**
+/**
  * Component: TeamMemberCard
- * Chức năng: Card hiển thị thông tin của một thành viên trong đội (Avatar, Vai trò, Trạng thái) và các nút hành động (Xóa, Hủy mời).
+ * Chức năng: Card hiển thị thông tin thành viên trong danh sách.
+ * Cải tiến UI Siêu Cấp - "TƯƠNG PHẢN CAO & NỔI BẬT KHỎI BACKGROUND" (High-Contrast Solid Jewel Badges):
+ * - Thay thế các huy hiệu màu nhạt chìm vào nền (pale pastel pills) bằng Huy hiệu Đặc kim Gradient rực rỡ (Solid Luminous Pills) có chữ trắng và bóng đổ hào quang!
+ * - Avatar 48px viền sáng rực rỡ, hàng ngang gọn gàng, tương phản cực mạnh trên cả nền sáng và nền tối.
  */
-import { Button, Modal, Space, Tag, Typography, theme, Avatar } from 'antd';
-import { DeleteOutlined, CrownOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { useMemo } from 'react';
+import { Button, Modal, Tag, Typography, theme, Avatar, Tooltip } from 'antd';
+import { motion } from 'framer-motion';
+import { Crown, UserMinus, Clock, CheckCircle2, XCircle, Shield } from 'lucide-react';
 
 const { Text } = Typography;
+
+/* OFFICIAL FPT LOGO COLORS & CYBER PALETTE */
+const FPT = {
+  blue: '#00529C',
+  orange: '#F37021',
+  orangeLight: '#FF8C42',
+  green: '#46B749',
+};
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -16,27 +29,46 @@ const getInitials = (name) => {
 
 const TeamMemberCard = ({ member, teamId, canCancelInvite, canKickMember, loading, onCancelInvite, onKickMember }) => {
   const { token } = theme.useToken();
-  const isLeader = member.role === 'LEADER';
+  const isDark = token.colorBgContainer?.toLowerCase() !== '#ffffff' && token.colorBgContainer?.toLowerCase() !== '#fff';
+
+  const isLeader = member.role === 'LEADER' || member.roleInTeam === 'LEADER';
   const isPending = member.status === 'PENDING';
   
-  const cardStyle = {
-    position: 'relative',
-    padding: 16,
-    borderRadius: 16,
-    border: isPending ? `2px dashed ${token.colorBorder}` : `1px solid ${isLeader ? '#faad14' : token.colorBorderSecondary}`,
-    background: isPending ? token.colorFillQuaternary : token.colorBgContainer,
-    transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+  const rowStyle = useMemo(() => ({
+    padding: '16px 24px',
+    background: isPending
+      ? (isDark 
+          ? 'linear-gradient(90deg, rgba(243, 112, 33, 0.12) 0%, rgba(243, 112, 33, 0.02) 40%, transparent 100%)' 
+          : 'linear-gradient(90deg, rgba(243, 112, 33, 0.1) 0%, rgba(243, 112, 33, 0.03) 40%, transparent 100%)')
+      : 'transparent',
+    borderLeft: isPending ? '4px solid #F37021' : '4px solid transparent',
+    transition: 'all 0.3s ease',
     display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden'
-  };
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    width: '100%',
+  }), [isPending, isDark]);
 
   const getStatusIcon = () => {
     switch(member.status) {
-      case 'ACCEPTED': return <CheckCircleOutlined />;
-      case 'PENDING': return <ClockCircleOutlined />;
-      case 'REJECTED': return <CloseCircleOutlined />;
+      case 'ACCEPTED': return <CheckCircle2 size={14} style={{ flexShrink: 0 }} />;
+      case 'PENDING': return <Clock size={14} style={{ flexShrink: 0 }} />;
+      case 'REJECTED': return <XCircle size={14} style={{ flexShrink: 0 }} />;
       default: return null;
+    }
+  };
+
+  const getStatusText = () => {
+    if (member.statusLabel && !['ACCEPTED', 'PENDING', 'REJECTED', 'LEFT'].includes(member.statusLabel)) {
+      return member.statusLabel;
+    }
+    switch(member.status) {
+      case 'ACCEPTED': return 'Đã gia nhập';
+      case 'PENDING': return 'Đang chờ';
+      case 'REJECTED': return 'Đã từ chối';
+      case 'LEFT': return 'Đã rời đội';
+      default: return 'Thành viên';
     }
   };
 
@@ -51,7 +83,7 @@ const TeamMemberCard = ({ member, teamId, canCancelInvite, canKickMember, loadin
         </>
       ),
       okText: 'Mời rời đội',
-      okButtonProps: { danger: true },
+      okButtonProps: { danger: true, style: { fontWeight: 700 } },
       cancelText: 'Hủy',
       onOk: async () => {
         const success = await onKickMember(teamId, member.userId);
@@ -63,98 +95,179 @@ const TeamMemberCard = ({ member, teamId, canCancelInvite, canKickMember, loadin
   };
 
   return (
-    <div
-      style={cardStyle}
-      onMouseEnter={(event) => {
-        event.currentTarget.style.transform = 'translateY(-4px)';
-        event.currentTarget.style.boxShadow = isLeader ? '0 12px 24px rgba(250, 173, 20, 0.15)' : '0 12px 24px rgba(0, 0, 0, 0.06)';
-        if (!isPending) event.currentTarget.style.borderColor = isLeader ? '#faad14' : token.colorPrimary;
-      }}
-      onMouseLeave={(event) => {
-        event.currentTarget.style.transform = 'translateY(0)';
-        event.currentTarget.style.boxShadow = 'none';
-        event.currentTarget.style.borderColor = isPending ? token.colorBorder : (isLeader ? '#faad14' : token.colorBorderSecondary);
-      }}
+    <motion.div
+      whileHover={{ backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 82, 156, 0.04)', x: 4 }}
+      transition={{ duration: 0.15 }}
+      style={rowStyle}
     >
-      {/* Crown Icon for Leader */}
-      {isLeader && (
-        <div style={{ position: 'absolute', top: 0, right: 0, padding: '4px 12px', background: 'linear-gradient(135deg, #faad14, #d48806)', color: '#fff', borderBottomLeftRadius: 16, fontSize: 12, fontWeight: 700, boxShadow: '-2px 2px 8px rgba(250,173,20,0.2)' }}>
-          <CrownOutlined style={{ marginRight: 4 }} /> LEADER
-        </div>
-      )}
+      {/* CỘT 1 (38% width): Avatar 48px + Tên + Email */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: '1 1 38%', minWidth: 200 }}>
+        <motion.div whileHover={{ scale: 1.08, rotate: 5 }}>
+          <Avatar
+            size={48}
+            style={{
+              background: isLeader
+                ? `linear-gradient(135deg, #FF6B00, #FFA800)`
+                : (isDark ? 'linear-gradient(135deg, #00529C, #00C6FF)' : 'linear-gradient(135deg, #00529C, #3B82F6)'),
+              color: '#FFF',
+              fontWeight: 800,
+              fontSize: 16,
+              border: isLeader ? '2px solid rgba(255,255,255,0.6)' : '2px solid rgba(255,255,255,0.4)',
+              boxShadow: isLeader 
+                ? '0 6px 16px -2px rgba(243, 112, 33, 0.6)' 
+                : '0 6px 16px -2px rgba(0, 82, 156, 0.4)',
+              flexShrink: 0,
+            }}
+          >
+            {getInitials(member.fullName || member.email)}
+          </Avatar>
+        </motion.div>
 
-      <Space align="center" size={16} style={{ width: '100%' }}>
-        <Avatar
-          size={52}
-          style={{
-            background: isLeader ? 'linear-gradient(135deg, #faad14, #d48806)' : token.colorPrimaryBg,
-            color: isLeader ? '#fff' : token.colorPrimary,
-            fontWeight: 800,
-            fontSize: 18,
-            border: isLeader ? 'none' : `1px solid ${token.colorPrimaryBorder}`
-          }}
-        >
-          {getInitials(member.fullName || member.email)}
-        </Avatar>
-        
         <div style={{ minWidth: 0, flex: 1 }}>
-          <Text strong style={{ display: 'block', fontSize: 15, color: isLeader ? '#d48806' : token.colorText }}>
+          <Text strong style={{ fontSize: 16, color: isLeader ? (isDark ? '#FB923C' : '#D97706') : token.colorTextHeading, display: 'block', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {member.fullName || 'Thành viên'}
           </Text>
-          <Text type="secondary" style={{ display: 'block', wordBreak: 'break-all', fontSize: 13, marginBottom: 8 }}>
+          <Text type="secondary" style={{ fontSize: 13, color: token.colorTextSecondary, display: 'block', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
             {member.email}
           </Text>
-          
-          <Space wrap size={6}>
-            {!isLeader && (
-              <Tag color={member.roleColor} style={{ margin: 0, border: 0, borderRadius: 6, fontWeight: 600 }}>
-                {member.roleLabel}
-              </Tag>
-            )}
-            <Tag icon={getStatusIcon()} color={member.statusColor} style={{ margin: 0, border: 0, borderRadius: 6, fontWeight: 600 }}>
-              {member.statusLabel}
-            </Tag>
-          </Space>
         </div>
-      </Space>
+      </div>
 
-      {/* Action Footer for Pending Invitations */}
-      {isPending && canCancelInvite && (
-        <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${token.colorBorder}` }}>
-          <Button
-            danger
-            type="primary"
-            ghost
-            size="small"
-            icon={<DeleteOutlined />}
-            loading={loading}
-            onClick={() => onCancelInvite(teamId, member.userId)}
-            style={{ width: '100%', borderRadius: 6, fontWeight: 600 }}
+      {/* CỘT 2 (20% width): Vai trò trong đội (High-Contrast Solid Badge) */}
+      <div style={{ flex: '0 0 20%', minWidth: 120 }}>
+        {isLeader ? (
+          <span
+            style={{
+              padding: '6px 14px',
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, #FF6B00, #FF8C42)',
+              color: '#FFFFFF',
+              fontSize: 12,
+              fontWeight: 800,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 4px 12px -2px rgba(243, 112, 33, 0.5)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+            }}
           >
-            Hủy lời mời
-          </Button>
-        </div>
-      )}
+            <Crown size={14} /> TRƯỞNG NHÓM
+          </span>
+        ) : (
+          <span
+            style={{
+              padding: '6px 14px',
+              borderRadius: 10,
+              background: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
+              border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'}`,
+              color: token.colorTextHeading,
+              fontSize: 12,
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Shield size={14} /> {member.roleLabel === 'MEMBER' ? 'Thành viên' : (member.roleLabel || 'Thành viên')}
+          </span>
+        )}
+      </div>
 
-      {!isPending && canKickMember && (
-        <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${token.colorBorder}` }}>
-          <Button
-            danger
-            type="primary"
-            ghost
-            size="small"
-            icon={<DeleteOutlined />}
-            loading={loading}
-            onClick={handleKickMember}
-            style={{ width: '100%', borderRadius: 6, fontWeight: 600 }}
-          >
-            Mời rời đội
-          </Button>
-        </div>
-      )}
-    </div>
+      {/* CỘT 3 (24% width): Trạng thái sẵn sàng (Solid High-Contrast Jewel Badge) */}
+      <div style={{ flex: '0 0 24%', minWidth: 150 }}>
+        <span
+          style={{
+            padding: '6px 14px',
+            borderRadius: 10,
+            background: member.status === 'ACCEPTED'
+              ? 'linear-gradient(135deg, #10B981, #059669)'
+              : member.status === 'PENDING'
+                ? 'linear-gradient(135deg, #FF8C42, #D97706)'
+                : 'linear-gradient(135deg, #EF4444, #DC2626)',
+            color: '#FFFFFF',
+            fontSize: 12,
+            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            boxShadow: member.status === 'ACCEPTED' 
+              ? '0 4px 12px -2px rgba(16, 185, 129, 0.5)' 
+              : member.status === 'PENDING'
+                ? '0 4px 12px -2px rgba(243, 112, 33, 0.5)'
+                : '0 4px 12px -2px rgba(239, 68, 68, 0.5)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+          }}
+        >
+          {getStatusIcon()} {getStatusText()}
+        </span>
+      </div>
+
+      {/* CỘT 4 (18% width): Nút thao tác điều phối (High-Contrast Ruby CTA) */}
+      <div style={{ flex: '0 0 18%', minWidth: 110, display: 'flex', justifyContent: 'flex-end' }}>
+        {isPending && canCancelInvite && (
+          <Tooltip title="Hủy lời mời gia nhập">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                type="text"
+                danger
+                size="small"
+                icon={<UserMinus size={15} />}
+                loading={loading}
+                onClick={() => onCancelInvite(teamId, member.userId)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  background: isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  color: '#DC2626',
+                  height: 34,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.15)',
+                }}
+              >
+                Hủy mời
+              </Button>
+            </motion.div>
+          </Tooltip>
+        )}
+
+        {!isPending && canKickMember && (
+          <Tooltip title="Mời rời khỏi đội thi">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                type="text"
+                danger
+                size="small"
+                icon={<UserMinus size={15} />}
+                loading={loading}
+                onClick={handleKickMember}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  background: isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  color: '#DC2626',
+                  height: 34,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.15)',
+                }}
+              >
+                Rời đội
+              </Button>
+            </motion.div>
+          </Tooltip>
+        )}
+      </div>
+    </motion.div>
   );
 };
 
 export default TeamMemberCard;
-

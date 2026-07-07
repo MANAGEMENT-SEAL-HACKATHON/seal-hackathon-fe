@@ -29,6 +29,9 @@ const StudentInvitationsPage = ({ onActionSuccess, hasTeams }) => {
     }
   };
 
+  const handleAccept = (inv) => handleRespond(inv, 'ACCEPT');
+  const handleReject = (inv) => handleRespond(inv, 'REJECT');
+
   const sortedInvitations = useMemo(
     () => [...invitations].sort((left, right) => Number(right.memberStatus === 'PENDING') - Number(left.memberStatus === 'PENDING')),
     [invitations]
@@ -135,7 +138,8 @@ const StudentInvitationsPage = ({ onActionSuccess, hasTeams }) => {
                         invitation={invitation}
                         actionKey={actionKey}
                         hasTeams={hasTeams}
-                        onRespond={handleRespond}
+                        onAccept={handleAccept}
+                        onReject={handleReject}
                       />
                     </motion.div>
                   </Col>

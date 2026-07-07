@@ -91,24 +91,73 @@ const PeopleManagementPage = ({ hackathonId }) => {
   const getPersonTitle = (person) =>
     person?.title || person?.jobTitle || person?.institution || 'Mentor';
 
+  const getPersonCode = (person) =>
+    person?.code ||
+    person?.userCode ||
+    person?.user_code ||
+    person?.staffCode ||
+    person?.staff_code ||
+    person?.studentCode ||
+    person?.student_code ||
+    person?.username ||
+    person?.email?.split('@')[0]?.toUpperCase() ||
+    'N/A';
+
+  const getFormattedPersonName = (person) => {
+    const rawName = getPersonDisplayName(person);
+    if (/^(Thầy|Cô|ThS|TS|PGS|GS|Thạc\s*sĩ|Tiến\s*sĩ|Mr\.|Ms\.|Mrs\.)\s+/i.test(rawName)) {
+      return rawName;
+    }
+    const prefix =
+      person?.academicTitle ||
+      person?.academic_title ||
+      person?.salutation ||
+      person?.degree ||
+      person?.prefix ||
+      person?.title ||
+      person?.jobTitle ||
+      person?.job_title;
+    if (prefix && typeof prefix === 'string') {
+      const trimmed = prefix.trim();
+      if (/^(Thầy|Cô|ThS|TS|PGS|GS|Thạc\s*sĩ|Tiến\s*sĩ|Mr\.|Ms\.|Mrs\.)/i.test(trimmed)) {
+        return `${trimmed} ${rawName}`;
+      }
+      if (trimmed.length <= 15 && !trimmed.includes('@') && !trimmed.toLowerCase().includes('mentor') && !trimmed.toLowerCase().includes('fpt')) {
+        return `${trimmed} ${rawName}`;
+      }
+    }
+    return rawName;
+  };
+
   const mentorOptionsForTrack = (trackId) =>
     mentorPool.map((p) => {
       const blocked = trackId && isMentorBlockedForTrack(p.id, trackId);
-      const name = getPersonDisplayName(p);
+      const rawName = getPersonDisplayName(p);
+      const formattedName = getFormattedPersonName(p);
+      const personCode = getPersonCode(p);
       const roleLabel = p.role === 'JUDGE' ? 'Giám khảo' : 'Mentor';
+      const avatarSrc = p.avatarUrl || p.avatar_url || p.avatar;
       return (
-        <Option key={p.id} value={p.id} disabled={blocked} label={name}>
+        <Option key={p.id} value={p.id} disabled={blocked} label={`${formattedName} (${personCode})`}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-            <Avatar size={20} style={{ backgroundColor: '#1677ff', fontSize: 11, flexShrink: 0 }}>
-              {name.charAt(0).toUpperCase()}
+            <Avatar
+              size={32}
+              src={avatarSrc}
+              style={{ backgroundColor: '#1677ff', fontSize: 13, flexShrink: 0 }}
+            >
+              {rawName.charAt(0).toUpperCase()}
             </Avatar>
-            <div style={{ lineHeight: 1.35, minWidth: 0 }}>
-              <Text strong style={{ fontSize: 13 }}>
-                {name}
-                {blocked ? ' (đang là giám khảo cùng bảng)' : ''}
-              </Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 11 }}>
+            <div style={{ lineHeight: 1.4, minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <Text strong style={{ fontSize: 13 }}>
+                  {formattedName}
+                </Text>
+                <Tag color="orange" style={{ margin: 0, fontSize: 11, fontWeight: 700, padding: '0 6px' }}>
+                  {personCode}
+                </Tag>
+                {blocked && <Text type="danger" style={{ fontSize: 11 }}> (đang là giám khảo cùng bảng)</Text>}
+              </div>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
                 {roleLabel} · {getPersonTitle(p)} · {getPersonEmail(p)}
               </Text>
             </div>
@@ -273,17 +322,30 @@ const PeopleManagementPage = ({ hackathonId }) => {
                 {
                   title: 'Mentor',
                   render: (_, r) => {
-                    const found = mentors.find((m) => m.id === r.mentor_id);
-                    const name =
+                    const found = mentors.find((m) => m.id === r.mentor_id) || r;
+                    const rawName =
                       r.mentor_name ||
                       found?.fullName ||
                       found?.full_name ||
                       found?.name ||
                       'Không rõ';
+                    const formattedName = getFormattedPersonName({ ...found, fullName: rawName });
+                    const personCode = getPersonCode(found);
+                    const avatarSrc = found?.avatarUrl || found?.avatar_url || found?.avatar;
                     return (
-                      <Text strong style={{ color: '#1677ff' }}>
-                        {name}
-                      </Text>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Avatar size={24} src={avatarSrc} style={{ backgroundColor: '#1677ff', fontSize: 11 }}>
+                          {rawName.charAt(0).toUpperCase()}
+                        </Avatar>
+                        <div>
+                          <Text strong style={{ color: '#1677ff', marginRight: 6 }}>
+                            {formattedName}
+                          </Text>
+                          <Tag color="orange" style={{ margin: 0, fontSize: 10, fontWeight: 700 }}>
+                            {personCode}
+                          </Tag>
+                        </div>
+                      </div>
                     );
                   },
                 },

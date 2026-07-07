@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Card, Empty, Select, Space, Spin, Table, Tag, Typography } from 'antd';
+import { Card, Empty, Select, Space, Spin, Table, Tag, Typography, Skeleton } from 'antd';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Award } from 'lucide-react';
 import { studentPortalService } from '../services/studentPortal.service';
 
@@ -67,24 +68,46 @@ const StudentAnnualAwardsPage = () => {
           />
         </Space>
 
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 48 }}>
-            <Spin />
-          </div>
-        ) : awards.length === 0 ? (
-          <Empty
-            description={
-              <span>
-                Chưa có giải cá nhân năm cho kỳ {year}.
-                <br />
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Dữ liệu sẽ hiển thị sau khi Ban tổ chức tổng hợp giải Fall.
-                </Text>
-              </span>
-            }
-          />
-        ) : (
-          <Table
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ padding: '24px 0' }}
+            >
+              <Skeleton active avatar paragraph={{ rows: 6 }} />
+            </motion.div>
+          ) : awards.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Empty
+                description={
+                  <span>
+                    Chưa có giải cá nhân năm cho kỳ {year}.
+                    <br />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Dữ liệu sẽ hiển thị sau khi Ban tổ chức tổng hợp giải Fall.
+                    </Text>
+                  </span>
+                }
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="table"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Table
             rowKey={(row) => row.id ?? `${row.hackathonId}-${row.awardName}`}
             dataSource={awards}
             pagination={false}
@@ -111,7 +134,9 @@ const StudentAnnualAwardsPage = () => {
               },
             ]}
           />
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </Card>
     </div>
   );
