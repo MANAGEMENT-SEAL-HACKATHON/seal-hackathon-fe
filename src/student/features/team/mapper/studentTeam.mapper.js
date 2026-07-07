@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Mapper: Student Team
  * Chức năng: Biến đổi dữ liệu (Data mapping) từ API Backend thành định dạng chuẩn hóa phù hợp để hiển thị trên UI.
  */
@@ -92,12 +92,12 @@ export const mapStudentTeam = (team) => {
     toNumber(team.leaderId) === toNumber(currentStudentId) ||
     Boolean(
       userEmail &&
-        members.some(
-          (member) =>
-            member.roleInTeam === 'LEADER' &&
-            member.isAccepted &&
-            member.email === userEmail,
-        ),
+      members.some(
+        (member) =>
+          member.roleInTeam === 'LEADER' &&
+          member.isAccepted &&
+          member.email === userEmail,
+      ),
     );
   const isLocked = Boolean(team.isLocked);
   const formationSubmitted = Boolean(team.formationSubmittedAt);
@@ -111,10 +111,10 @@ export const mapStudentTeam = (team) => {
   const leaderCanEditRoster = isPendingTeam && !isLocked && !formationSubmitted;
   const hasMentor = Boolean(
     team.hasMentor ||
-      team.hasMentorAssignment ||
-      team.mentorAssigned ||
-      team.mentorCount > 0 ||
-      team.mentorAssignedCount > 0
+    team.hasMentorAssignment ||
+    team.mentorAssigned ||
+    team.mentorCount > 0 ||
+    team.mentorAssignedCount > 0
   );
 
   const canChangeMembership = [TEAM_STATUS.PENDING, TEAM_STATUS.ACTIVE].includes(team.status) && !isLocked;
@@ -144,7 +144,7 @@ export const mapStudentTeam = (team) => {
     isAdvanced: participationRaw === 'ADVANCED',
     isEliminatedFromFinal: participationRaw === 'ELIMINATED',
     leaderId: team.leaderId,
-    leaderName: team.leaderName || 'N/A',
+    leaderName: team.leaderName || 'Chưa cập nhật',
     chapterId: team.chapterId,
     status: team.status,
     statusLabel: statusMeta.label,

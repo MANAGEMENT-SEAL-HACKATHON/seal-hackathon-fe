@@ -5,6 +5,7 @@ import { resolveProgressionError } from '../../../../features/rounds/constants/p
 import dayjs from 'dayjs';
 import axiosClient from '../../../../shared/api/axiosClient';
 import { studentSubmissionService } from '../services/studentSubmission.service';
+import { studentRoundService } from '../../round/services/studentRound.service';
 
 const parseList = (res) => (Array.isArray(res) ? res : res?.items || res?.data || []);
 
@@ -81,34 +82,22 @@ export const useFinalSubmission = (teamId, hackathonId) => {
       let finalRnd = null;
 
       try {
-        const roundsRes = await axiosClient.get(`/api/v1/hackathons/${hackathonId}/rounds`);
-        const rounds = parseList(roundsRes);
-        finalRnd = rounds.find((r) => r.is_final || r.isFinal || r.roundType === 'FINAL');
-      } catch {
-        // Student không có quyền coordinator rounds list — fallback GĐ5 endpoint
-      }
-
-      if (!finalRnd) {
-        try {
-          const studentFinal = await axiosClient.get(
-            `/api/v1/me/hackathons/${hackathonId}/final-round`
-          );
-          const data = studentFinal?.data || studentFinal;
-          if (data?.roundId) {
-            finalRnd = {
-              id: data.roundId,
-              name: data.name,
-              is_active: data.isActive,
-              isActive: data.isActive,
-              scoring_locked: data.scoringLocked,
-              scoringLocked: data.scoringLocked,
-              submission_deadline: data.submissionDeadline,
-              submissionDeadline: data.submissionDeadline,
-            };
-          }
-        } catch {
-          // not advanced or no final round yet
+        const studentFinal = await studentRoundService.getFinalRound(hackathonId);
+        const data = studentFinal?.data || studentFinal;
+        if (data?.roundId || data?.id) {
+          finalRnd = {
+            id: data.roundId ?? data.id,
+            name: data.name ?? data.roundName,
+            is_active: data.isActive ?? data.is_active,
+            isActive: data.isActive ?? data.is_active,
+            scoring_locked: data.scoringLocked ?? data.scoring_locked,
+            scoringLocked: data.scoringLocked ?? data.scoring_locked,
+            submission_deadline: data.submissionDeadline ?? data.submission_deadline,
+            submissionDeadline: data.submissionDeadline ?? data.submission_deadline,
+          };
         }
+      } catch {
+        // not advanced or no final round yet
       }
 
       setFinalRound(finalRnd || null);

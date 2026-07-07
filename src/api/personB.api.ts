@@ -55,11 +55,11 @@ const resolveActiveRoundId = async (): Promise<number | null> => {
         const rounds = await axiosClient.get<any, any>(
           `/api/v1/hackathons/${ongoingHackathon.id}/rounds`
         );
-        const roundList = Array.isArray(rounds) ? rounds : rounds?.items || [];
+        const roundList: any[] = Array.isArray(rounds) ? rounds : rounds?.items || [];
         const activeRound =
-          roundList.find((r) => r.isActive && !r.isFinal) ||
-          roundList.find((r) => r.isActive) ||
-          roundList.find((r) => !r.isFinal);
+          roundList.find((r: any) => r.isActive && !r.isFinal) ||
+          roundList.find((r: any) => r.isActive) ||
+          roundList.find((r: any) => !r.isFinal);
         if (activeRound?.id) return Number(activeRound.id);
       }
     }

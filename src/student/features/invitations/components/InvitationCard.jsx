@@ -1,144 +1,158 @@
-﻿/**
+/**
  * Component: InvitationCard
  * Chức năng: Card hiển thị chi tiết một lời mời tham gia đội. Cho phép người dùng Chấp nhận hoặc Từ chối lời mời.
+ * Thiết kế Siêu Cấp: Nổi bật, 3D Glassmorphism, tương phản mạnh, nút bấm xịn xò.
  */
-import { Button, Modal, Progress, Space, Tag, Typography, theme, Divider, Avatar } from 'antd';
-import { CheckOutlined, CloseOutlined, TeamOutlined, CrownOutlined, UsergroupAddOutlined } from '@ant-design/icons';
-import { INVITATION_ACTION } from '../constants/studentInvitation.constants';
+import { Button, Space, Typography, theme, Avatar, Tag } from 'antd';
+import { CheckCircle2, XCircle, Users, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import dayjs from 'dayjs';
 
 const { Text, Title } = Typography;
 
-const InvitationCard = ({ invitation, actionKey, hasTeams, onRespond }) => {
+const InvitationCard = ({ invitation, onAccept, onReject, loading = false }) => {
   const { token } = theme.useToken();
-  const loading = (action) => actionKey === `${invitation.teamId}-${action}`;
-  const progressPercent = Math.min(100, Math.round((invitation.acceptedMemberCount / 5) * 100));
-  const isPending = invitation.memberStatus === 'PENDING';
+  const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
+  const isPending = invitation.memberStatus === 'PENDING' || invitation.status === 'PENDING';
 
-  const confirmAction = (action, title) => {
-    if (action === INVITATION_ACTION.ACCEPT && hasTeams) {
-      Modal.warning({
-        title: 'Không thể chấp nhận',
-        content: 'Bạn đã tham gia một đội thi khác. Vui lòng rời đội hiện tại nếu muốn gia nhập đội này.',
-        okText: 'Đã hiểu',
-      });
-      return;
-    }
-    Modal.confirm({
-      title,
-      content: `Đội: ${invitation.teamName}`,
-      okText: 'Xác nhận',
-      cancelText: 'Hủy',
-      onOk: () => onRespond(invitation, action),
-    });
+  const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   };
 
   return (
     <motion.div
-      whileHover={{ y: -4, boxShadow: '0 24px 56px rgba(15, 98, 254, 0.12)' }}
-      transition={{ duration: 0.3 }}
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      whileHover={{ y: -4, boxShadow: isDark ? '0 20px 40px rgba(0,0,0,0.4)' : '0 20px 40px rgba(0, 82, 156, 0.15)' }}
       style={{
         height: '100%',
+        padding: '24px',
+        borderRadius: 24,
+        background: isDark 
+          ? (isPending ? 'linear-gradient(145deg, rgba(0, 82, 156, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%)' : 'rgba(255,255,255,0.02)')
+          : (isPending ? 'linear-gradient(145deg, #F0F9FF 0%, #FFFFFF 100%)' : '#F8FAFC'),
+        border: `2px solid ${isPending ? (isDark ? 'rgba(0, 198, 255, 0.4)' : '#00C6FF') : (isDark ? 'rgba(255,255,255,0.05)' : '#E2E8F0')}`,
+        boxShadow: isPending 
+          ? (isDark ? '0 10px 30px rgba(0, 198, 255, 0.1)' : '0 10px 30px rgba(0, 198, 255, 0.15)')
+          : 'none',
         display: 'flex',
         flexDirection: 'column',
-        borderRadius: 24,
-        background: token.colorBgContainer,
-        border: `1px solid ${isPending ? '#91caff' : token.colorBorderSecondary}`,
-        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.04)',
-        overflow: 'hidden',
-        position: 'relative'
+        justifyContent: 'space-between',
+        gap: 20,
+        position: 'relative',
+        overflow: 'hidden'
       }}
     >
+      {/* Background Glow */}
       {isPending && (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, #0f62fe, #13c2c2)' }} />
+        <div style={{ position: 'absolute', top: -50, right: -50, width: 150, height: 150, background: 'radial-gradient(circle, rgba(0, 198, 255, 0.2) 0%, transparent 70%)', filter: 'blur(20px)', pointerEvents: 'none' }} />
       )}
 
-      <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <Space align="start" size={16} style={{ width: '100%', marginBottom: 20 }}>
-          <Avatar
-            size={56}
-            style={{
-              background: isPending ? 'linear-gradient(135deg, #0f62fe, #13c2c2)' : token.colorFillQuaternary,
-              color: isPending ? '#fff' : token.colorTextSecondary,
-              boxShadow: isPending ? '0 12px 24px rgba(15, 98, 254, 0.25)' : 'none',
-              border: isPending ? 'none' : `1px solid ${token.colorBorderSecondary}`
-            }}
-            icon={<TeamOutlined />}
-          />
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <Space wrap style={{ marginBottom: 6 }}>
-              <Tag color={invitation.memberStatusColor} style={{ margin: 0, borderRadius: 6, fontWeight: 600, border: 0 }}>
-                {invitation.memberStatusLabel}
-              </Tag>
-              {invitation.isLocked && <Tag color="error" style={{ margin: 0, borderRadius: 6, fontWeight: 600, border: 0 }}>Đã khóa</Tag>}
-            </Space>
-            <Title level={4} style={{ margin: 0, fontSize: 18, color: isPending ? token.colorPrimary : token.colorText }}>
-              {invitation.teamName}
+      {/* Header info */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+        <Avatar
+          size={56}
+          style={{
+            background: isPending ? 'linear-gradient(135deg, #00529C, #00C6FF)' : (isDark ? 'rgba(255,255,255,0.1)' : '#CBD5E1'),
+            color: '#FFF',
+            fontWeight: 900,
+            fontSize: 18,
+            boxShadow: isPending ? '0 8px 16px rgba(0, 198, 255, 0.4)' : 'none',
+            border: '2px solid rgba(255,255,255,0.5)',
+            flexShrink: 0,
+          }}
+        >
+          {getInitials(invitation.teamName || 'Team')}
+        </Avatar>
+        
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+            <Title level={4} style={{ margin: 0, fontWeight: 800, color: token.colorTextHeading, fontSize: 18, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {invitation.teamName || 'Đội thi'}
             </Title>
-            <Text type="secondary" style={{ fontSize: 13 }}>{invitation.hackathonName}</Text>
+            {!isPending && (
+              <Tag color={invitation.memberStatus === 'ACCEPTED' ? 'success' : 'default'} style={{ margin: 0, fontWeight: 700, borderRadius: 6 }}>
+                {invitation.memberStatus === 'ACCEPTED' ? 'Đã tham gia' : 'Đã từ chối'}
+              </Tag>
+            )}
+            {isPending && (
+              <Tag color="processing" icon={<Clock size={12} style={{ marginRight: 4 }} />} style={{ margin: 0, fontWeight: 700, borderRadius: 6, background: '#E0F2FE', color: '#0369A1', borderColor: '#BAE6FD' }}>
+                Mới
+              </Tag>
+            )}
           </div>
-        </Space>
-
-        <div style={{ background: token.colorFillAlter, borderRadius: 16, padding: '16px 20px', border: `1px solid ${token.colorBorderSecondary}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <CrownOutlined style={{ color: '#faad14', fontSize: 18, flexShrink: 0 }} />
-            <Text type="secondary" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>Trưởng nhóm:</Text>
-            <Text strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} title={invitation.leaderName}>
-              {invitation.leaderName}
-            </Text>
+          
+          <Text style={{ fontSize: 13, color: token.colorTextSecondary, display: 'block', fontWeight: 600, marginTop: 4 }}>
+            👑 Trưởng nhóm: <span style={{ color: token.colorTextHeading }}>{invitation.leaderName || invitation.leaderEmail}</span>
+          </Text>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9', padding: '4px 10px', borderRadius: 8 }}>
+              <Users size={14} style={{ color: token.colorTextSecondary }} />
+              <Text style={{ fontSize: 12, fontWeight: 700, color: token.colorTextSecondary }}>
+                Thành viên: <span style={{ color: token.colorPrimary }}>{invitation.acceptedMemberCount || 1}/5</span>
+              </Text>
+            </div>
           </div>
-          
-          <Divider style={{ margin: '0 0 12px 0' }} />
-          
-          <Space align="center" style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Space size={6}>
-              <UsergroupAddOutlined style={{ color: token.colorPrimary }} />
-              <Text type="secondary">Đã gia nhập</Text>
-            </Space>
-            <Text strong>{invitation.acceptedMemberCount}/5</Text>
-          </Space>
-          <Progress percent={progressPercent} showInfo={false} strokeColor={{ from: '#0f62fe', to: '#13c2c2' }} trailColor={token.colorFillSecondary} strokeWidth={6} />
-          
-          {invitation.pendingInviteCount > 0 && (
-            <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 8, textAlign: 'right' }}>
-              + {invitation.pendingInviteCount} lời mời đang chờ
-            </Text>
-          )}
         </div>
       </div>
 
-      {(invitation.canAccept || invitation.canReject) && (
-        <div style={{ padding: '16px 24px', background: token.colorFillQuaternary, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
-          <Space wrap style={{ width: '100%', justifyContent: 'flex-end', gap: 12 }}>
-            {invitation.canReject && (
-              <Button
-                type="default"
-                danger
-                icon={<CloseOutlined />}
-                loading={loading(INVITATION_ACTION.REJECT)}
-                onClick={() => confirmAction(INVITATION_ACTION.REJECT, 'Từ chối lời mời?')}
-                style={{ borderRadius: 8, fontWeight: 600 }}
-              >
-                Từ chối
-              </Button>
-            )}
-            {invitation.canAccept && (
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                loading={loading(INVITATION_ACTION.ACCEPT)}
-                onClick={() => confirmAction(INVITATION_ACTION.ACCEPT, 'Tham gia đội này?')}
-                style={{ borderRadius: 8, fontWeight: 700, background: token.colorPrimary, borderColor: token.colorPrimary, boxShadow: '0 8px 16px rgba(15, 98, 254, 0.2)' }}
-              >
-                Chấp nhận
-              </Button>
-            )}
-          </Space>
-        </div>
+      {/* Action Buttons */}
+      {isPending && (
+        <Space style={{ width: '100%', marginTop: 'auto' }}>
+          <Button
+            type="primary"
+            onClick={() => onAccept?.(invitation)}
+            loading={loading}
+            style={{
+              height: 44,
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, #10B981, #059669)',
+              border: 'none',
+              fontWeight: 800,
+              fontSize: 14,
+              color: '#FFF',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: 1,
+              gap: 6,
+            }}
+          >
+            <CheckCircle2 size={18} /> Đồng ý
+          </Button>
+
+          <Button
+            danger
+            onClick={() => onReject?.(invitation)}
+            disabled={loading}
+            style={{
+              height: 44,
+              borderRadius: 12,
+              background: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              fontWeight: 700,
+              fontSize: 14,
+              color: '#DC2626',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: 1,
+              gap: 6,
+            }}
+          >
+            <XCircle size={18} /> Từ chối
+          </Button>
+        </Space>
       )}
     </motion.div>
   );
 };
 
 export default InvitationCard;
-

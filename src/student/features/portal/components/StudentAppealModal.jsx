@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Form, Input, Select, message } from 'antd';
+import { Modal, Form, Input, Select, message, Alert } from 'antd';
 import { studentPortalService } from '../services/studentPortal.service';
 
 const StudentAppealModal = ({
@@ -28,12 +28,12 @@ const StudentAppealModal = ({
         reason: values.reason,
         evidenceUrl: values.evidenceUrl,
       });
-      message.success('Đã gửi khiếu nại. Ban tổ chức sẽ xem xét và phản hồi.');
+      message.success('Đã gửi khiếu nại thành công. Ban tổ chức sẽ xem xét và phản hồi.');
       form.resetFields();
       onSuccess?.();
       onClose?.();
     } catch (error) {
-      message.error(error?.message || 'Không thể gửi khiếu nại.');
+      message.error(error?.message || 'Không thể gửi khiếu nại. Có thể đã hết thời hạn hoặc không hợp lệ.');
     } finally {
       setLoading(false);
     }
@@ -41,7 +41,7 @@ const StudentAppealModal = ({
 
   return (
     <Modal
-      title="Gửi khiếu nại kết quả"
+      title="Gửi khiếu nại quyết định loại đội"
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
@@ -49,6 +49,13 @@ const StudentAppealModal = ({
       okText="Gửi khiếu nại"
       destroyOnClose
     >
+      <Alert
+        type="info"
+        showIcon
+        message="Quy định khiếu nại"
+        description="Chỉ Trưởng nhóm (Leader) của đội bị loại thủ công (ELIMINATED) mới có thể gửi khiếu nại trong thời hạn quy định của Ban tổ chức."
+        style={{ marginBottom: 16 }}
+      />
       <Form
         form={form}
         layout="vertical"
@@ -58,7 +65,7 @@ const StudentAppealModal = ({
         {roundOptions.length > 1 && (
           <Form.Item
             name="roundId"
-            label="Vòng thi"
+            label="Vòng thi bị loại"
             rules={[{ required: true, message: 'Chọn vòng thi cần khiếu nại' }]}
           >
             <Select
@@ -70,10 +77,10 @@ const StudentAppealModal = ({
         )}
         <Form.Item
           name="reason"
-          label="Lý do khiếu nại"
+          label="Lý do khiếu nại việc đội bị loại"
           rules={[{ required: true, message: 'Vui lòng mô tả lý do' }, { min: 10, message: 'Tối thiểu 10 ký tự' }]}
         >
-          <Input.TextArea rows={4} placeholder="Mô tả chi tiết điểm số / xếp hạng bạn cho là chưa chính xác..." />
+          <Input.TextArea rows={4} placeholder="Mô tả chi tiết lý do khiếu nại quyết định loại thủ công đội của bạn trong vòng thi này..." />
         </Form.Item>
         <Form.Item name="evidenceUrl" label="Link minh chứng (tuỳ chọn)">
           <Input placeholder="https://..." />

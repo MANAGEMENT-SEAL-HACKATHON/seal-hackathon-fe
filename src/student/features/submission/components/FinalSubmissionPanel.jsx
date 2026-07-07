@@ -1,6 +1,5 @@
-// src/student/features/submission/components/FinalSubmissionPanel.jsx
 import { useEffect, useState } from 'react';
-import { Card, Form, Input, Button, Typography, Tag, Space, Alert, Row, Col, Spin, Upload, Modal, message } from 'antd';
+import { Card, Form, Input, Button, Typography, Tag, Space, Alert, Row, Col, Spin, Upload, Modal, message, theme, Divider } from 'antd';
 import {
   CloudUploadOutlined,
   LockOutlined,
@@ -10,12 +9,16 @@ import {
   LinkOutlined,
   ClockCircleOutlined,
   EyeOutlined,
+  TrophyOutlined,
+  InfoCircleOutlined,
+  GithubOutlined,
 } from '@ant-design/icons';
 import { useFinalSubmission } from '../hooks/useFinalSubmission';
 import { criteriaService } from '../../../../features/criteria/services/criteriaService';
 import { studentSubmissionService } from '../services/studentSubmission.service';
 
 const { Title, Text, Paragraph } = Typography;
+const { Dragger } = Upload;
 
 const formatWeight = (weight) => {
   const value = Number(weight);
@@ -44,6 +47,9 @@ const FinalSubmissionForm = ({
   finalRound, existingSubmission, isEligible,
   isLocked, timeLeft, isSubmitting, submitFinalWork 
 }) => {
+  const { token } = theme.useToken();
+  const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
+
   const [form] = Form.useForm();
   const [slideFile, setSlideFile] = useState(null);
   const [criteria, setCriteria] = useState([]);
@@ -144,90 +150,108 @@ const FinalSubmissionForm = ({
   };
 
   return (
-    <Card
-      style={{
-        borderRadius: 16,
-        border: (isLocked || isRejected) && !isSubmitted ? '1px solid #ffccc7' : '1px solid #e2e8f0',
-      }}
-      styles={{ body: { padding: 32 } }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* HEADER SECTION */}
       <div
         style={{
+          background: isDark ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)' : '#FFFFFF',
+          borderRadius: 24,
+          padding: '24px 32px',
+          boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.4)' : '0 12px 28px -8px rgba(0, 82, 156, 0.12)',
+          border: `1.5px solid ${isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 82, 156, 0.22)'}`,
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 24,
+          alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 16,
+          gap: 20,
         }}
       >
-        <div>
-          <Space align="center" style={{ marginBottom: 8 }}>
-            <Title level={3} style={{ margin: 0 }}>
-              Nộp bài Chung kết
-            </Title>
-            {isSubmitted ? (
-              <Tag color="success" icon={<CheckCircleOutlined />} style={{ fontWeight: 600 }}>
-                ĐÃ NỘP BÀI
-              </Tag>
-            ) : isRejected ? (
-              <Tag
-                color="error"
-                icon={<CloseCircleOutlined />}
-                style={{ fontWeight: 600, fontSize: 14, padding: '4px 8px' }}
-              >
-                REJECTED
-              </Tag>
-            ) : isLocked ? (
-              <Tag color="warning" icon={<ClockCircleOutlined />} style={{ fontWeight: 600 }}>
-                HẾT HẠN
-              </Tag>
-            ) : (
-              <Tag color="processing" style={{ fontWeight: 600 }}>
-                ĐANG MỞ
-              </Tag>
-            )}
-          </Space>
-          <Text type="secondary" style={{ display: 'block' }}>
-            Hạn chót: {deadline ? new Date(deadline).toLocaleString('vi-VN') : 'Chưa công bố'}
-          </Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 18,
+              background: isDark ? 'rgba(243, 112, 33, 0.2)' : 'rgba(243, 112, 33, 0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#F37021',
+              fontSize: 28,
+              border: `1px solid ${isDark ? 'rgba(243, 112, 33, 0.3)' : 'rgba(243, 112, 33, 0.2)'}`,
+            }}
+          >
+            🏆
+          </div>
+          <div>
+            <Space align="center" style={{ marginBottom: 6, flexWrap: 'wrap', gap: 10 }}>
+              <Title level={3} style={{ margin: 0, fontWeight: 900, color: token.colorTextHeading, fontSize: 22 }}>
+                Cổng nộp bài Vòng Chung kết
+              </Title>
+              {isSubmitted ? (
+                <Tag color="success" icon={<CheckCircleOutlined />} style={{ fontWeight: 700, padding: '4px 10px', borderRadius: 8, fontSize: 13 }}>
+                  ĐÃ NỘP BÀI
+                </Tag>
+              ) : isRejected ? (
+                <Tag color="error" icon={<CloseCircleOutlined />} style={{ fontWeight: 700, padding: '4px 10px', borderRadius: 8, fontSize: 13 }}>
+                  REJECTED
+                </Tag>
+              ) : isLocked ? (
+                <Tag color="warning" icon={<ClockCircleOutlined />} style={{ fontWeight: 700, padding: '4px 10px', borderRadius: 8, fontSize: 13 }}>
+                  HẾT HẠN
+                </Tag>
+              ) : (
+                <Tag color="processing" style={{ fontWeight: 700, padding: '4px 10px', borderRadius: 8, fontSize: 13 }}>
+                  ĐANG MỞ
+                </Tag>
+              )}
+            </Space>
+            <Text type="secondary" style={{ display: 'block', fontSize: 14, fontWeight: 600, color: token.colorTextSecondary }}>
+              Hạn chót chính thức: {deadline ? new Date(deadline).toLocaleString('vi-VN') : 'Chưa công bố'}
+            </Text>
+          </div>
         </div>
 
         <div
           style={{
-            background: isLocked ? '#fff2f0' : '#e6f4ff',
-            padding: '12px 24px',
-            borderRadius: 12,
-            border: `1px solid ${isLocked ? '#ffccc7' : '#bae0ff'}`,
+            background: isLocked ? (isDark ? 'rgba(207, 19, 34, 0.2)' : '#fff2f0') : (isDark ? 'rgba(22, 119, 255, 0.15)' : '#eff6ff'),
+            padding: '14px 28px',
+            borderRadius: 16,
+            border: `1.5px solid ${isLocked ? (isDark ? 'rgba(255, 77, 79, 0.4)' : '#ffccc7') : (isDark ? 'rgba(59, 130, 246, 0.4)' : '#bae0ff')}`,
             textAlign: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
           }}
         >
           <Text
             style={{
               display: 'block',
               fontSize: 12,
-              fontWeight: 600,
-              color: isLocked ? '#cf1322' : '#0958d9',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: 1,
+              color: isLocked ? '#ff4d4f' : '#1677ff',
+              marginBottom: 4,
             }}
           >
             {isLocked ? 'TRẠNG THÁI' : 'THỜI GIAN CÒN LẠI'}
           </Text>
           <Title
             level={4}
-            style={{ margin: 0, color: isLocked ? '#cf1322' : '#1677ff', fontFamily: 'monospace' }}
+            style={{ margin: 0, color: isLocked ? '#ff4d4f' : '#1677ff', fontFamily: 'monospace', fontWeight: 800, fontSize: 20 }}
           >
             {timeLeft}
           </Title>
         </div>
       </div>
 
+      {/* ALERTS SECTION */}
       {isRejected && (
         <Alert
           message="Bài nộp bị từ chối (REJECTED)"
           description="Bài nộp Chung kết đã bị hệ thống từ chối do quá hạn (HARD_LOCK). Không thể nộp lại."
           type="error"
           showIcon
-          style={{ marginBottom: 24, borderRadius: 8 }}
+          style={{ borderRadius: 14, padding: '16px 20px', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}
         />
       )}
 
@@ -237,7 +261,7 @@ const FinalSubmissionForm = ({
           description="Thời gian nộp Chung kết đã kết thúc. Bạn vẫn có thể gửi để hệ thống ghi nhận trạng thái REJECTED (HARD_LOCK)."
           type="warning"
           showIcon
-          style={{ marginBottom: 24, borderRadius: 8 }}
+          style={{ borderRadius: 14, padding: '16px 20px', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}
         />
       )}
 
@@ -247,296 +271,511 @@ const FinalSubmissionForm = ({
           description="File slide PDF chưa được lưu thành công. Vui lòng chọn file PDF hợp lệ và nộp lại."
           type="warning"
           showIcon
-          style={{ marginBottom: 24, borderRadius: 8 }}
+          style={{ borderRadius: 14, padding: '16px 20px', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}
         />
       )}
 
       {isSubmitted && (
         <Alert
-          message="Bài nộp đã được ghi nhận"
-          description="Nếu bạn vừa cập nhật repo hoặc demo, hệ thống có thể cần thêm thời gian để đồng bộ và kiểm tra quyền truy cập công khai."
+          message="Bài nộp Chung kết đã được ghi nhận thành công!"
+          description="Nếu bạn vừa cập nhật source code hoặc demo, hệ thống có thể cần thêm thời gian để đồng bộ và kiểm tra quyền truy cập công khai."
           type="success"
           showIcon
-          style={{ marginBottom: 24, borderRadius: 8 }}
+          style={{ borderRadius: 14, padding: '16px 20px', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}
         />
       )}
 
-      <Row gutter={48}>
-        <Col xs={24} lg={8}>
-          <div
+      {/* MAIN CONTENT COLUMNS */}
+      <Row gutter={[24, 24]} align="stretch">
+        <Col xs={24} lg={9} style={{ display: 'flex', flexDirection: 'column' }}>
+          <Card
             style={{
-              background: '#fafafa',
-              padding: 24,
-              borderRadius: 12,
-              border: '1px solid #f0f0f0',
+              borderRadius: 20,
+              background: isDark ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%)' : 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
+              border: isDark ? '1px solid rgba(139, 92, 246, 0.3)' : '2px solid #d8b4fe',
+              boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px -6px rgba(139, 92, 246, 0.15)',
               height: '100%',
             }}
+            styles={{ body: { padding: 28 } }}
           >
-            <Title level={5} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <FilePdfOutlined style={{ color: '#1677ff' }} />
-              Yêu cầu & Tiêu chí
+            <Title level={5} style={{ display: 'flex', alignItems: 'center', color: token.colorTextHeading, fontSize: 17, fontWeight: 800, marginBottom: 12 }}>
+              <InfoCircleOutlined style={{ color: '#8b5cf6', marginRight: 10, fontSize: 20 }} />
+              Yêu cầu & Tiêu chí đánh giá
             </Title>
-            <Paragraph type="secondary" style={{ fontSize: 13 }}>
-              Sản phẩm của bạn sẽ được đánh giá theo tiêu chí Vòng Chung kết từ hệ thống. Vui lòng đảm bảo slide thể hiện rõ các yếu tố này:
+            <Paragraph style={{ color: token.colorTextSecondary, fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+              Sản phẩm của bạn sẽ được đánh giá theo các tiêu chí Vòng Chung kết từ hệ thống. Vui lòng đảm bảo slide thể hiện rõ:
             </Paragraph>
 
             {criteriaLoading ? (
-              <Spin size="small" />
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <Spin size="small" tip="Đang tải tiêu chí..." />
+              </div>
             ) : criteria.length === 0 ? (
-              <Text type="secondary">Chưa có tiêu chí Chung kết — liên hệ Coordinator.</Text>
+              <Text type="secondary" style={{ fontStyle: 'italic' }}>Chưa có tiêu chí Chung kết — liên hệ Ban tổ chức.</Text>
             ) : (
-              <ul style={{ paddingLeft: 16, marginTop: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {criteria.map((c) => (
-                  <li key={c.id} style={{ marginBottom: 12, color: '#434343', fontWeight: 500 }}>
-                    {c.name || c.criterionName}{' '}
-                    <Tag color="blue" style={{ marginLeft: 8 }}>
+                  <div
+                    key={c.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px 16px',
+                      background: isDark ? 'rgba(255,255,255,0.05)' : '#f8fafc',
+                      borderRadius: 12,
+                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0'}`,
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: token.colorTextHeading, fontSize: 14 }}>{c.name || c.criterionName}</span>
+                    <Tag color="purple" style={{ margin: 0, fontWeight: 700, borderRadius: 6, padding: '2px 8px', fontSize: 13 }}>
                       {formatWeight(c.weight)}
                     </Tag>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
-          </div>
+
+            <Divider style={{ margin: '24px 0', borderColor: isDark ? 'rgba(255,255,255,0.1)' : undefined }} />
+
+            <ul style={{ paddingLeft: 18, color: token.colorTextSecondary, fontSize: 13, lineHeight: 1.8, margin: 0 }}>
+              <li>Slide thuyết trình <Text type="danger" strong>BẮT BUỘC</Text> lưu dưới định dạng <Tag color="error" style={{ margin: 0 }}>PDF</Tag>.</li>
+              <li style={{ marginTop: 8 }}>Dung lượng file tải lên tối đa <Text strong>25MB</Text>.</li>
+              <li style={{ marginTop: 8 }}>Mã nguồn phải ở chế độ <Text strong color="success">Public</Text> để Ban giám khảo chấm điểm.</li>
+              <li style={{ marginTop: 8 }}>Hãy nộp sớm trước giờ chốt để tránh tắc nghẽn đường truyền.</li>
+            </ul>
+          </Card>
         </Col>
 
-        <Col xs={24} lg={16}>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleFinish}
-            disabled={isRejected || isSubmitted}
-            initialValues={existingSubmission || {}}
+        <Col xs={24} lg={15} style={{ display: 'flex', flexDirection: 'column' }}>
+          <Card
+            style={{
+              borderRadius: 24,
+              boxShadow: isDark ? '0 20px 40px rgba(0,0,0,0.5)' : '0 20px 40px -10px rgba(15, 23, 42, 0.12), 0 4px 12px -2px rgba(15, 23, 42, 0.05)',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.15)' : '2px solid #cbd5e1',
+              background: isDark ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+            styles={{ body: { padding: '32px 36px', flex: 1, display: 'flex', flexDirection: 'column' } }}
           >
-            <Form.Item
-              label={
-                <span style={{ fontWeight: 600 }}>
-                  File Slide Thuyết trình PDF <span style={{ color: 'red' }}>*</span>
-                </span>
-              }
-              required
-            >
-              <Upload
-                accept=".pdf,application/pdf"
-                maxCount={1}
-                beforeUpload={(file) => {
-                  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-                  if (!isPdf) {
-                    message.error('Chỉ chấp nhận file PDF cho slide thuyết trình.');
-                    return Upload.LIST_IGNORE;
-                  }
-                  setSlideFile(file);
-                  return false;
-                }}
-                onRemove={() => setSlideFile(null)}
-                disabled={isRejected || isSubmitted}
-              >
-                <Button icon={<CloudUploadOutlined />} disabled={isRejected || isSubmitted}>Chọn file PDF</Button>
-              </Upload>
-              
-              {(existingSubmission?.slideFile || existingSubmission?.slide_file || hasSavedSlide) && (
-                <div style={{ marginTop: 12, padding: '10px 14px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8 }}>
-                  <Text style={{ color: '#389e0d', fontWeight: 600, display: 'block' }}>
-                    <CheckCircleOutlined style={{ marginRight: 6 }} />
-                    Slide đã nộp: {submittedSlideName}
-                  </Text>
-                  {hasSavedSlide && submissionId && (
-                    <div 
-                      onClick={handleViewSubmittedSlide} 
-                      style={{ marginTop: 8, color: '#1677ff', cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, background: '#e6f4ff', padding: '4px 10px', borderRadius: 6 }}
-                    >
-                      <EyeOutlined /> Bấm vào đây để xem nội dung PDF
-                    </div>
-                  )}
-                </div>
-              )}
-            </Form.Item>
+            <Title level={4} style={{ margin: 0, color: token.colorTextHeading, fontWeight: 800, marginBottom: 24 }}>
+              {isSubmitted ? 'Cập nhật Bài dự thi Chung kết' : 'Nộp Bài dự thi Vòng Chung kết'}
+            </Title>
 
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="demoUrl" label="Link Demo Sản phẩm (Nếu có)" rules={[{ validator: validateOptionalUrl }]}>
-                  <Input
-                    prefix={<LinkOutlined style={{ color: '#bfbfbf' }} />}
-                    placeholder="https://..."
-                    size="large"
-                    style={{ borderRadius: 8 }}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="repoUrl" label="Link Source Code (Github/Gitlab)" rules={[{ validator: validateOptionalUrl }]}>
-                  <Input
-                    prefix={<LinkOutlined style={{ color: '#bfbfbf' }} />}
-                    placeholder="https://github.com/..."
-                    size="large"
-                    style={{ borderRadius: 8 }}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="reportUrl" label="Link Báo cáo (Nếu có)" rules={[{ validator: validateOptionalUrl }]}>
-                  <Input
-                    prefix={<LinkOutlined style={{ color: '#bfbfbf' }} />}
-                    placeholder="https://docs.example.com/final-report"
-                    size="large"
-                    style={{ borderRadius: 8 }}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-            {!isSubmitted && !isRejected && (
-              <Button
-                type="primary"
-                size="large"
-                htmlType="submit"
-                icon={<CloudUploadOutlined />}
-                loading={isSubmitting}
-                style={{
-                  width: 200,
-                  height: 48,
-                  borderRadius: 12,
-                  fontWeight: 700,
-                }}
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleFinish}
+              disabled={isRejected}
+              initialValues={existingSubmission || {}}
+              style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+            >
+              <Form.Item
+                label={
+                  <Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>
+                    File Slide Thuyết trình PDF {!hasSavedSlide && <span style={{ color: '#ff4d4f' }}>*</span>}
+                  </Text>
+                }
+                required
+                style={{ marginBottom: 24 }}
               >
-                Gửi Bài Dự Thi
-              </Button>
-            )}
-          </Form>
+                <Dragger
+                  accept=".pdf,application/pdf"
+                  maxCount={1}
+                  beforeUpload={(file) => {
+                    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+                    if (!isPdf) {
+                      message.error('Chỉ chấp nhận file PDF cho slide thuyết trình.');
+                      return Upload.LIST_IGNORE;
+                    }
+                    setSlideFile(file);
+                    return false;
+                  }}
+                  onRemove={() => setSlideFile(null)}
+                  disabled={isRejected}
+                  style={{
+                    background: isDark ? 'rgba(15, 23, 42, 0.6)' : '#eff6ff',
+                    borderColor: isDark ? 'rgba(59, 130, 246, 0.4)' : '#60a5fa',
+                    borderWidth: 2,
+                    borderStyle: 'dashed',
+                    borderRadius: 16,
+                    padding: '24px 0',
+                  }}
+                >
+                  <p className="ant-upload-drag-icon">
+                    <CloudUploadOutlined style={{ color: '#3b82f6', fontSize: 52 }} />
+                  </p>
+                  <p className="ant-upload-text" style={{ fontSize: 17, fontWeight: 700, color: token.colorTextHeading, marginTop: 14 }}>
+                    Kéo thả file Slide PDF vào đây hoặc Nhấp để chọn
+                  </p>
+                  <p className="ant-upload-hint" style={{ color: token.colorTextSecondary, fontSize: 13 }}>
+                    Chỉ hỗ trợ định dạng .PDF (Tối đa 25MB)
+                  </p>
+                </Dragger>
+                
+                {(existingSubmission?.slideFile || existingSubmission?.slide_file || hasSavedSlide) && (
+                  <div
+                    style={{
+                      marginTop: 16,
+                      padding: '12px 18px',
+                      background: isDark ? 'rgba(22, 163, 74, 0.15)' : '#f0fdf4',
+                      border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.3)' : '#bbf7d0'}`,
+                      borderRadius: 12,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: 12,
+                    }}
+                  >
+                    <Text style={{ color: isDark ? '#4ade80' : '#15803d', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CheckCircleOutlined style={{ fontSize: 18 }} />
+                      Slide đã lưu: {submittedSlideName}
+                    </Text>
+                    {hasSavedSlide && submissionId && (
+                      <Button
+                        type="primary"
+                        ghost
+                        size="small"
+                        onClick={handleViewSubmittedSlide}
+                        icon={<EyeOutlined />}
+                        style={{ fontWeight: 700, borderRadius: 8 }}
+                      >
+                        Xem PDF
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </Form.Item>
+
+              <Row gutter={20}>
+                <Col xs={24} md={12}>
+                  <Form.Item name="demoUrl" label={<Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>Link Demo Sản phẩm (Live URL)</Text>} rules={[{ validator: validateOptionalUrl }]}>
+                    <Input
+                      prefix={<LinkOutlined style={{ color: '#94a3b8' }} />}
+                      placeholder="https://demo.example.com"
+                      size="large"
+                      style={{ borderRadius: 10, padding: '10px 14px', background: isDark ? 'rgba(255,255,255,0.05)' : undefined, color: token.colorTextHeading }}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="repoUrl" label={<Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>Link Source Code (Github/Gitlab)</Text>} rules={[{ validator: validateOptionalUrl }]}>
+                    <Input
+                      prefix={<GithubOutlined style={{ color: '#94a3b8' }} />}
+                      placeholder="https://github.com/team/project"
+                      size="large"
+                      style={{ borderRadius: 10, padding: '10px 14px', background: isDark ? 'rgba(255,255,255,0.05)' : undefined, color: token.colorTextHeading }}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24}>
+                  <Form.Item name="reportUrl" label={<Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>Link Báo cáo / Tài liệu (Nếu có)</Text>} rules={[{ validator: validateOptionalUrl }]}>
+                    <Input
+                      prefix={<FilePdfOutlined style={{ color: '#94a3b8' }} />}
+                      placeholder="https://docs.example.com/final-report"
+                      size="large"
+                      style={{ borderRadius: 10, padding: '10px 14px', background: isDark ? 'rgba(255,255,255,0.05)' : undefined, color: token.colorTextHeading }}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              {!isRejected && (
+                <Button
+                  type="primary"
+                  size="large"
+                  htmlType="submit"
+                  icon={<CloudUploadOutlined />}
+                  loading={isSubmitting}
+                  block
+                  style={{
+                    height: 52,
+                    borderRadius: 12,
+                    fontSize: 16,
+                    fontWeight: 700,
+                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    border: 'none',
+                    boxShadow: '0 6px 16px -4px rgba(37, 99, 235, 0.4)',
+                    marginTop: 'auto',
+                  }}
+                >
+                  {isSubmitted ? 'Cập nhật Bài Dự Thi Chung Kết' : 'Gửi Bài Dự Thi Chung Kết'}
+                </Button>
+              )}
+            </Form>
+          </Card>
         </Col>
       </Row>
 
-      <Modal
-        title={
-          <Space>
-            <FilePdfOutlined style={{ color: '#ff4d4f' }} />
-            <span>Slide đã nộp: {submittedSlideName}</span>
-          </Space>
-        }
-        open={isSlideModalVisible}
-        onCancel={handleCloseSlideModal}
-        width={1000}
-        style={{ top: 20 }}
-        footer={[
-          <Button key="close" onClick={handleCloseSlideModal}>
-            Đóng
-          </Button>,
-        ]}
-      >
-        <div
-          style={{
-            height: '75vh',
-            width: '100%',
-            position: 'relative',
-            background: '#f0f2f5',
-            borderRadius: 8,
-            overflow: 'hidden',
-          }}
+        <Modal
+          title={
+            <Space>
+              <FilePdfOutlined style={{ color: '#ff4d4f', fontSize: 20 }} />
+              <span style={{ fontWeight: 700, fontSize: 18 }}>Chi tiết Slide: {submittedSlideName}</span>
+            </Space>
+          }
+          open={isSlideModalVisible}
+          onCancel={handleCloseSlideModal}
+          width={1050}
+          style={{ top: 20 }}
+          footer={[
+            <Button key="close" type="primary" size="large" onClick={handleCloseSlideModal} style={{ borderRadius: 8, fontWeight: 600 }}>
+              Đóng Cửa Sổ
+            </Button>,
+          ]}
         >
-          {isLoadingSlide ? (
-            <div style={{ textAlign: 'center', paddingTop: '30vh' }}>
-              <Spin size="large" tip="Đang tải file slide..." />
-            </div>
-          ) : slideBlobUrl ? (
-            <iframe
-              src={`${slideBlobUrl}#toolbar=0`}
-              title="PDF Viewer"
-              width="100%"
-              height="100%"
-              style={{ border: 'none' }}
-            />
-          ) : (
-            <div style={{ textAlign: 'center', paddingTop: '30vh', color: '#ff4d4f' }}>
-              Không thể hiển thị file PDF.
-            </div>
-          )}
-        </div>
-      </Modal>
-    </Card>
-  );
-};
+          <div
+            style={{
+              height: '75vh',
+              width: '100%',
+              position: 'relative',
+              background: '#e2e8f0',
+              borderRadius: 12,
+              overflow: 'hidden',
+              boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.05)',
+            }}
+          >
+            {isLoadingSlide ? (
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                <Spin size="large" />
+                <div style={{ marginTop: 16, color: '#64748b', fontWeight: 600, fontSize: 15 }}>Đang tải và giải mã tệp PDF...</div>
+              </div>
+            ) : slideBlobUrl ? (
+              <iframe
+                src={`${slideBlobUrl}#toolbar=0`}
+                title="PDF Viewer"
+                width="100%"
+                height="100%"
+                style={{ border: 'none' }}
+              />
+            ) : (
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: '#ef4444', fontWeight: 600, fontSize: 16 }}>
+                Không thể hiển thị tệp PDF. Tệp có thể bị hỏng hoặc chưa được tải lên.
+              </div>
+            )}
+          </div>
+        </Modal>
+      </div>
+    );
+  };
+
 
 // ==========================================
 // MAIN COMPONENT CHỨA CÁC ĐIỀU KIỆN EARLY RETURN
 // ==========================================
 const FinalSubmissionPanel = ({ teamId, hackathonId }) => {
+  const { token } = theme.useToken();
+  const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
   const submissionData = useFinalSubmission(teamId, hackathonId);
 
   // Early returns (Tuyệt đối không có Hook nào bên dưới dòng này)
   if (submissionData.isLoading) {
     return (
-      <Card style={{ borderRadius: 16, textAlign: 'center', padding: '40px 0' }}>
-        <Spin tip="Đang kiểm tra dữ liệu Vòng Chung kết..." />
+      <Card
+        style={{
+          borderRadius: 20,
+          textAlign: 'center',
+          padding: '32px 0',
+          background: isDark ? 'rgba(30, 41, 59, 0.6)' : '#FFFFFF',
+          border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : token.colorBorderSecondary}`,
+        }}
+      >
+        <Spin tip="Đang kiểm tra dữ liệu Cổng Nộp Bài Chung Kết..." size="large" />
       </Card>
     );
   }
 
   if (!submissionData.finalRound) {
     return (
-      <Card style={{ borderRadius: 16, border: '1px solid #d9d9d9', background: '#fafafa' }}>
-        <Space align="center">
-          <ClockCircleOutlined style={{ fontSize: 24, color: '#595959' }} />
-          <div>
-            <Title level={4} style={{ margin: 0 }}>
-              Cổng nộp bài Chung kết
-            </Title>
-            <Text type="secondary">
-              Chưa có thông tin vòng Chung kết cho hackathon này. Hãy quay lại sau khi Ban tổ chức hoàn tất cấu hình.
+      <Card
+        style={{
+          borderRadius: 20,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.95) 100%)'
+            : 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)',
+          border: `2px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#E2E8F0'}`,
+          boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.3)' : '0 8px 24px rgba(0,0,0,0.04)',
+          overflow: 'hidden',
+        }}
+        styles={{ body: { padding: '24px 28px' } }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              width: 54,
+              height: 54,
+              borderRadius: 16,
+              background: isDark ? 'rgba(255, 255, 255, 0.1)' : '#E2E8F0',
+              display: 'grid',
+              placeItems: 'center',
+              color: isDark ? '#fff' : '#475569',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              flexShrink: 0,
+            }}
+          >
+            <ClockCircleOutlined style={{ fontSize: 26 }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+              <Title level={4} style={{ margin: 0, color: token.colorTextHeading, fontWeight: 800 }}>
+                Cổng nộp bài Vòng Chung kết
+              </Title>
+              <Tag color="default" style={{ borderRadius: 6, fontWeight: 700, fontSize: 11, border: 0, margin: 0 }}>
+                ⏳ CHƯA CÔNG BỐ
+              </Tag>
+            </div>
+            <Text style={{ color: token.colorTextSecondary, fontSize: 14, lineHeight: 1.5, display: 'block' }}>
+              Vòng Chung kết hiện chưa được công bố. Vui lòng quay lại sau khi Ban tổ chức chính thức kích hoạt vòng thi!
             </Text>
           </div>
-        </Space>
+        </div>
       </Card>
     );
   }
 
   if (!submissionData.isAdvanced) {
     return (
-      <Card style={{ borderRadius: 16, border: '1px solid #ffccc7', background: '#fff2f0' }}>
-        <Space align="center">
-          <LockOutlined style={{ fontSize: 24, color: '#cf1322' }} />
-          <div>
-            <Title level={4} style={{ margin: 0, color: '#cf1322' }}>
-              Cổng nộp bài Chung kết
-            </Title>
-            <Text style={{ color: '#cf1322' }}>
-              Đội của bạn chưa đủ điều kiện tham gia Vòng Chung kết hoặc đã dừng bước tại Vòng Sơ loại.
+      <Card
+        style={{
+          borderRadius: 20,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(207, 19, 34, 0.15) 0%, rgba(30, 41, 59, 0.9) 100%)'
+            : 'linear-gradient(135deg, #FFF2F0 0%, #FFFFFF 100%)',
+          border: `2px solid ${isDark ? 'rgba(255, 77, 79, 0.4)' : '#FFCCC7'}`,
+          boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.3)' : '0 8px 24px rgba(207, 19, 34, 0.06)',
+          overflow: 'hidden',
+        }}
+        styles={{ body: { padding: '24px 28px' } }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              width: 54,
+              height: 54,
+              borderRadius: 16,
+              background: 'linear-gradient(135deg, #CF1322 0%, #FF4D4F 100%)',
+              display: 'grid',
+              placeItems: 'center',
+              color: '#fff',
+              boxShadow: '0 6px 16px rgba(207, 19, 34, 0.35)',
+              flexShrink: 0,
+            }}
+          >
+            <LockOutlined style={{ fontSize: 26 }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+              <Title level={4} style={{ margin: 0, color: token.colorTextHeading, fontWeight: 800 }}>
+                Cổng nộp bài Vòng Chung kết
+              </Title>
+              <Tag color="error" style={{ borderRadius: 6, fontWeight: 700, fontSize: 11, border: 0, margin: 0 }}>
+                🔴 ĐÃ DỪNG BƯỚC
+              </Tag>
+            </div>
+            <Text style={{ color: token.colorTextSecondary, fontSize: 14, lineHeight: 1.5, display: 'block' }}>
+              Đội của bạn đã dừng bước tại Vòng Sơ loại. Cảm ơn đội đã nỗ lực hết mình tại cuộc thi!
             </Text>
           </div>
-        </Space>
+        </div>
       </Card>
     );
   }
 
   if (!submissionData.isFinalRoundActive) {
     return (
-      <Card style={{ borderRadius: 16, border: '1px solid #ffe58f', background: '#fffbe6' }}>
-        <Space align="center">
-          <ClockCircleOutlined style={{ fontSize: 24, color: '#d48806' }} />
-          <div>
-            <Title level={4} style={{ margin: 0, color: '#d48806' }}>
-              Vòng Chung kết chưa mở
-            </Title>
-            <Text style={{ color: '#ad6800' }}>
-              Đội của bạn đã được chọn vào Chung kết. Coordinator sẽ kích hoạt vòng thi — bạn có thể nộp bài sau khi vòng được mở.
+      <Card
+        style={{
+          borderRadius: 20,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(212, 136, 6, 0.15) 0%, rgba(30, 41, 59, 0.9) 100%)'
+            : 'linear-gradient(135deg, #FFFBE6 0%, #FFFFFF 100%)',
+          border: `2px solid ${isDark ? 'rgba(255, 197, 61, 0.4)' : '#FFE58F'}`,
+          boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.3)' : '0 8px 24px rgba(212, 136, 6, 0.06)',
+          overflow: 'hidden',
+        }}
+        styles={{ body: { padding: '24px 28px' } }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              width: 54,
+              height: 54,
+              borderRadius: 16,
+              background: 'linear-gradient(135deg, #D48806 0%, #FFC53D 100%)',
+              display: 'grid',
+              placeItems: 'center',
+              color: '#fff',
+              boxShadow: '0 6px 16px rgba(212, 136, 6, 0.35)',
+              flexShrink: 0,
+            }}
+          >
+            <TrophyOutlined style={{ fontSize: 26 }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+              <Title level={4} style={{ margin: 0, color: token.colorTextHeading, fontWeight: 800 }}>
+                Cổng nộp bài Vòng Chung kết
+              </Title>
+              <Tag color="warning" style={{ borderRadius: 6, fontWeight: 700, fontSize: 11, border: 0, margin: 0 }}>
+                🏆 CHỜ MỞ CỔNG NỘP BÀI
+              </Tag>
+            </div>
+            <Text style={{ color: token.colorTextSecondary, fontSize: 14, lineHeight: 1.5, display: 'block' }}>
+              Chúc mừng đội bạn đã lọt vào Vòng Chung kết! Ban tổ chức sẽ sớm mở cổng nộp bài — vui lòng chuẩn bị sẵn tài liệu và theo dõi thông báo!
             </Text>
           </div>
-        </Space>
+        </div>
       </Card>
     );
   }
 
   if (!submissionData.isEligible) {
     return (
-      <Card style={{ borderRadius: 16, border: '1px solid #ffe58f', background: '#fffbe6' }}>
-        <Space align="center">
-          <ClockCircleOutlined style={{ fontSize: 24, color: '#d48806' }} />
-          <div>
-            <Title level={4} style={{ margin: 0, color: '#ad6800' }}>
-              Chưa thể nộp bài Chung kết
-            </Title>
-            <Text style={{ color: '#ad6800' }}>
-              Hệ thống đã nhận diện vòng Chung kết nhưng đội của bạn chưa đủ điều kiện nộp bài ở thời điểm hiện tại. Vui lòng kiểm tra lại sau.
+      <Card
+        style={{
+          borderRadius: 20,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(212, 136, 6, 0.15) 0%, rgba(30, 41, 59, 0.9) 100%)'
+            : 'linear-gradient(135deg, #FFFBE6 0%, #FFFFFF 100%)',
+          border: `2px solid ${isDark ? 'rgba(255, 197, 61, 0.4)' : '#FFE58F'}`,
+          boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.3)' : '0 8px 24px rgba(212, 136, 6, 0.06)',
+          overflow: 'hidden',
+        }}
+        styles={{ body: { padding: '24px 28px' } }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              width: 54,
+              height: 54,
+              borderRadius: 16,
+              background: 'linear-gradient(135deg, #D48806 0%, #FFC53D 100%)',
+              display: 'grid',
+              placeItems: 'center',
+              color: '#fff',
+              boxShadow: '0 6px 16px rgba(212, 136, 6, 0.35)',
+              flexShrink: 0,
+            }}
+          >
+            <ClockCircleOutlined style={{ fontSize: 26 }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+              <Title level={4} style={{ margin: 0, color: token.colorTextHeading, fontWeight: 800 }}>
+                Cổng nộp bài Vòng Chung kết
+              </Title>
+              <Tag color="warning" style={{ borderRadius: 6, fontWeight: 700, fontSize: 11, border: 0, margin: 0 }}>
+                ⏳ CHƯA THỂ NỘP BÀI
+              </Tag>
+            </div>
+            <Text style={{ color: token.colorTextSecondary, fontSize: 14, lineHeight: 1.5, display: 'block' }}>
+              Cổng nộp bài chưa sẵn sàng cho đội của bạn ở thời điểm hiện tại. Vui lòng kiểm tra lại sau hoặc liên hệ Ban tổ chức!
             </Text>
           </div>
-        </Space>
+        </div>
       </Card>
     );
   }

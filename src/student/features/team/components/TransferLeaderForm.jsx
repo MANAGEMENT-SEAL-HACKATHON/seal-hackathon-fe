@@ -44,7 +44,7 @@ const TransferLeaderForm = ({ team, form, loading, onTransferLeader }) => {
         />
       </Form.Item>
       <Button type="primary" icon={<SwapOutlined />} htmlType="submit" loading={loading} style={{ borderRadius: 8, fontWeight: 600 }}>
-        Chuyển leader
+        Chuyển quyền Trưởng nhóm
       </Button>
     </Form>
   );

@@ -23,11 +23,51 @@ export const studentHackathonService = {
     return items.filter((item) => item.registered);
   },
 
-  /** Hackathon sinh viên đã đăng ký thủ công — không lấy sự kiện ONGOING đầu tiên. */
-  getPrimaryRegisteredHackathon: async (status = 'ONGOING') => {
-    const registered = await studentHackathonService.getRegisteredHackathons(status);
-    if (!registered.length) return null;
-    return studentHackathonService.getHackathonDetail(registered[0].id);
+  /** Hackathon sinh viên đã đăng ký — ưu tiên ONGOING có team ACTIVE, sau đó PENDING_CONFIRM, cuối cùng fallback */
+  getPrimaryRegisteredHackathon: async (status) => {
+    try {
+      const [allHackathons, teamsRes] = await Promise.all([
+        studentHackathonService.browse(status),
+        axiosClient.get('/api/v1/me/teams').catch(() => []),
+      ]);
+      const registered = allHackathons.filter((item) => item.registered);
+      if (!registered.length) return null;
+
+      const teams = Array.isArray(teamsRes) ? teamsRes : teamsRes?.items || teamsRes?.data || [];
+
+      // 1. Ưu tiên hackathon ONGOING có team ACTIVE
+      for (const hack of registered) {
+        if (String(hack.status || '').toUpperCase() === 'ONGOING') {
+          const hasActiveTeam = teams.some(
+            (t) => Number(t.hackathonId) === Number(hack.id) && String(t.status || '').toUpperCase() === 'ACTIVE'
+          );
+          if (hasActiveTeam) {
+            return studentHackathonService.getHackathonDetail(hack.id);
+          }
+        }
+      }
+
+      // 2. Sau đó ưu tiên hackathon PENDING_CONFIRM
+      const pendingConfirmHack = registered.find(
+        (hack) => String(hack.status || '').toUpperCase() === 'PENDING_CONFIRM'
+      );
+      if (pendingConfirmHack) {
+        return studentHackathonService.getHackathonDetail(pendingConfirmHack.id);
+      }
+
+      // 3. Sau đó ưu tiên hackathon ONGOING bất kỳ
+      const ongoingHack = registered.find(
+        (hack) => String(hack.status || '').toUpperCase() === 'ONGOING'
+      );
+      if (ongoingHack) {
+        return studentHackathonService.getHackathonDetail(ongoingHack.id);
+      }
+
+      // 4. Fallback dùng phần tử đầu tiên
+      return studentHackathonService.getHackathonDetail(registered[0].id);
+    } catch {
+      return null;
+    }
   },
 
   getHackathonDetail: async (hackathonId) => {
