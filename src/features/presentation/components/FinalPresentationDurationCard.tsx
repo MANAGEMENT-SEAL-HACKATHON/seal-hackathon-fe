@@ -51,7 +51,7 @@ const FinalPresentationDurationCard: React.FC<Props> = ({ roundId, timerStarted 
 
   const handleSave = async () => {
     if (timerStarted) {
-      toast.error('Không thể đổi duration sau khi start timer.');
+      toast.error('Không thể thay đổi thời lượng sau khi đồng hồ đếm ngược đã bắt đầu.');
       return;
     }
     try {
@@ -62,13 +62,13 @@ const FinalPresentationDurationCard: React.FC<Props> = ({ roundId, timerStarted 
         presentationMinutes: values.presentationMinutes,
         qaMinutes: values.qaMinutes,
       });
-      toast.success('Đã cập nhật thời lượng Chung kết.');
+      toast.success('Cập nhật thời lượng thuyết trình thành công.');
     } catch (error: any) {
       const code = error?.code || error?.response?.data?.error?.code;
       if (code === 'INVALID_STATE') {
-        toast.error('Không thể đổi duration sau khi start timer.');
+        toast.error('Không thể thay đổi thời lượng sau khi đồng hồ đếm ngược đã bắt đầu.');
       } else {
-        toast.error(error?.message || 'Không thể cập nhật thời lượng.');
+        toast.error(error?.message || 'Không thể cập nhật thời lượng vào lúc này.');
       }
     } finally {
       setSaving(false);
@@ -88,14 +88,11 @@ const FinalPresentationDurationCard: React.FC<Props> = ({ roundId, timerStarted 
       <div style={{ background: '#f8fafc', padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
         <Title level={4} style={{ margin: 0, color: '#0f172a', fontWeight: 900 }}>
           <ClockCircleOutlined style={{ marginRight: 8 }} />
-          Thời lượng thuyết trình CK
+          Thời gian Thuyết trình Vòng Chung kết
         </Title>
         <Text type="secondary" style={{ fontSize: 13, marginTop: 4, display: 'block' }}>
-          Cấu hình timer pool chung — không theo bảng đấu.
+          Thiết lập thời gian thuyết trình và trả lời câu hỏi (áp dụng chung cho tất cả các bảng đấu).
         </Text>
-        <Tag color="gold" style={{ marginTop: 8 }}>
-          scope={scope}
-        </Tag>
       </div>
       <div style={{ padding: 24 }}>
         {timerStarted && (

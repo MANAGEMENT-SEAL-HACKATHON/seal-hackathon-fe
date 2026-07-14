@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Breadcrumb, Button, Card, Divider, Grid, List, Select, Space, Spin, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Divider, Grid, List, Select, Space, Spin, Tag, Typography, message } from 'antd';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Settings } from 'lucide-react';
@@ -16,6 +16,23 @@ import { resolveProgressionError } from '../../rounds/constants/progressionError
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
+
+const formatReadinessMessage = (msg: string) => {
+  if (!msg) return '';
+  let friendly = msg;
+  friendly = friendly.replace(/Round Chung kết/gi, 'Vòng Chung kết');
+  friendly = friendly.replace(/Round Sơ loại/gi, 'Vòng Sơ loại');
+  friendly = friendly.replace(/advance từ/gi, 'chuyển tiếp đội thi đi tiếp từ');
+  friendly = friendly.replace(/activate Chung kết/gi, 'kích hoạt Vòng Chung kết');
+  friendly = friendly.replace(/guest judge/gi, 'giám khảo khách mời');
+  friendly = friendly.replace(/blockers/gi, 'yêu cầu bắt buộc');
+  friendly = friendly.replace(/activate/gi, 'kích hoạt');
+  friendly = friendly.replace(/GD4/gi, 'Vòng Sơ loại (Giai đoạn 4)');
+  friendly = friendly.replace(/GD5/gi, 'Vòng Chung kết (Giai đoạn 5)');
+  friendly = friendly.replace(/CK/gi, 'Chung kết');
+  friendly = friendly.replace(/Chưa có đội tham gia/gi, 'Chưa chuyển danh sách đội thi tham gia');
+  return friendly;
+};
 
 type FinalRoundConfigPageProps = {
   /** Khi mở từ tab setup hackathon — bắt buộc truyền để readiness khớp GĐ4 vừa advance */
@@ -113,7 +130,7 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
   const handleActivateFinal = async () => {
     if (!finalRound?.id) return;
     if (!isFinalReady) {
-      return message.warning('Readiness FINAL_ROUND chưa đạt, vui lòng xử lý blocker trước.');
+      return message.warning('Điều kiện kích hoạt vòng Chung kết chưa đạt, vui lòng hoàn thành các yêu cầu bắt buộc trước.');
     }
     setSubmitting(true);
     try {
@@ -123,9 +140,9 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
     } catch (error: any) {
       const code = error?.code || error?.response?.data?.error?.code;
       if (code === 'JUDGE_NOT_ASSIGNED') {
-        message.error('Chưa gán guest judge cho Chung kết — mở tab Nhân sự.');
+        message.error('Chưa gán giám khảo khách mời cho vòng Chung kết. Vui lòng mở mục Nhân sự để gán.');
       } else if (code === 'RESULT_NOT_PUBLISHED') {
-        message.error('Cần công bố và chốt chuyển vòng Sơ loại trước.');
+        message.error('Cần công bố kết quả và hoàn thành chuyển tiếp đội thi từ vòng Sơ loại trước.');
       } else {
         message.error(
           resolveProgressionError(error, 'Không thể kích hoạt vòng Chung kết.').message,
@@ -207,59 +224,180 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Breadcrumb
-        items={[
-          { title: <Link to={ROUTES.HACKATHONS}>Hackathons</Link> },
-          { title: 'Cấu hình chung kết' },
-        ]}
+      <FinalRoundCoordinatorStepper
+        hackathonId={hackathon.id}
+        prelimRoundId={prelimRound?.id}
+        finalRoundId={finalRound?.id}
+        finalActive={finalRoundActive}
+        scoringLocked={finalScoringLocked}
       />
 
-      <Card title="Checklist vận hành — Chung kết">
-        <FinalRoundCoordinatorStepper
-          hackathonId={hackathon.id}
-          prelimRoundId={prelimRound?.id}
-          finalRoundId={finalRound?.id}
-          finalActive={finalRoundActive}
-          scoringLocked={finalScoringLocked}
-        />
-      </Card>
-
-      <Card style={{ borderRadius: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
-          <Space direction="vertical" size={8}>
-            <Space wrap>
-              <Tag color="blue">Cấu hình Chung kết</Tag>
-              <Tag color={finalRoundActive ? 'success' : 'default'}>
-                CK: {finalRoundActive ? 'ACTIVE' : 'INACTIVE'}
+      <Card style={{
+        borderRadius: 16,
+        background: '#ffffff',
+        boxShadow: '0 8px 32px rgba(15, 23, 42, 0.05)',
+        border: '1px solid rgba(15, 23, 42, 0.06)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Space direction="vertical" size={8} style={{ flex: 1, minWidth: '280px' }}>
+            <Space wrap size={6}>
+              <Tag style={{
+                background: 'rgba(59, 130, 246, 0.06)',
+                border: '1px solid rgba(59, 130, 246, 0.15)',
+                color: '#2563eb',
+                fontWeight: 600,
+                borderRadius: '6px',
+                padding: '2px 8px'
+              }}>Vòng Chung kết</Tag>
+              <Tag style={{
+                background: finalRoundActive ? 'rgba(16, 185, 129, 0.06)' : 'rgba(100, 116, 139, 0.06)',
+                border: finalRoundActive ? '1px solid rgba(16, 185, 129, 0.15)' : '1px solid rgba(100, 116, 139, 0.15)',
+                color: finalRoundActive ? '#059669' : '#475569',
+                fontWeight: 600,
+                borderRadius: '6px',
+                padding: '2px 8px'
+              }}>
+                Trạng thái: {finalRoundActive ? 'Đang diễn ra' : 'Chưa kích hoạt'}
               </Tag>
-              <Tag color={isFinalReady ? 'success' : 'error'}>
-                Readiness: {isFinalReady ? 'READY' : 'NOT_READY'}
+              <Tag style={{
+                background: isFinalReady ? 'rgba(16, 185, 129, 0.06)' : 'rgba(239, 68, 68, 0.06)',
+                border: isFinalReady ? '1px solid rgba(16, 185, 129, 0.15)' : '1px solid rgba(239, 68, 68, 0.15)',
+                color: isFinalReady ? '#059669' : '#dc2626',
+                fontWeight: 600,
+                borderRadius: '6px',
+                padding: '2px 8px'
+              }}>
+                Điều kiện kích hoạt: {isFinalReady ? 'Đủ điều kiện' : 'Chưa đủ điều kiện'}
               </Tag>
-              <Tag color="gold">Blockers: {blockers.length}</Tag>
+              {blockers.length > 0 && (
+                <Tag style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  color: '#b91c1c',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  padding: '2px 8px',
+                  boxShadow: '0 0 8px rgba(239, 68, 68, 0.1)'
+                }}>Yêu cầu cần xử lý: {blockers.length}</Tag>
+              )}
             </Space>
-            <Title level={2} style={{ margin: 0 }}>
-              Cấu hình Chung kết
+            <Title level={2} style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.02em', color: '#0f172a' }}>
+              Cấu hình Vòng Chung kết
             </Title>
-            <Text type="secondary">
-              {hackathon?.name
-                ? `Hackathon: ${hackathon.name}${hackathon.slug ? ` (${hackathon.slug})` : ''}`
-                : 'Màn này chỉ hiển thị dữ liệu thật từ BE.'}
-            </Text>
           </Space>
-          <Space wrap>
-            <Button icon={<ReloadOutlined />} onClick={loadData}>
-              Làm mới
-            </Button>
-            <Button onClick={() => navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hackathon.id)) + '?tab=people')}>
-              Gán guest judge CK
-            </Button>
-            {finalRound?.id && (
-              <Button onClick={() => navigate(`/presentation/queue?roundId=${finalRound.id}`)}>
-                Presentation queue CK
+
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Space wrap style={{ marginRight: 16, borderRight: '1px solid #f1f5f9', paddingRight: 16 }}>
+              <Button icon={<ReloadOutlined />} onClick={loadData} style={{ borderRadius: 8 }}>
+                Làm mới
               </Button>
-            )}
-          </Space>
+              <Button onClick={() => navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hackathon.id)) + '?tab=people')} style={{ borderRadius: 8 }}>
+                Gán Giám khảo Khách mời
+              </Button>
+              {finalRound?.id && (
+                <Button onClick={() => navigate(`/presentation/queue?roundId=${finalRound.id}`)} style={{ borderRadius: 8 }}>
+                  Hàng đợi Thuyết trình
+                </Button>
+              )}
+              <Button onClick={() => navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hackathon.id)) + '?tab=rounds')} style={{ borderRadius: 8 }}>
+                Cấu hình Đề & Trạng thái
+              </Button>
+            </Space>
+
+            <Button
+              type="primary"
+              loading={submitting}
+              onClick={(!finalRound || finalRoundActive || !isFinalReady) ? undefined : handleActivateFinal}
+              style={(!finalRound || finalRoundActive || !isFinalReady) ? {
+                background: 'rgba(59, 130, 246, 0.35)',
+                borderColor: 'rgba(59, 130, 246, 0.1)',
+                color: 'rgba(255, 255, 255, 0.75)',
+                cursor: 'not-allowed',
+                boxShadow: 'none',
+                height: '36px',
+                fontWeight: 600,
+                borderRadius: '8px'
+              } : {
+                background: '#3b82f6',
+                borderColor: '#2563eb',
+                color: '#ffffff',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
+                height: '36px',
+                fontWeight: 600,
+                borderRadius: '8px'
+              }}
+            >
+              Kích hoạt Vòng Chung kết
+            </Button>
+          </div>
         </div>
+
+        {(blockers.length > 0 || warnings.length > 0) && <Divider style={{ margin: '20px 0' }} />}
+
+        {blockers.length > 0 && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.03)',
+            border: '1.5px solid rgba(239, 68, 68, 0.2)',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 4px 16px rgba(239, 68, 68, 0.02)',
+            marginBottom: warnings.length > 0 ? 12 : 0
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: '#dc2626',
+                boxShadow: '0 0 8px #dc2626'
+              }} />
+              <span style={{ fontWeight: 650, color: '#991b1b', fontSize: '14px', letterSpacing: '-0.01em' }}>
+                Các yêu cầu bắt buộc cần hoàn thành trước khi kích hoạt Vòng Chung kết
+              </span>
+            </div>
+            <List
+              size="small"
+              dataSource={blockers}
+              renderItem={(item: any) => (
+                <List.Item style={{ color: '#b91c1c', border: 'none', padding: '3px 0 3px 18px', fontSize: '13px', fontWeight: 500 }}>
+                  • {formatReadinessMessage(item?.message || item?.code || 'Yêu cầu bắt buộc chưa hoàn thành')}
+                </List.Item>
+              )}
+            />
+          </div>
+        )}
+
+        {warnings.length > 0 && (
+          <div style={{
+            background: 'rgba(245, 158, 11, 0.03)',
+            border: '1.5px solid rgba(245, 158, 11, 0.2)',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 4px 16px rgba(245, 158, 11, 0.02)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: '#d97706',
+                boxShadow: '0 0 8px #d97706'
+              }} />
+              <span style={{ fontWeight: 650, color: '#92400e', fontSize: '14px', letterSpacing: '-0.01em' }}>
+                Khuyến nghị vận hành (có thể bổ sung sau)
+              </span>
+            </div>
+            <List
+              size="small"
+              dataSource={warnings}
+              renderItem={(item: any) => (
+                <List.Item style={{ color: '#d97706', border: 'none', padding: '3px 0 3px 18px', fontSize: '13px', fontWeight: 500 }}>
+                  • {formatReadinessMessage(item?.message || item?.code || 'Khuyến nghị chưa hoàn thành')}
+                </List.Item>
+              )}
+            />
+          </div>
+        )}
       </Card>
 
       {!finalRound && (
@@ -267,88 +405,32 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
           showIcon
           type="warning"
           message="Chưa có vòng Chung kết"
-          description="Hackathon này chưa được cấu hình vòng Chung kết ở backend nên chưa thể activate hoặc mở cổng nộp bài."
+          description="Sự kiện này chưa được thiết lập vòng Chung kết. Vui lòng thêm vòng Chung kết trước khi kích hoạt hoặc mở cổng nộp bài."
+          style={{ borderRadius: 12 }}
         />
       )}
-
-      <Card title="Readiness FINAL_ROUND (Gate trước Activate CK)">
-        <Space style={{ marginBottom: 12 }} wrap>
-          <Tag color={isFinalReady ? 'success' : 'error'}>{isFinalReady ? 'READY' : 'NOT_READY'}</Tag>
-          <Tag color="blue">Blockers: {blockers.length}</Tag>
-          <Tag color="gold">Warnings: {warnings.length}</Tag>
-          <Tag color={finalRoundActive ? 'green' : 'default'}>
-            CK: {finalRoundActive ? 'ACTIVE' : 'INACTIVE'}
-          </Tag>
-        </Space>
-        {blockers.length > 0 && (
-          <Alert
-            showIcon
-            type="error"
-            message="Blockers cần xử lý trước khi activate Chung kết"
-            description={
-              <List
-                size="small"
-                dataSource={blockers}
-                renderItem={(item: any) => <List.Item>{item?.message || item?.code || 'Unknown blocker'}</List.Item>}
-              />
-            }
-          />
-        )}
-        {warnings.length > 0 && (
-          <Alert
-            showIcon
-            type="warning"
-            style={{ marginTop: 12 }}
-            message="Warnings (khuyến nghị xử lý)"
-            description={
-              <List
-                size="small"
-                dataSource={warnings}
-                renderItem={(item: any) => <List.Item>{item?.message || item?.code || 'Unknown warning'}</List.Item>}
-              />
-            }
-          />
-        )}
-        <Divider />
-          <Space wrap>
-            <Button type="primary" onClick={handleActivateFinal} loading={submitting} disabled={!finalRound || finalRoundActive || !isFinalReady}>
-              Kích hoạt vòng Chung kết
-            </Button>
-            <Button onClick={() => navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hackathon.id)) + '?tab=people')}>
-              Gán guest judge CK
-            </Button>
-            {finalRound?.id && (
-              <Button onClick={() => navigate(`/presentation/queue?roundId=${finalRound.id}`)}>
-                Presentation queue CK
-              </Button>
-            )}
-            <Button onClick={() => navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hackathon.id)) + '?tab=rounds')}>
-              Quản lý vòng (phát đề / lock)
-            </Button>
-          </Space>
-      </Card>
 
       {finalRound?.id && (
         <FinalPresentationDurationCard roundId={finalRound.id} timerStarted={false} />
       )}
 
       {finalRoundActive && (
-        <Card title="Bước tiếp theo — GĐ5 Chung kết">
+        <Card title="Các bước tiếp theo — Vòng Chung kết">
           <Alert
             showIcon
             type="success"
-            message="Vòng Chung kết đã được kích hoạt"
-            description={`Hoàn thành các bước sau để kết thúc Chung kết và chuyển sang giai đoạn ${resolveStatusLabel('PENDING_CONFIRM')}.`}
+            message="Vòng Chung kết đã được kích hoạt thành công"
+            description={`Vui lòng hoàn thành các bước dưới đây để kết thúc vòng Chung kết và chuyển sang giai đoạn ${resolveStatusLabel('PENDING_CONFIRM')}.`}
             style={{ marginBottom: 16 }}
           />
           <List
             size="small"
             dataSource={[
-              'Phát đề Chung kết (tab Quản lý vòng thi → Phát đề)',
-              'Tạo phiên Calibration (tùy chọn — form bên dưới)',
-              'Sinh viên các đội đi tiếp nộp bài Chung kết',
-              'Giám khảo khách (Chung kết) chấm điểm trên bảng điều khiển giám khảo',
-              `Khóa chấm Chung kết → hackathon chuyển «${resolveStatusLabel('PENDING_CONFIRM')}»`,
+              'Công bố đề thi Vòng Chung kết (tại mục Quản lý vòng thi → Phát đề)',
+              'Thiết lập phiên chấm thử/chuẩn hóa (tùy chọn — cấu hình bên dưới)',
+              'Sinh viên các đội đi tiếp nộp bài thi Chung kết',
+              'Ban giám khảo thực hiện đánh giá và chấm điểm trên trang Giám khảo',
+              `Khóa chấm điểm Vòng Chung kết → Trạng thái giải đấu chuyển sang «${resolveStatusLabel('PENDING_CONFIRM')}»`,
             ]}
             renderItem={(item, index) => (
               <List.Item>
@@ -361,10 +443,10 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
           <Divider />
           <Space wrap>
             <Button onClick={() => navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hackathon.id)))}>
-              Quản lý vòng thi (phát đề / lock CK)
+              Quản lý đề thi & Khóa chấm Vòng Chung kết
             </Button>
             <Button onClick={() => navigate(`${ROUTES.COORDINATOR_ANALYTICS}?hackathonId=${hackathon.id}`)}>
-              RBL Dashboard (phân tích)
+              Bảng dữ liệu Phân tích (RBL)
             </Button>
           </Space>
         </Card>

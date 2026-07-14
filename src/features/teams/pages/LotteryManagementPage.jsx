@@ -103,19 +103,16 @@ const LotteryManagementPage = ({ hackathonId }) => {
     <div style={{ animation: 'fadeInUp 0.4s ease-out both' }}>
       {/* Khung Chọn Vòng Thi */}
       <Card style={{ marginBottom: 24, borderRadius: 12, boxShadow: token.boxShadowTertiary }}>
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Text strong style={{ color: token.colorTextSecondary }}>Vòng thi Sơ loại cần bốc thăm:</Text>
-          <Select 
-            style={{ width: 300 }} 
-            size="large"
-            placeholder="Chọn Vòng Sơ loại"
-            value={selectedRoundId}
-            onChange={setSelectedRoundId}
-            loading={isLoading}
-          >
-            {rounds.map(r => <Option key={r.id} value={r.id}>{r.name}</Option>)}
-          </Select>
-        </Space>
+        <Select 
+          style={{ width: 300 }} 
+          size="large"
+          placeholder="Chọn Vòng Sơ loại"
+          value={selectedRoundId}
+          onChange={setSelectedRoundId}
+          loading={isLoading}
+        >
+          {rounds.map(r => <Option key={r.id} value={r.id}>{r.name}</Option>)}
+        </Select>
       </Card>
 
       {!selectedRoundId ? (
@@ -157,7 +154,7 @@ const LotteryManagementPage = ({ hackathonId }) => {
             }
           >
             <Alert
-              message="Hệ thống chỉ liệt kê các Đội thi đã được duyệt (Trạng thái: ACTIVE)."
+              message="Hệ thống chỉ hiển thị các Đội thi đã được duyệt."
               description={lotteryHelpText}
               type={lotteryGate.allowed ? 'success' : 'warning'}
               showIcon

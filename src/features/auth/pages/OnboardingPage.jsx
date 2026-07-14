@@ -138,6 +138,14 @@ const OnboardingPage = () => {
   const [userInfo, setUserInfo] = useState(getUserInfo);
   const [checkingStatus, setCheckingStatus] = useState(true);
 
+  // Early redirect for coordinators/admins who don't have profiles
+  useEffect(() => {
+    const initialUser = getUserInfo();
+    if (initialUser.role === 'COORDINATOR' || initialUser.role === 'ADMIN') {
+      navigate(ROUTES.DASHBOARD, { replace: true });
+    }
+  }, [navigate]);
+
   // Sync state on load using real API response to avoid local storage inconsistencies
   useEffect(() => {
     let active = true;
@@ -145,6 +153,11 @@ const OnboardingPage = () => {
       try {
         const freshUser = await userService.getMe();
         if (!active) return;
+
+        if (freshUser.role === 'COORDINATOR' || freshUser.role === 'ADMIN') {
+          navigate(ROUTES.DASHBOARD, { replace: true });
+          return;
+        }
         
         const stored = getUserInfo() || {};
         
@@ -207,7 +220,7 @@ const OnboardingPage = () => {
 
     fetchFreshStatus();
     return () => { active = false; };
-  }, [form]);
+  }, [form, navigate]);
 
   // -------------------------------------------------------------------------
   // Step 1 – Profile
