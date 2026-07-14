@@ -1,4 +1,3 @@
-// src/features/judging/pages/ScoringLobbyPage.jsx
 import React, { 
   useState, 
   useEffect 
@@ -15,7 +14,8 @@ import {
   Skeleton, 
   message, 
   Input, 
-  Select 
+  Select,
+  Pagination 
 } from 'antd';
 import LiveRecordIndicator from '../../../shared/components/ui/LiveRecordIndicator';
 import { 
@@ -76,6 +76,15 @@ const ScoringLobbyPage = () => {
   const [expandedEvents, setExpandedEvents] = useState(
     activeEvent ? [activeEvent] : []
   );
+
+  // THÊM STATE PHÂN TRANG
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5; // Số sự kiện hiển thị trên 1 trang
+
+  // Reset trang về 1 khi người dùng gõ tìm kiếm hoặc đổi bộ lọc
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText, roundFilter, hackathonFilter]);
 
   // ==========================================
   // HÀM: Xử lý khi bấm vào Card Sự kiện để Mở/Đóng
@@ -207,7 +216,7 @@ const ScoringLobbyPage = () => {
   });
 
   // ==========================================
-  // 5. GOM NHÓM DỮ LIỆU THEO SỰ KIỆN
+  // 5. GOM NHÓM DỮ LIỆU THEO SỰ KIỆN & SẮP XẾP & PHÂN TRANG
   // ==========================================
   const groupedAssignments = filteredAssignments.reduce((acc, curr) => {
     const key = curr.hackathonName;
@@ -248,6 +257,45 @@ const ScoringLobbyPage = () => {
       label: 'Vòng Chung Kết' 
     }
   ];
+
+  // BƯỚC 1: Xử lý mảng sự kiện để tính trạng thái ĐÓNG / MỞ
+  const processedEventList = Object.entries(groupedAssignments).map(([hackathonName, tasks]) => {
+    const totalTeamsEvent = tasks.reduce((sum, t) => sum + (t.totalTeams || 0), 0);
+    const scoredTeamsEvent = tasks.reduce((sum, t) => sum + (t.scoredTeams || 0), 0);
+    
+    const isEventLocked = tasks.every((t) => 
+      ['COMPLETED', 'FINISHED', 'CLOSED', 'INACTIVE'].includes(t.hackathonStatus) || 
+      ['COMPLETED', 'FINISHED', 'CLOSED', 'INACTIVE'].includes(t.roundStatus)
+    );
+    
+    const isAllScored = (totalTeamsEvent > 0 && scoredTeamsEvent === totalTeamsEvent) || 
+                        tasks.every(t => t.progress === 100 || t.completionStatus === 'COMPLETED');
+                        
+    const isEventClosed = isEventLocked || isAllScored;
+
+    return {
+      hackathonName,
+      tasks,
+      totalTeamsEvent,
+      scoredTeamsEvent,
+      isEventLocked,
+      isAllScored,
+      isEventClosed
+    };
+  });
+
+  // BƯỚC 2: Sắp xếp (ACTIVE lên đầu, COMPLETED xuống cuối)
+  processedEventList.sort((a, b) => {
+    if (a.isEventClosed === b.isEventClosed) {
+      return a.hackathonName.localeCompare(b.hackathonName);
+    }
+    return a.isEventClosed ? 1 : -1; 
+  });
+
+  // BƯỚC 3: Phân trang
+  const totalItems = processedEventList.length;
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedEvents = processedEventList.slice(startIndex, startIndex + pageSize);
 
   // ==========================================
   // 6. RENDER GIAO DIỆN
@@ -368,7 +416,7 @@ const ScoringLobbyPage = () => {
             </Col>
           ))}
         </Row>
-      ) : Object.keys(groupedAssignments).length === 0 ? (
+      ) : totalItems === 0 ? (
         // HIỂN THỊ TRẠNG THÁI TRỐNG KHI KHÔNG CÓ DỮ LIỆU
         <div 
           style={{ 
@@ -381,448 +429,464 @@ const ScoringLobbyPage = () => {
           Không tìm thấy phòng chấm thi nào phù hợp với bộ lọc.
         </div>
       ) : (
-        // RENDER DANH SÁCH CÁC EVENT DƯỚI DẠNG EXPANDABLE CARDS
-        Object.entries(groupedAssignments).map(([hackathonName, tasks]) => {
-          
-          // Kiểm tra xem Event Card này có đang được mở không
-          const isExpanded = expandedEvents.includes(hackathonName);
+        <>
+          {/* RENDER DANH SÁCH SỰ KIỆN ĐÃ ĐƯỢC SẮP XẾP VÀ PHÂN TRANG */}
+          {paginatedEvents.map(({ 
+            hackathonName, 
+            tasks, 
+            totalTeamsEvent, 
+            scoredTeamsEvent, 
+            isEventLocked, 
+            isAllScored, 
+            isEventClosed 
+          }) => {
+            
+            // Kiểm tra xem Event Card này có đang được mở không
+            const isExpanded = expandedEvents.includes(hackathonName);
 
-          // Tính toán tổng quan cho Event Card
-          const totalTeamsEvent = tasks.reduce((sum, t) => sum + (t.totalTeams || 0), 0);
-          const scoredTeamsEvent = tasks.reduce((sum, t) => sum + (t.scoredTeams || 0), 0);
-          
-          const isEventLocked = tasks.every(t => 
-            ['COMPLETED', 'FINISHED', 'CLOSED', 'INACTIVE'].includes(t.hackathonStatus) || 
-            ['COMPLETED', 'FINISHED', 'CLOSED', 'INACTIVE'].includes(t.roundStatus)
-          );
-          
-          const isAllScored = (totalTeamsEvent > 0 && scoredTeamsEvent === totalTeamsEvent) || 
-                              tasks.every(t => t.progress === 100 || t.completionStatus === 'COMPLETED');
-                              
-          const isEventClosed = isEventLocked || isAllScored;
-
-          return (
-            <Card 
-              key={hackathonName} 
-              style={{ 
-                marginBottom: 24,
-                borderRadius: 16,
-                border: isEventClosed 
-                  ? '1px solid #e2e8f0' 
-                  : '1px solid #bae0ff',
-                boxShadow: isExpanded 
-                  ? '0 8px 24px rgba(0,0,0,0.06)' 
-                  : '0 2px 8px rgba(0,0,0,0.02)',
-                overflow: 'hidden',
-                transition: 'all 0.3s ease'
-              }}
-              styles={{
-                body: {
-                  padding: 0
-                }
-              }}
-            >
-              {/* VÙNG HEADER CỦA EVENT CARD */}
-              <div 
-                onClick={() => toggleEventCard(hackathonName)}
+            return (
+              <Card 
+                key={hackathonName} 
                 style={{ 
-                  padding: '24px 32px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
-                  background: isExpanded ? '#f8fafc' : '#ffffff',
-                  transition: 'background 0.3s ease'
+                  marginBottom: 24,
+                  borderRadius: 16,
+                  border: isEventClosed 
+                    ? '1px solid #e2e8f0' 
+                    : '1px solid #bae0ff',
+                  boxShadow: isExpanded 
+                    ? '0 8px 24px rgba(0,0,0,0.06)' 
+                    : '0 2px 8px rgba(0,0,0,0.02)',
+                  overflow: 'hidden',
+                  transition: 'all 0.3s ease',
+                  opacity: isEventClosed ? 0.85 : 1
+                }}
+                styles={{
+                  body: {
+                    padding: 0
+                  }
                 }}
               >
+                {/* VÙNG HEADER CỦA EVENT CARD */}
                 <div 
+                  onClick={() => toggleEventCard(hackathonName)}
                   style={{ 
+                    padding: '24px 32px', 
                     display: 'flex', 
                     alignItems: 'center', 
-                    gap: 20 
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    background: isExpanded ? '#f8fafc' : '#ffffff',
+                    transition: 'background 0.3s ease'
                   }}
                 >
-                  {/* Icon Đại diện cho Sự Kiện */}
                   <div 
                     style={{ 
-                      width: 56, 
-                      height: 56, 
-                      borderRadius: 16, 
                       display: 'flex', 
                       alignItems: 'center', 
-                      justifyContent: 'center', 
-                      background: isEventClosed ? '#f1f5f9' : '#e6f4ff', 
-                      color: isEventClosed ? '#64748b' : '#1677ff' 
+                      gap: 20 
                     }}
                   >
-                    <BlockOutlined 
-                      style={{ 
-                        fontSize: 28 
-                      }} 
-                    />
-                  </div>
-                  <div>
+                    {/* Icon Đại diện cho Sự Kiện */}
                     <div 
                       style={{ 
+                        width: 56, 
+                        height: 56, 
+                        borderRadius: 16, 
                         display: 'flex', 
                         alignItems: 'center', 
-                        gap: '8px' 
+                        justifyContent: 'center', 
+                        background: isEventClosed ? '#f1f5f9' : '#e6f4ff', 
+                        color: isEventClosed ? '#64748b' : '#1677ff' 
                       }}
                     >
-                      <Title 
-                        level={3} 
+                      <BlockOutlined 
                         style={{ 
-                          margin: 0, 
-                          color: isEventClosed ? '#64748b' : '#1e293b' 
-                        }}
-                      >
-                        {hackathonName}
-                      </Title>
-                      {isEventLocked && (
-                        <Tag 
-                          color="default" 
-                          style={{ 
-                            margin: 0 
-                          }}
-                        >
-                          ĐÃ ĐÓNG
-                        </Tag>
-                      )}
-                      {!isEventLocked && isAllScored && (
-                        <Tag 
-                          color="success" 
-                          style={{ 
-                            margin: 0 
-                          }}
-                        >
-                          HOÀN THÀNH
-                        </Tag>
-                      )}
+                          fontSize: 28 
+                        }} 
+                      />
                     </div>
-                    
-                    <Text 
-                      type="secondary" 
-                      style={{ 
-                        fontSize: 15,
-                        display: 'block',
-                        marginTop: 4
-                      }}
-                    >
-                      Tiến độ: 
-                      {/* ÉP BUỘC HIỂN THỊ DẠNG PHÂN SỐ X / Y CHO SỰ KIỆN */}
-                      <strong 
+                    <div>
+                      <div 
                         style={{ 
-                          color: isAllScored 
-                            ? '#10b981' 
-                            : (isEventLocked ? '#64748b' : '#1677ff') 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px' 
                         }}
                       >
-                        {scoredTeamsEvent} / {totalTeamsEvent}
-                      </strong> đội
-                    </Text>
-                  </div>
-                </div>
-
-                <div 
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 16 
-                  }}
-                >
-                  <Tag 
-                    color={isEventClosed ? 'default' : 'geekblue'} 
-                    style={{ 
-                      borderRadius: 12, 
-                      fontSize: 14, 
-                      padding: '4px 12px', 
-                      border: 'none', 
-                      background: isEventClosed ? '#f1f5f9' : '#e6f4ff', 
-                      color: isEventClosed ? '#64748b' : '#1677ff', 
-                      fontWeight: 600 
-                    }}
-                  >
-                    {tasks.length} nhiệm vụ
-                  </Tag>
-                  
-                  {/* Nút thả xuống (Chevron) chỉ báo trạng thái */}
-                  <div 
-                    style={{ 
-                      width: 32, 
-                      height: 32, 
-                      borderRadius: '50%', 
-                      background: '#f1f5f9', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      color: '#64748b'
-                    }}
-                  >
-                    {isExpanded ? <UpOutlined /> : <DownOutlined />}
-                  </div>
-                </div>
-              </div>
-
-              {/* VÙNG BODY: CHỈ HIỂN THỊ KHI ĐƯỢC CLICK MỞ (isExpanded = true) */}
-              {isExpanded && (
-                <div 
-                  style={{ 
-                    padding: '32px', 
-                    background: '#f8fafc',
-                    borderTop: '1px solid #f0f0f0'
-                  }}
-                >
-                  <Row 
-                    gutter={[24, 24]}
-                  >
-                    {tasks.map((item) => {
-                      // XỬ LÝ LOGIC ĐÓNG/MỞ CHO TỪNG NHIỆM VỤ CỤ THỂ
-                      const isEventLockedCard = ['COMPLETED', 'FINISHED', 'CLOSED', 'INACTIVE'].includes(item.hackathonStatus);
-                      const isRoundLockedCard = ['COMPLETED', 'FINISHED', 'CLOSED', 'INACTIVE'].includes(item.roundStatus);
-                      
-                      const isScoringFinishedCard = item.progress === 100 
-                        || (item.scoredTeams === item.totalTeams && item.totalTeams > 0) 
-                        || item.completionStatus === 'COMPLETED';
-                      
-                      const isLockedCard = isEventLockedCard || isRoundLockedCard;
-                      
-                      // Quyết định xem form có bị read-only không
-                      const isReadOnly = isLockedCard || isScoringFinishedCard; 
-
-                      return (
-                        <Col 
-                          xs={24} 
-                          md={12} 
-                          lg={12} 
-                          xl={12} 
-                          key={item.id}
+                        <Title 
+                          level={3} 
+                          style={{ 
+                            margin: 0, 
+                            color: isEventClosed ? '#64748b' : '#1e293b' 
+                          }}
                         >
-                          <Card 
-                            hoverable
+                          {hackathonName}
+                        </Title>
+                        {isEventLocked && (
+                          <Tag 
+                            color="default" 
                             style={{ 
-                              borderRadius: 16, 
-                              border: isReadOnly ? '1px solid #e2e8f0' : '1px solid #bae0ff', 
-                              height: '100%', 
-                              display: 'flex', 
-                              flexDirection: 'column', 
-                              cursor: 'pointer',
-                              background: '#ffffff'
-                            }}
-                            styles={{ 
-                              body: { 
-                                padding: 24, 
-                                display: 'flex', 
-                                flexDirection: 'column', 
-                                height: '100%' 
-                              } 
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              
-                              navigate(`/judging/${item.id}/scoring`, { 
-                                state: { 
-                                  roundId: item.roundId, 
-                                  trackId: item.isFinal ? null : item.trackId, 
-                                  isFinal: item.isFinal, 
-                                  isReadOnly: isReadOnly, 
-                                  assignmentType: item.assignmentType || item.role 
-                                }
-                              });
+                              margin: 0 
                             }}
                           >
-                            {/* Card Header (Nhiệm vụ) */}
-                            <div 
-                              style={{ 
-                                display: 'flex', 
-                                alignItems: 'flex-start', 
-                                justifyContent: 'space-between', 
-                                marginBottom: 16 
-                              }}
-                            >
-                              <div 
-                                style={{ 
-                                  width: 48, 
-                                  height: 48, 
-                                  borderRadius: 12, 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center', 
-                                  background: isReadOnly ? '#f1f5f9' : '#e6f4ff', 
-                                  color: isReadOnly ? '#64748b' : '#1677ff' 
-                                }}
-                              >
-                                {item.isFinal ? (
-                                  <TrophyOutlined 
-                                    style={{ 
-                                      fontSize: 24 
-                                    }} 
-                                  />
-                                ) : (
-                                  <AppstoreOutlined 
-                                    style={{ 
-                                      fontSize: 24 
-                                    }} 
-                                  />
-                                )}
-                              </div>
-                              <div>
-                                {isLockedCard ? (
-                                  <Tag 
-                                    color="default" 
-                                    style={{ 
-                                      borderRadius: 4, 
-                                      margin: 0 
-                                    }}
-                                  >
-                                    ĐÃ ĐÓNG
-                                  </Tag>
-                                ) : isScoringFinishedCard ? (
-                                  <Tag 
-                                    color="success" 
-                                    style={{ 
-                                      borderRadius: 4, 
-                                      margin: 0 
-                                    }}
-                                  >
-                                    HOÀN THÀNH
-                                  </Tag>
-                                ) : (
-                                  <Tag
-                                    style={{
-                                      borderRadius: 4,
-                                      margin: 0,
-                                      background: '#fef2f2',
-                                      color: '#b91c1c',
-                                      border: '1px solid #fecaca',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 6,
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    <LiveRecordIndicator size={8} />
-                                    Đang mở
-                                  </Tag>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* Card Body (Nhiệm vụ) */}
-                            <div 
-                              style={{ 
-                                flex: 1 
-                              }}
-                            >
-                              <Title 
-                                level={4} 
-                                style={{ 
-                                  margin: '0 0 8px 0', 
-                                  color: isReadOnly ? '#64748b' : '#1e293b' 
-                                }}
-                              >
-                                {item.trackName}
-                              </Title>
-                              <Text 
-                                type="secondary" 
-                                style={{ 
-                                  display: 'block', 
-                                  marginBottom: 4 
-                                }}
-                              >
-                                {item.roundName}
-                              </Text>
-                              <Text 
-                                type="secondary"
-                              >
-                                Vai trò: 
-                                <Tag 
-                                  color={item.role.includes('HEAD') ? 'gold' : 'blue'} 
-                                  style={{ 
-                                    marginLeft: 4 
-                                  }}
-                                >
-                                  {item.role}
-                                </Tag>
-                              </Text>
-                            </div>
+                            ĐÃ ĐÓNG
+                          </Tag>
+                        )}
+                        {!isEventLocked && isAllScored && (
+                          <Tag 
+                            color="success" 
+                            style={{ 
+                              margin: 0 
+                            }}
+                          >
+                            HOÀN THÀNH
+                          </Tag>
+                        )}
+                      </div>
+                      
+                      <Text 
+                        type="secondary" 
+                        style={{ 
+                          fontSize: 15, 
+                          display: 'block', 
+                          marginTop: 4 
+                        }}
+                      >
+                        Tiến độ: 
+                        <strong 
+                          style={{ 
+                            color: isAllScored 
+                              ? '#10b981' 
+                              : (isEventLocked ? '#64748b' : '#1677ff'), 
+                            marginLeft: 4 
+                          }}
+                        >
+                          {scoredTeamsEvent} / {totalTeamsEvent}
+                        </strong> đội
+                      </Text>
+                    </div>
+                  </div>
 
-                            {/* Card Footer (Nhiệm vụ) */}
-                            <div 
+                  <div 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 16 
+                    }}
+                  >
+                    <Tag 
+                      color={isEventClosed ? 'default' : 'geekblue'} 
+                      style={{ 
+                        borderRadius: 12, 
+                        fontSize: 14, 
+                        padding: '4px 12px', 
+                        border: 'none', 
+                        background: isEventClosed ? '#f1f5f9' : '#e6f4ff', 
+                        color: isEventClosed ? '#64748b' : '#1677ff', 
+                        fontWeight: 600 
+                      }}
+                    >
+                      {tasks.length} nhiệm vụ
+                    </Tag>
+                    
+                    {/* Nút thả xuống (Chevron) chỉ báo trạng thái */}
+                    <div 
+                      style={{ 
+                        width: 32, 
+                        height: 32, 
+                        borderRadius: '50%', 
+                        background: '#f1f5f9', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        color: '#64748b'
+                      }}
+                    >
+                      {isExpanded ? <UpOutlined /> : <DownOutlined />}
+                    </div>
+                  </div>
+                </div>
+
+                {/* VÙNG BODY (NHIỆM VỤ CON): CHỈ HIỂN THỊ KHI ĐƯỢC SỔ XUỐNG */}
+                {isExpanded && (
+                  <div 
+                    style={{ 
+                      padding: '32px', 
+                      background: '#f8fafc',
+                      borderTop: '1px solid #f0f0f0'
+                    }}
+                  >
+                    <Row 
+                      gutter={[24, 24]}
+                    >
+                      {tasks.map((item) => {
+                        // XỬ LÝ LOGIC ĐÓNG/MỞ CHO TỪNG NHIỆM VỤ CỤ THỂ
+                        const isEventLockedCard = ['COMPLETED', 'FINISHED', 'CLOSED', 'INACTIVE'].includes(item.hackathonStatus);
+                        const isRoundLockedCard = ['COMPLETED', 'FINISHED', 'CLOSED', 'INACTIVE'].includes(item.roundStatus);
+                        
+                        const isScoringFinishedCard = item.progress === 100 
+                          || (item.scoredTeams === item.totalTeams && item.totalTeams > 0) 
+                          || item.completionStatus === 'COMPLETED';
+                        
+                        const isLockedCard = isEventLockedCard || isRoundLockedCard;
+                        
+                        // Quyết định xem form có bị read-only không
+                        const isReadOnly = isLockedCard || isScoringFinishedCard; 
+
+                        return (
+                          <Col 
+                            xs={24} 
+                            md={12} 
+                            lg={12} 
+                            xl={12} 
+                            key={item.id}
+                          >
+                            <Card 
+                              hoverable
                               style={{ 
-                                marginTop: 24, 
-                                paddingTop: 16, 
-                                borderTop: '1px dashed #e2e8f0' 
+                                borderRadius: 16, 
+                                border: isReadOnly ? '1px solid #e2e8f0' : '1px solid #bae0ff', 
+                                height: '100%', 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                cursor: 'pointer',
+                                background: '#ffffff'
+                              }}
+                              styles={{ 
+                                body: { 
+                                  padding: 24, 
+                                  display: 'flex', 
+                                  flexDirection: 'column', 
+                                  height: '100%' 
+                                } 
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                
+                                navigate(`/judging/${item.id}/scoring`, { 
+                                  state: { 
+                                    roundId: item.roundId, 
+                                    trackId: item.isFinal ? null : item.trackId, 
+                                    isFinal: item.isFinal, 
+                                    isReadOnly: isReadOnly, 
+                                    assignmentType: item.assignmentType || item.role 
+                                  }
+                                });
                               }}
                             >
+                              {/* Card Header (Nhiệm vụ) */}
                               <div 
                                 style={{ 
                                   display: 'flex', 
+                                  alignItems: 'flex-start', 
                                   justifyContent: 'space-between', 
-                                  marginBottom: 8 
+                                  marginBottom: 16 
                                 }}
                               >
-                                <Text 
+                                <div 
                                   style={{ 
-                                    fontSize: 13, 
-                                    color: '#64748b' 
+                                    width: 48, 
+                                    height: 48, 
+                                    borderRadius: 12, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    background: isReadOnly ? '#f1f5f9' : '#e6f4ff', 
+                                    color: isReadOnly ? '#64748b' : '#1677ff' 
                                   }}
                                 >
-                                  Tiến độ chấm điểm
+                                  {item.isFinal ? (
+                                    <TrophyOutlined 
+                                      style={{ 
+                                        fontSize: 24 
+                                      }} 
+                                    />
+                                  ) : (
+                                    <AppstoreOutlined 
+                                      style={{ 
+                                        fontSize: 24 
+                                      }} 
+                                    />
+                                  )}
+                                </div>
+                                <div>
+                                  {isLockedCard ? (
+                                    <Tag 
+                                      color="default" 
+                                      style={{ 
+                                        borderRadius: 4, 
+                                        margin: 0 
+                                      }}
+                                    >
+                                      ĐÃ ĐÓNG
+                                    </Tag>
+                                  ) : isScoringFinishedCard ? (
+                                    <Tag 
+                                      color="success" 
+                                      style={{ 
+                                        borderRadius: 4, 
+                                        margin: 0 
+                                      }}
+                                    >
+                                      HOÀN THÀNH
+                                    </Tag>
+                                  ) : (
+                                    <Tag
+                                      style={{
+                                        borderRadius: 4,
+                                        margin: 0,
+                                        background: '#fef2f2',
+                                        color: '#b91c1c',
+                                        border: '1px solid #fecaca',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        fontWeight: 700,
+                                      }}
+                                    >
+                                      <LiveRecordIndicator size={8} />
+                                      Đang mở
+                                    </Tag>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Card Body (Nhiệm vụ) */}
+                              <div 
+                                style={{ 
+                                  flex: 1 
+                                }}
+                              >
+                                <Title 
+                                  level={4} 
+                                  style={{ 
+                                    margin: '0 0 8px 0', 
+                                    color: isReadOnly ? '#64748b' : '#1e293b' 
+                                  }}
+                                >
+                                  {item.trackName}
+                                </Title>
+                                <Text 
+                                  type="secondary" 
+                                  style={{ 
+                                    display: 'block', 
+                                    marginBottom: 4 
+                                  }}
+                                >
+                                  {item.roundName}
                                 </Text>
-                                {/* ÉP BUỘC HIỂN THỊ DẠNG PHÂN SỐ X / Y CHO NHIỆM VỤ CỤ THỂ */}
                                 <Text 
-                                  strong 
-                                  style={{ 
-                                    color: isScoringFinishedCard 
-                                      ? '#10b981' 
-                                      : (isLockedCard ? '#64748b' : '#1677ff') 
-                                  }}
+                                  type="secondary"
                                 >
-                                  {item.scoredTeams} / {item.totalTeams} đội
+                                  Vai trò: 
+                                  <Tag 
+                                    color={item.role.includes('HEAD') ? 'gold' : 'blue'} 
+                                    style={{ 
+                                      marginLeft: 4 
+                                    }}
+                                  >
+                                    {item.role}
+                                  </Tag>
                                 </Text>
                               </div>
-                              <Progress 
-                                percent={item.progress} 
-                                showInfo={false} 
-                                strokeColor={
-                                  isScoringFinishedCard 
-                                    ? '#10b981' 
-                                    : (isLockedCard ? '#cbd5e1' : '#1677ff')
-                                } 
-                                trailColor="#f1f5f9" 
-                              />
-                              
-                              <Button 
-                                type={isReadOnly ? 'default' : 'primary'} 
-                                block 
-                                icon={
-                                  isReadOnly 
-                                    ? <HistoryOutlined /> 
-                                    : <LoginOutlined />
-                                }
+
+                              {/* Card Footer (Nhiệm vụ) */}
+                              <div 
                                 style={{ 
-                                  marginTop: 16, 
-                                  height: 40, 
-                                  borderRadius: 8, 
-                                  fontWeight: 600, 
-                                  borderColor: isReadOnly ? '#cbd5e1' : undefined, 
-                                  color: isReadOnly ? '#475569' : undefined, 
-                                  background: isReadOnly ? '#f8fafc' : undefined
+                                  marginTop: 24, 
+                                  paddingTop: 16, 
+                                  borderTop: '1px dashed #e2e8f0' 
                                 }}
                               >
-                                {isReadOnly ? 'Xem Lịch Sử Chấm Thi' : 'Vào phòng chấm thi'}
-                              </Button>
-                            </div>
-                          </Card>
-                        </Col>
-                      );
-                    })}
-                  </Row>
-                </div>
-              )}
-            </Card>
-          );
-        })
+                                <div 
+                                  style={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between', 
+                                    marginBottom: 8 
+                                  }}
+                                >
+                                  <Text 
+                                    style={{ 
+                                      fontSize: 13, 
+                                      color: '#64748b' 
+                                    }}
+                                  >
+                                    Tiến độ chấm điểm
+                                  </Text>
+                                  {/* ÉP BUỘC HIỂN THỊ DẠNG PHÂN SỐ X / Y CHO NHIỆM VỤ CỤ THỂ */}
+                                  <Text 
+                                    strong 
+                                    style={{ 
+                                      color: isScoringFinishedCard 
+                                        ? '#10b981' 
+                                        : (isLockedCard ? '#64748b' : '#1677ff') 
+                                    }}
+                                  >
+                                    {item.scoredTeams} / {item.totalTeams} đội
+                                  </Text>
+                                </div>
+                                <Progress 
+                                  percent={item.progress} 
+                                  showInfo={false} 
+                                  strokeColor={
+                                    isScoringFinishedCard 
+                                      ? '#10b981' 
+                                      : (isLockedCard ? '#cbd5e1' : '#1677ff')
+                                  } 
+                                  trailColor="#f1f5f9" 
+                                />
+                                
+                                <Button 
+                                  type={isReadOnly ? 'default' : 'primary'} 
+                                  block 
+                                  icon={
+                                    isReadOnly 
+                                      ? <HistoryOutlined /> 
+                                      : <LoginOutlined />
+                                  }
+                                  style={{ 
+                                    marginTop: 16, 
+                                    height: 40, 
+                                    borderRadius: 8, 
+                                    fontWeight: 600, 
+                                    borderColor: isReadOnly ? '#cbd5e1' : undefined, 
+                                    color: isReadOnly ? '#475569' : undefined, 
+                                    background: isReadOnly ? '#f8fafc' : undefined
+                                  }}
+                                >
+                                  {isReadOnly ? 'Xem Lịch Sử Chấm Thi' : 'Vào phòng chấm thi'}
+                                </Button>
+                              </div>
+                            </Card>
+                          </Col>
+                        );
+                      })}
+                    </Row>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+
+          {/* COMPONENT PHÂN TRANG (Task 3) */}
+          {totalItems > pageSize && (
+            <div 
+              style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                marginTop: '32px' 
+              }}
+            >
+              <Pagination 
+                current={currentPage} 
+                pageSize={pageSize} 
+                total={totalItems} 
+                onChange={(page) => setCurrentPage(page)} 
+                showSizeChanger={false}
+              />
+            </div>
+          )}
+        </>
       )}
     </motion.div>
   );

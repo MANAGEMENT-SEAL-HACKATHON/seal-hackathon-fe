@@ -1,4 +1,3 @@
-// src/features/judging/components/JudgeTimerAndControls.jsx
 import React, { useState } from 'react';
 import { Card, Typography, Space, Button, Modal, Spin, Popconfirm, Divider } from 'antd';
 import { 
@@ -119,6 +118,27 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
               <Button type="primary" icon={<MessageOutlined />} onClick={() => handleTimerAction('QA')} loading={isTimerActionLoading} style={{ color: '#fff', background: '#d97706', borderColor: '#d97706', fontWeight: 800, minHeight: 48, borderRadius: 10, fontSize: 15 }}>
                 Chuyển sang Hỏi Đáp
               </Button>
+            )}
+
+            {/* NÚT MỚI: KẾT THÚC SỚM Q&A */}
+            {localTimerPhase === 'QA' && localRemainingSeconds > 0 && (
+              <Popconfirm 
+                title="Kết thúc Hỏi Đáp ngay lập tức?" 
+                description="Đồng hồ sẽ về 00:00 để Giám khảo chốt điểm."
+                onConfirm={() => handleTimerAction('END')} 
+                okText="Kết thúc" 
+                cancelText="Hủy" 
+                okButtonProps={{ danger: true }}
+              >
+                <Button 
+                  type="primary" 
+                  icon={<StepForwardOutlined />} 
+                  loading={isTimerActionLoading} 
+                  style={{ color: '#fff', background: '#dc2626', borderColor: '#dc2626', fontWeight: 800, minHeight: 48, borderRadius: 10, fontSize: 15, width: '100%' }}
+                >
+                  Kết thúc sớm Hỏi Đáp
+                </Button>
+              </Popconfirm>
             )}
 
             {canAdvanceToNext && (
