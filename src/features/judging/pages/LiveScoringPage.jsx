@@ -15,27 +15,44 @@ import LiveRecordIndicator from '../../../shared/components/ui/LiveRecordIndicat
 const { Title, Text } = Typography;
 const { Header, Content } = Layout;
 
-// Cấu hình Sticky (Ghim cứng) của đồng đội bạn cho cột 3 (Timer)
-const STICKY_TOP = 160;
-const stickyColumnStyle = {
+// ==========================================
+// CẤU HÌNH CSS ĐỂ XỬ LÝ THANH CUỘN (SCROLL)
+// ==========================================
+// 1. Khoảng cách an toàn tính từ mép trên trình duyệt
+const STICKY_TOP = 104;
+
+// 2. Style cho Cột Trái (Danh sách đội)
+const leftColumnStyle = {
   position: 'sticky',
   top: STICKY_TOP,
   alignSelf: 'flex-start',
-  maxHeight: `calc(100vh - ${STICKY_TOP + 16}px)`,
+  maxHeight: `calc(100vh - ${STICKY_TOP + 32}px)`,
   overflowY: 'auto',
+  paddingRight: 4, 
 };
 
-const timerPinnedStyle = {
+// 3. Style cho Cột Phải (Bao bọc cả Timer và Checklist)
+const rightColumnStyle = {
   position: 'sticky',
   top: STICKY_TOP,
-  zIndex: 20,
-  flexShrink: 0,
+  alignSelf: 'flex-start',
+  maxHeight: `calc(100vh - ${STICKY_TOP + 32}px)`,
+  display: 'flex',
+  flexDirection: 'column',
+  // [MẤU CHỐT] Thêm dòng này để Cột Phải sinh ra thanh cuộn riêng khi màn hình nhỏ
+  overflowY: 'auto', 
+  paddingRight: 4,
 };
 
+// 4. Style cho Timer
+const timerPinnedStyle = {
+  flexShrink: 0,
+  marginBottom: 16,
+};
+
+// 5. Style cho Checklist
 const checklistScrollStyle = {
-  marginTop: 16,
-  maxHeight: `calc(100vh - ${STICKY_TOP + 220}px)`,
-  overflowY: 'auto',
+  flexShrink: 0, 
 };
 
 const LiveScoringPage = () => {
@@ -67,7 +84,7 @@ const LiveScoringPage = () => {
   }
 
   return (
-    <Layout style={{ height: '100vh', overflow: 'hidden', background: '#f4f7fe' }}>
+    <Layout style={{ minHeight: '100vh', background: '#f4f7fe' }}>
       
       {/* HEADER FIXED */}
       <Header style={{ 
@@ -82,7 +99,7 @@ const LiveScoringPage = () => {
         lineHeight: 1,
         boxShadow: '0 4px 20px rgba(0,0,0,0.03)', 
         position: 'sticky', 
-        top: 0, // Đã fix lại thành top 0 để header luôn nằm trên cùng
+        top: 0, 
         zIndex: 100,
       }}>
         {/* KHU VỰC BÊN TRÁI: Nút Back + Tiêu đề */}
@@ -151,8 +168,8 @@ const LiveScoringPage = () => {
       <Content style={{ padding: '32px', maxWidth: 1600, margin: '0 auto', width: '100%' }}>
         <Row gutter={32} align="stretch">
           
-          {/* CỘT 1: HÀNG ĐỢI (Danh sách đội) - Kết hợp Sticky của Upstream */}
-          <Col xs={24} lg={6} style={{ display: 'flex', flexDirection: 'column', ...stickyColumnStyle }}>
+          {/* CỘT 1: HÀNG ĐỢI (Danh sách đội) */}
+          <Col xs={24} lg={6} style={leftColumnStyle}>
              <JudgeSidebarQueue
                queue={scoringLogic.trackQueue}
                activeSlot={scoringLogic.presentingSlot || scoringLogic.activeSlot}
@@ -162,14 +179,14 @@ const LiveScoringPage = () => {
           </Col>
 
           {/* CỘT 2: KHÔNG GIAN CHẤM ĐIỂM (WORKSPACE) */}
-          <Col xs={24} lg={12} style={{ display: 'flex', flexDirection: 'column' }}>
-             <div style={{ flex: 1, overflowY: 'auto', borderRadius: 20, paddingBottom: 24, height: `calc(100vh - ${STICKY_TOP}px)` }}>
+          <Col xs={24} lg={12}>
+             <div style={{ borderRadius: 20, paddingBottom: 24 }}>
                <JudgeScoringWorkspace logic={scoringLogic} />
              </div>
           </Col>
 
-          {/* CỘT 3: ĐỒNG HỒ VÀ CHECKLIST - Kết hợp Sticky của Upstream */}
-          <Col xs={24} lg={6} style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start' }}>
+          {/* CỘT 3: ĐỒNG HỒ VÀ CHECKLIST */}
+          <Col xs={24} lg={6} style={rightColumnStyle}>
             <div style={timerPinnedStyle}>
               <JudgeTimerAndControls logic={scoringLogic} isFinal={isFinal} />
             </div>

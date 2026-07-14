@@ -1,6 +1,5 @@
-// src/features/judging/components/JudgeTimerAndControls.jsx
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, Modal, Spin, Popconfirm, Divider } from 'antd';
+import { Card, Typography, Space, Button, Modal, Spin, Popconfirm, Divider, Tooltip } from 'antd';
 import { 
   ClockCircleOutlined, GithubOutlined, FilePdfOutlined, TeamOutlined, 
   PlayCircleOutlined, PauseCircleOutlined, MessageOutlined, StepForwardOutlined,
@@ -121,6 +120,47 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
               </Button>
             )}
 
+            {localTimerPhase === 'QA' && localRemainingSeconds > 0 && (
+              <Tooltip
+                title={
+                  !canAdvanceToNext
+                    ? `Chờ giám khảo Chốt điểm (${presentationScoringStatus?.judgesConfirmed ?? 0}/${presentationScoringStatus?.judgesAssigned ?? 0}) trước khi kết thúc sớm Q&A`
+                    : undefined
+                }
+              >
+                <span style={{ width: '100%', display: 'block' }}>
+                  <Popconfirm
+                    title="Kết thúc Hỏi Đáp ngay lập tức?"
+                    description="Đồng hồ sẽ về 00:00. Chỉ dùng khi đã đủ giám khảo Chốt điểm."
+                    onConfirm={() => handleTimerAction('END')}
+                    okText="Kết thúc"
+                    cancelText="Hủy"
+                    okButtonProps={{ danger: true }}
+                    disabled={!canAdvanceToNext}
+                  >
+                    <Button
+                      type="primary"
+                      icon={<StepForwardOutlined />}
+                      loading={isTimerActionLoading}
+                      disabled={!canAdvanceToNext}
+                      block
+                      style={{
+                        color: '#fff',
+                        background: canAdvanceToNext ? '#dc2626' : undefined,
+                        borderColor: canAdvanceToNext ? '#dc2626' : undefined,
+                        fontWeight: 800,
+                        minHeight: 48,
+                        borderRadius: 10,
+                        fontSize: 15,
+                      }}
+                    >
+                      Kết thúc sớm Hỏi Đáp
+                    </Button>
+                  </Popconfirm>
+                </span>
+              </Tooltip>
+            )}
+
             {canAdvanceToNext && (
               <Popconfirm title="Chốt sổ và gọi đội kế tiếp?" onConfirm={() => handleTimerAction('NEXT')} okText="Chuyển đội" cancelText="Hủy" okButtonProps={{ danger: true }}>
                 <Button type="primary" danger icon={<StepForwardOutlined />} loading={isTimerActionLoading} style={{ fontWeight: 800, width: '100%', marginTop: 8, minHeight: 48, borderRadius: 10, fontSize: 15 }}>
@@ -154,7 +194,7 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
               <Text type="secondary" style={{ display: 'block', textAlign: 'center', fontSize: 12, lineHeight: 1.5 }}>
                 Chờ tất cả giám khảo Chốt điểm (
                 {presentationScoringStatus?.judgesConfirmed ?? 0}/{presentationScoringStatus?.judgesAssigned})
-                trước khi chuyển đội tiếp theo.
+                trước khi kết thúc sớm hoặc chuyển đội.
               </Text>
             )}
 

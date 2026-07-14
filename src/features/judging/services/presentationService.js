@@ -30,6 +30,9 @@ export const presentationService = {
   qaTimer: (roundId, trackId) =>
     axiosClient.post(ENDPOINTS.PRESENTATION.TIMER_QA, null, timerParams(roundId, trackId)),
 
+  endTimer: (roundId, trackId, body = {}) =>
+    axiosClient.post(ENDPOINTS.PRESENTATION.TIMER_END, body, timerParams(roundId, trackId)),
+
   resetTimer: (roundId, trackId) =>
     axiosClient.post(ENDPOINTS.PRESENTATION.TIMER_RESET, null, timerParams(roundId, trackId)),
 

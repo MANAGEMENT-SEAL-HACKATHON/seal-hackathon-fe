@@ -126,7 +126,7 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
           }
           description={
             closedEarly
-              ? 'Cổng đăng ký đã đóng. Các đội ACTIVE đã khóa — chuyển sang tab «Bốc thăm & Khai mạc» để phân track và bắt đầu vòng Sơ loại.'
+              ? 'Cổng đăng ký đã đóng. Các đội ACTIVE đã khóa — chuyển sang tab «Bốc thăm & Khai mạc» để phân track. Lịch thi dự kiến (examAt) vẫn giữ nguyên; khi kích hoạt vòng bạn có thể chọn giữ lịch hoặc bắt đầu thi ngay.'
               : 'Dùng khi đã đủ số lượng hoặc cần gấp do sự kiện bất khả kháng. Hệ thống sẽ khóa đội ACTIVE, loại thí sinh/đội không đủ điều kiện, gửi thông báo cho Coordinator nếu có đội đã xác nhận thành lập chờ duyệt, và cho các đội đủ thành viên nhưng chưa xác nhận thêm 24h để leader quyết định.'
           }
           action={
@@ -289,6 +289,18 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
                   <Text>Đội ACTIVE đã khóa: {resultModal.data.lockedActiveTeams ?? 0}</Text>
                   <Text>Thí sinh lẻ bị loại: {resultModal.data.withdrawnOrphans ?? 0}</Text>
                   <Text>Đội không đủ điều kiện bị từ chối: {resultModal.data.rejectedIncompleteTeams ?? 0}</Text>
+                  {(resultModal.data.hoursUntilPrelimExam != null || resultModal.data.prelimExamAt) && (
+                    <Text>
+                      Lịch thi sơ loại vẫn còn
+                      {resultModal.data.hoursUntilPrelimExam != null
+                        ? ` khoảng ${resultModal.data.hoursUntilPrelimExam} giờ`
+                        : ''}
+                      {resultModal.data.prelimExamAt
+                        ? ` (${new Date(resultModal.data.prelimExamAt).toLocaleString('vi-VN')})`
+                        : ''}
+                      . Kích hoạt vòng ≠ bắt đầu thi ngay — chọn trên màn Activate.
+                    </Text>
+                  )}
                 </Space>
               }
             />

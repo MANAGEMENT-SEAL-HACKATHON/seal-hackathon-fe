@@ -810,13 +810,34 @@ export async function releaseTrackProblem(token, trackId) {
   return json?.data ?? json;
 }
 
-/** PATCH /rounds/{id}/activate — setup (not progression publish/advance). */
-export async function activateRoundByApi(token, roundId, note = 'Mode B E2E') {
-  const { res, json } = await apiPatch(`/rounds/${roundId}/activate`, token, { note });
+/** PATCH /rounds/{id}/activate — Mode B nén lịch START_NOW để coding/submit không chờ examAt xa. */
+export async function activateRoundByApi(token, roundId, note = 'Mode B E2E', scheduleMode = 'START_NOW') {
+  const { res, json } = await apiPatch(`/rounds/${roundId}/activate`, token, {
+    note,
+    scheduleMode,
+  });
   if (!res.ok) {
     throw new Error(`activate round ${roundId} failed ${res.status}: ${JSON.stringify(json)}`);
   }
   return json?.data ?? json;
+}
+
+/**
+ * UI ActivateScheduleModal: chọn START_NOW (nếu hiện) rồi OK "Kích hoạt".
+ * @param {import('@playwright/test').Page} page
+ */
+export async function confirmActivateScheduleModal(page, { startNow = true } = {}) {
+  const modal = page.locator('.ant-modal').filter({ hasText: /Kích hoạt/i }).last();
+  await expect(modal).toBeVisible({ timeout: 15_000 });
+  if (startNow) {
+    const startNowRadio = modal.getByRole('radio', { name: /bắt đầu thi ngay/i });
+    if (await startNowRadio.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await startNowRadio.check({ force: true }).catch(async () => {
+        await modal.getByText(/bắt đầu thi ngay/i).first().click();
+      });
+    }
+  }
+  await modal.getByRole('button', { name: /^Kích hoạt$/i }).click({ timeout: 15_000, noWaitAfter: true });
 }
 
 export async function getRoundActive(token, roundId) {
@@ -1165,12 +1186,12 @@ export async function openJudgeScoringRoom(page, token, { hackathonId, trackId, 
   if (!res.ok) throw new Error(`${path} failed ${res.status}`);
   const list = Array.isArray(data) ? data : data?.items || [];
   const match =
+    list.find((a) => Number(a.hackathonId || a.hackathon_id) === Number(hackathonId)) ||
     list.find(
       (a) =>
-        (trackId != null &&
-          (Number(a.trackId || a.track_id) === Number(trackId) ||
-            Number(a.roundId || a.round_id) === Number(trackId))) ||
-        Number(a.hackathonId || a.hackathon_id) === Number(hackathonId),
+        trackId != null &&
+        (Number(a.trackId || a.track_id) === Number(trackId) ||
+          Number(a.roundId || a.round_id) === Number(trackId)),
     ) ||
     list.find((a) => String(a.hackathonName || a.hackathon_name || '').includes(String(slug || '')));
   if (!match) {
@@ -1179,12 +1200,15 @@ export async function openJudgeScoringRoom(page, token, { hackathonId, trackId, 
     );
   }
 
+  const displayName = String(match.hackathonName || match.hackathon_name || slug || 'SEAL M2');
   await page.goto('/judge/assignments', { waitUntil: 'domcontentloaded' });
-  const search = page.getByPlaceholder(/Tìm kiếm vòng thi|Tìm kiếm/i);
+  const search = page.getByPlaceholder(/Tìm kiếm vòng thi|bảng đấu/i);
   if (await search.first().isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await search.first().fill(String(slug || ''));
+    await search.first().fill(displayName.slice(0, 40));
   }
-  const eventHeading = page.getByRole('heading', { name: new RegExp(slug || 'SEAL M2', 'i') });
+  const eventHeading = page.getByRole('heading', {
+    name: new RegExp(escapeRegExp(displayName.slice(0, 24)) + '|' + escapeRegExp(String(slug || 'SEAL M2')), 'i'),
+  });
   await expect(eventHeading.first()).toBeVisible({ timeout: 30_000 });
   await eventHeading.first().click({ timeout: 10_000 });
   const enter = page.getByRole('button', { name: /Vào phòng chấm thi/i });
@@ -1195,4 +1219,8 @@ export async function openJudgeScoringRoom(page, token, { hackathonId, trackId, 
   });
   await expect(page.getByText(/Đang thiết lập kết nối mã hóa/i)).toBeHidden({ timeout: 60_000 });
   return match;
+}
+
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

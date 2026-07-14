@@ -183,7 +183,9 @@ const LiveCodingMonitor = ({ activeRound }) => {
                 animation: 'livePulse 2s infinite',
               }} 
             />
-            Đang thi — {hours} tiếng
+            {activeRound?.submission_closed_early_at
+              ? 'Đã kết thúc thi sớm — chuyển chấm điểm'
+              : `Đang thi — ${hours} tiếng`}
           </span>
         );
         
@@ -198,7 +200,9 @@ const LiveCodingMonitor = ({ activeRound }) => {
             }}
           >
             <CheckCircle size={12} />
-            Đã hết hạn nộp bài
+            {activeRound?.submission_closed_early_at
+              ? 'Đã kết thúc thi sớm'
+              : 'Đã hết hạn nộp bài'}
           </span>
         );
         

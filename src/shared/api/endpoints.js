@@ -140,6 +140,7 @@ export const ENDPOINTS = {
     TIMER_PAUSE: '/api/v1/presentation/timer/pause',
     TIMER_RESUME: '/api/v1/presentation/timer/resume',
     TIMER_QA: '/api/v1/presentation/timer/qa',
+    TIMER_END: '/api/v1/presentation/timer/end',
     TIMER_RESET: '/api/v1/presentation/timer/reset',
     DURATION: '/api/v1/presentation/duration',
     TRACK_CONTROLLER: (trackId) => `/api/v1/presentation/tracks/${trackId}/controller`,

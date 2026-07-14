@@ -19,7 +19,6 @@ async function waitForTeamsPage(page) {
   await expect(page.getByRole('heading', { name: /Quản lý đội thi/i })).toBeVisible({
     timeout: 20_000,
   });
-  // useHackathonSelect auto-picks first hackathon (seal-e2e-2026) — no manual Select needed.
   await expect(page.getByText(/Duyệt đội/i).first()).toBeVisible({ timeout: 20_000 });
 }
 
@@ -42,7 +41,7 @@ test.describe('GĐ2 — seal-e2e-2026 (teams / orphan / lottery)', () => {
     test.skip(!hackathon, `Seed ${E2E_SLUG} not found`);
 
     await loginAs(page, { email: COORD_EMAIL, password: COORD_PASSWORD, role: 'coord' });
-    await page.goto('/teams');
+    await page.goto(`/teams?hackathonId=${hackathon.id}`);
     await waitForTeamsPage(page);
     await showActiveTeams(page);
     await expect(page.getByText(/E2E-T01/i).first()).toBeVisible({ timeout: 20_000 });
@@ -55,7 +54,7 @@ test.describe('GĐ2 — seal-e2e-2026 (teams / orphan / lottery)', () => {
     test.skip(!hackathon, `Seed ${E2E_SLUG} not found`);
 
     await loginAs(page, { email: COORD_EMAIL, password: COORD_PASSWORD, role: 'coord' });
-    await page.goto('/teams');
+    await page.goto(`/teams?hackathonId=${hackathon.id}`);
     await waitForTeamsPage(page);
     await page.getByRole('tab', { name: /Radar & Giải cứu/i }).click();
     await expect(page.getByText(/Sinh viên mồ côi \(3\)/i)).toBeVisible({ timeout: 20_000 });

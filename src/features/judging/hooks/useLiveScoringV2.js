@@ -1,4 +1,3 @@
-// src/features/judging/hooks/useLiveScoringV2.js
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { message } from 'antd';
 import { judgeService } from '../services/judgeService';
@@ -83,19 +82,21 @@ export const useLiveScoringV2 = (
         setIsController(Boolean(data.canControlPresentation));
       }
     } catch {
-      // non-blocking — giữ trạng thái controller hiện tại
+      // non-blocking
     }
   }, [roundId, trackId, isFinal, isCalibration]);
 
   const [localTimerPhase, setLocalTimerPhase] = useState('IDLE');
   const [localRemainingSeconds, setLocalRemainingSeconds] = useState(0);
 
+  // [SỬA ĐỔI] Thêm cờ isEndedEarly để bảo vệ Frontend không bị BE đè thời gian
   const timerEngineRef = useRef({
     phase: 'IDLE',
     originalPhase: 'PRESENTING',
     baseSeconds: 0,
     startTimeMs: 0,
     intervalId: null,
+    isEndedEarly: false, 
   });
 
   const syncTimerState = useCallback((phase, seconds) => {
@@ -216,16 +217,21 @@ export const useLiveScoringV2 = (
           const serverPhase = presenting.timer.phase;
           let serverSeconds = presenting.timer.remainingSeconds ?? 0;
           if (serverSeconds < 0) serverSeconds = 0;
-          if (
-            (serverPhase === 'IDLE' || serverPhase === 'SETUP') &&
-            serverSeconds === 0
-          ) {
+          
+          if ((serverPhase === 'IDLE' || serverPhase === 'SETUP') && serverSeconds === 0) {
             serverSeconds = resolvePresentationSeconds(presenting.timer, 0);
           }
 
           const currentEngine = timerEngineRef.current;
 
+          // [QUAN TRỌNG] BẢO VỆ TRẠNG THÁI ENDED: 
+          // Nếu đã bấm "Kết thúc", bỏ qua đồng bộ từ Server để đồng hồ không bị giật lại
+          if (currentEngine.isEndedEarly && (serverPhase === 'QA' || serverPhase === 'PAUSED')) {
+            return; 
+          }
+
           if (currentEngine.phase !== serverPhase) {
+            currentEngine.isEndedEarly = false; // Reset cờ nếu Server sang Phase mới (VD: NEXT -> IDLE)
             applyEngineState(serverPhase, serverSeconds);
           } else if (
             serverPhase === 'PAUSED' ||
@@ -464,11 +470,10 @@ export const useLiveScoringV2 = (
 
   const canAdvanceToNext = useMemo(() => {
     if (isCalibration || !hasPresentationQueue) return false;
-    if (isFinal && !['QA', 'ENDED'].includes(localTimerPhase)) return false;
+    if (!['QA', 'ENDED'].includes(localTimerPhase)) return false;
     return Boolean(presentationScoringStatus?.canAdvanceQueue);
   }, [
     isCalibration,
-    isFinal,
     hasPresentationQueue,
     localTimerPhase,
     presentationScoringStatus,
@@ -674,20 +679,28 @@ export const useLiveScoringV2 = (
 
           if (isResume) await presentationService.resumeTimer(roundId, timerTrackId);
           else await presentationService.startTimer(roundId, timerTrackId);
+          
         } else if (actionType === 'PAUSE') {
           applyEngineState('PAUSED', currentTick);
           await presentationService.pauseTimer(roundId, timerTrackId);
+          
         } else if (actionType === 'QA') {
           const qaSecs =
             (getTimerQaMinutes(presentingSlot?.timer) ?? 5) * 60;
           applyEngineState('QA', qaSecs);
           await presentationService.qaTimer(roundId, timerTrackId);
+          
+        } else if (actionType === 'END') {
+          timerEngineRef.current.isEndedEarly = true;
+          applyEngineState('ENDED', 0);
+          await presentationService.endTimer(roundId, timerTrackId);
         } else if (actionType === 'NEXT') {
           await presentationService.advanceNext(roundId, timerTrackId, {
             currentSubmissionId: presentingSlot.submissionId,
           });
           await refreshPresentationStatus();
           await fetchStaticData();
+          
         } else if (actionType === 'RESET') {
           applyEngineState('IDLE', resolvePresentationSeconds(presentingSlot?.timer, 0));
           await presentationService.resetTimer(roundId, timerTrackId);

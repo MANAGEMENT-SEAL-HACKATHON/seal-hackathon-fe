@@ -26,6 +26,7 @@ import LiveCodingMonitor from '../components/LiveCodingMonitor';
 import ScoringProgressCard from '../components/ScoringProgressCard';
 import PrelimReleaseChecklist from '../components/PrelimReleaseChecklist';
 import FinalReleaseChecklist from '../components/FinalReleaseChecklist';
+import ActivateScheduleModal from '../components/ActivateScheduleModal';
 
 const { Title, Text } = Typography;
 
@@ -100,6 +101,8 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   const [calibTracks, setCalibTracks] = useState([]);
   const [closeEarlyRound, setCloseEarlyRound] = useState(null);
   const [closingEarly, setClosingEarly] = useState(false);
+  const [activateRound, setActivateRound] = useState(null);
+  const [activating, setActivating] = useState(false);
 
   const activeRounds = rounds.filter((r) => r.is_active);
   const activePrelimRound =
@@ -267,27 +270,29 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   };
 
   const handleActivateRound = (round) => {
-    Modal.confirm({
-      title: 'Xác nhận kích hoạt vòng thi?',
-      content: `Bạn có chắc chắn muốn kích hoạt ${round.name}? Thao tác này sẽ mở cổng cho thí sinh và Giám khảo tham gia.`,
-      okText: 'Kích hoạt ngay',
-      cancelText: 'Hủy',
-      onOk: async () => {
-        try {
-          if (round.is_final) {
-            const ready = await ensureFinalRoundReadiness();
-            if (!ready) return;
-          }
-          setLoading(true);
-          await roundService.activate(round.id, { note: 'Kích hoạt thủ công' });
-          message.success(`${round.name} đã được kích hoạt thành công!`);
-          fetchRounds();
-        } catch (error) {
-          message.error(getRoundErrorMessage(error) || 'Lỗi khi kích hoạt vòng thi. Hãy kiểm tra lại tiêu chí và bảng đấu.');
-          setLoading(false);
-        }
+    setActivateRound(round);
+  };
+
+  const confirmActivateRound = async (payload) => {
+    const round = activateRound;
+    if (!round?.id) return;
+    try {
+      if (round.is_final) {
+        const ready = await ensureFinalRoundReadiness();
+        if (!ready) return;
       }
-    });
+      setActivating(true);
+      setLoading(true);
+      await roundService.activate(round.id, payload);
+      message.success(`${round.name} đã được kích hoạt thành công!`);
+      setActivateRound(null);
+      await fetchRounds();
+    } catch (error) {
+      message.error(getRoundErrorMessage(error) || 'Lỗi khi kích hoạt vòng thi. Hãy kiểm tra lại tiêu chí và bảng đấu.');
+      setLoading(false);
+    } finally {
+      setActivating(false);
+    }
   };
 
   const handleCloseSubmissionEarly = async () => {
@@ -556,7 +561,10 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
 
       if (roundValues.is_active && (!editingRound || !editingRound.is_active)) {
         try {
-          await roundService.activate(roundId, { note: 'Kích hoạt từ giao diện cấu hình' });
+          await roundService.activate(roundId, {
+            note: 'Kích hoạt từ giao diện cấu hình',
+            scheduleMode: 'KEEP',
+          });
           message.success(editingRound ? 'Đã cập nhật và kích hoạt vòng thi thành công' : 'Đã tạo và kích hoạt vòng thi thành công');
         } catch (actError) {
           Modal.error({
@@ -940,6 +948,9 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                       if (round.scoring_locked || round.scoringLocked) {
                         return <Tag color="red" icon={<Lock size={12} style={{marginRight: 4}}/>}>Đã khóa chấm</Tag>;
                       }
+                      if (round.submission_closed_early_at) {
+                        return <Tag color="orange">Đã kết thúc thi sớm</Tag>;
+                      }
                       if (isEnded) return <Tag color="blue">Đã kết thúc</Tag>;
                       return (
                         <Tag color={round.is_active ? 'green' : 'default'}>
@@ -995,6 +1006,14 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       )}
 
       {/* Kết thúc thời gian thi sớm — irreversible */}
+      <ActivateScheduleModal
+        open={Boolean(activateRound)}
+        round={activateRound}
+        confirmLoading={activating}
+        onCancel={() => !activating && setActivateRound(null)}
+        onConfirm={confirmActivateRound}
+      />
+
       <Modal
         title="Kết thúc thời gian thi sớm?"
         open={Boolean(closeEarlyRound)}

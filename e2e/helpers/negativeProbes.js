@@ -156,7 +156,7 @@ const NEGATIVE_PROBES = {
     const rounds = await apiRequest('GET', `/hackathons/${hackathon.id}/rounds`, { token: coordToken });
     const prelim = findPrelim(Array.isArray(rounds) ? rounds : []);
     if (!prelim?.id) throw new Error('prelim not found');
-    const subs = await apiRequest('GET', `/rounds/${prelim.id}/submissions`, { token: coordToken });
+    const subs = await apiRequest('GET', `/submissions?roundId=${prelim.id}&size=50`, { token: coordToken });
     const subList = Array.isArray(subs) ? subs : subs?.items || [];
     const submission = subList.find((s) => s.id || s.submissionId);
     if (!submission) throw new Error('no submitted row on seal-gd3-prelim-open');
@@ -240,7 +240,7 @@ const NEGATIVE_PROBES = {
     if (!prelim.scoringLocked && !prelim.scoring_locked) {
       throw new Error('expected prelim scoringLocked=true on seal-gd4-advance-ready');
     }
-    const subs = await apiRequest('GET', `/rounds/${prelim.id}/submissions`, { token: coordToken });
+    const subs = await apiRequest('GET', `/submissions?roundId=${prelim.id}&size=50`, { token: coordToken });
     const subList = Array.isArray(subs) ? subs : subs?.items || [];
     const submission = subList[0];
     if (!submission) throw new Error('no submission on advance-ready');
@@ -304,7 +304,7 @@ const NEGATIVE_PROBES = {
     const rounds = await apiRequest('GET', `/hackathons/${hackathon.id}/rounds`, { token: coordToken });
     const prelim = findPrelim(Array.isArray(rounds) ? rounds : []);
     if (!prelim?.id) throw new Error('prelim not found');
-    const subs = await apiRequest('GET', `/rounds/${prelim.id}/submissions`, { token: coordToken });
+    const subs = await apiRequest('GET', `/submissions?roundId=${prelim.id}&size=50`, { token: coordToken });
     const subList = Array.isArray(subs) ? subs : subs?.items || [];
     const submission = subList[0];
     if (!submission) throw new Error('no submission on advance-ready');
