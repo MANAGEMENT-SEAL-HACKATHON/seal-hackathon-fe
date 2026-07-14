@@ -100,7 +100,7 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
   );
 
   if (!roundId) {
-    return <Alert showIcon type="warning" message="Thiếu roundId" description="Trang xử lý kết quả cần roundId của vòng Sơ loại." />;
+    return <Alert showIcon type="warning" message="Thiếu thông tin vòng thi" description="Trang xử lý kết quả cần chọn vòng Sơ loại." />;
   }
 
   return (
@@ -178,7 +178,7 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
           showIcon
           type="info"
           message="Chưa thể công bố"
-          description="Cần khóa chấm điểm (lock-scoring) ở màn Quản lý vòng thi trước khi công bố kết quả."
+          description="Cần khóa chấm điểm ở màn Quản lý vòng thi trước khi công bố kết quả."
         />
       )}
 

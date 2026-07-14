@@ -47,6 +47,8 @@ export const mapRoundToFE = (beData) => {
     is_active: beData.isActive,
     scoring_locked: beData.scoringLocked ?? beData.scoring_locked,
     is_published: beData.isPublished ?? beData.is_published,
+    submission_closed_early_at:
+      beData.submissionClosedEarlyAt ?? beData.submission_closed_early_at ?? null,
     default_presentation_minutes: beData.defaultPresentationMinutes ?? null,
     default_qa_minutes: beData.defaultQaMinutes ?? null,
   };

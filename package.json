@@ -15,6 +15,8 @@
     "test:e2e:gd2": "playwright test --project=gd2-e2e",
     "test:e2e:dedicated": "playwright test --project=dedicated-e2e",
     "test:e2e:mutating": "playwright test --project=mutating-e2e",
+    "test:unit:errors": "node --test src/shared/errors/resolveUserError.test.js src/features/hackathons/utils/hackathonRegistrationRules.test.js",
+    "test:unit:calib": "node --test src/features/judging/services/calibrationQueryParams.test.js",
     "test:e2e:visual": "playwright test --project=visual",
     "test:e2e:cross-browser": "playwright test --project=chromium --project=firefox --project=webkit",
     "test:pyramid": "npm run test:e2e:parity && npm run test:e2e:matrix && npm run test:e2e:gd2",
@@ -56,6 +58,7 @@
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "ws": "^8.21.0"
   }
 }

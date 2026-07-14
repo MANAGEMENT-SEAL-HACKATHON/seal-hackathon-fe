@@ -45,6 +45,10 @@ export const roundService = {
     return axiosClient.patch(ENDPOINTS.ROUNDS.RELEASE_PROBLEM(id), {});
   },
 
+  closeSubmissionEarly: async (id) => {
+    return axiosClient.post(ENDPOINTS.ROUNDS.CLOSE_SUBMISSION_EARLY(id));
+  },
+
   uploadProblemStatement: async (id, file) => {
     const formData = new FormData();
     formData.append('file', file);

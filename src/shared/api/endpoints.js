@@ -90,6 +90,7 @@ export const ENDPOINTS = {
     CRITERIA_CLONE: (roundId) => `/api/v1/rounds/${roundId}/criteria/clone`,
     ACTIVATE: (id) => `/api/v1/rounds/${id}/activate`,
     RELEASE_PROBLEM: (id) => `/api/v1/rounds/${id}/release-problem`,
+    CLOSE_SUBMISSION_EARLY: (id) => `/api/v1/rounds/${id}/close-submission-early`,
     PROBLEM_STATEMENT: (id) => `/api/v1/rounds/${id}/problem-statement`,
     SCORING_PROGRESS: (id) => `/api/v1/rounds/${id}/scoring-progress`,
     PUBLISH: (id) => `/api/v1/rounds/${id}/publish`,

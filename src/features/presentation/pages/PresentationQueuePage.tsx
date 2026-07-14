@@ -18,6 +18,10 @@ import { hackathonService } from '../../hackathons/services/hackathonService';
 import { presentationService } from '../../judging/services/presentationService';
 import { peopleService } from '../../people/services/peopleService';
 import { TEAM_ERROR_MESSAGES } from '../../../shared/constants/teamErrors';
+import { resolveUserError } from '../../../shared/errors/resolveUserError';
+import {
+  PRELIMINARY_SUBMISSION_ERROR_MESSAGES,
+} from '../../submissions/constants/preliminarySubmissionErrors';
 import toast from 'react-hot-toast';
 import { usePresentationQueueSocket } from '../../../shared/hooks/usePresentationQueueSocket';
 
@@ -36,17 +40,11 @@ const { Title, Text } = Typography;
 const PRIMARY_BLUE = '#2563eb';
 const PRIMARY_BLUE_LIGHT = '#eff6ff';
 
-// HÀM BÓC TÁCH THÔNG BÁO LỖI CHUYÊN NGHIỆP TỪ BE
-const extractErrorMessage = (err: any) => {
-  if (typeof err === 'string') return err;
-  if (err?.response?.data) {
-    const data = err.response.data;
-    if (data?.error?.message) return data.error.message;
-    if (data?.message) return data.message;
-    return JSON.stringify(data);
-  }
-  return err?.message || 'Lỗi hệ thống không xác định.';
-};
+const extractErrorMessage = (err: any) =>
+  resolveUserError(err, {
+    domainMap: { ...TEAM_ERROR_MESSAGES, ...PRELIMINARY_SUBMISSION_ERROR_MESSAGES },
+    fallback: 'Lỗi hệ thống không xác định.',
+  });
 
 // ==========================================
 // COMPONENT: GAME QUAY SỐ
@@ -69,9 +67,13 @@ const LotteryAnimation = ({ isRolling, onComplete, totalTeams }: { isRolling: bo
 
       const timer = setTimeout(() => { onComplete(); }, 4500);
       return () => clearTimeout(timer);
-    } else {
-      setBalls([]);
     }
+    if (isRolling && totalTeams <= 0) {
+      // Avoid stuck loading when queue has no gradable teams yet
+      const timer = setTimeout(() => { onComplete(); }, 100);
+      return () => clearTimeout(timer);
+    }
+    setBalls([]);
   }, [isRolling, totalTeams, onComplete]);
 
   return (
@@ -646,8 +648,8 @@ const PresentationQueuePage: React.FC = () => {
             <Alert
               type="info"
               showIcon
-              message="Chung kết — HARD_LOCK"
-              description="Vòng Chung kết không duyệt nộp trễ. Bài nộp sau deadline sẽ bị REJECTED (HARD_LOCK)."
+              message="Chung kết — khóa cứng nộp bài"
+              description="Vòng Chung kết không duyệt nộp trễ. Bài nộp sau hạn sẽ bị từ chối theo chính sách khóa cứng."
               style={{ borderRadius: 16 }}
             />
           )}

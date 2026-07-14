@@ -7,6 +7,7 @@ import {
   waitForSeedSlug,
 } from './helpers/api.js';
 import { getTiebreak, isMutatingEnabled } from './helpers/progressionApiHelpers.js';
+test.skip(true, 'deprecated seed slug removed — see intentional-errors-catalog.md');
 
 const COORD_EMAIL = process.env.E2E_COORD_EMAIL || 'coord@fpt.edu.vn';
 const COORD_PASSWORD = process.env.E2E_COORD_PASSWORD || 'Coordinator@dev1';

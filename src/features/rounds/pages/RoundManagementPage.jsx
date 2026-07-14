@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal, Alert, Tooltip, Input } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { Plus, Edit, Trash2, Calendar, List, BarChart3, PlayCircle, Lock, UserPlus, Trophy, FileText, History } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, List, BarChart3, PlayCircle, Lock, UserPlus, Trophy, FileText, History, StopCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../shared/constants/routes';
 import RoundFormModal from '../components/RoundFormModal';
@@ -12,6 +12,8 @@ import { criteriaService } from '../../criteria/services/criteriaService';
 import { mapRoundToFE, mapRoundToBE, mapRoundCkDurationToBE, hasRoundCkDurationInput, sortRoundsByExamAt } from '../mappers/roundMapper';
 import { mapTrackToFE } from '../../tracks/mappers/trackMapper';
 import { getRoundErrorMessage } from '../../../shared/constants/roundErrors';
+import { resolveUserError } from '../../../shared/errors/resolveUserError';
+import CalibrationSessionManager from '../../coordinator/components/CalibrationSessionManager';
 import { formatDate } from '../../../shared/utils/date';
 import { teamService } from '../../teams/services/teamService';
 import { hackathonService } from '../../hackathons/services/hackathonService';
@@ -95,8 +97,13 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   const [prelimReleaseReady, setPrelimReleaseReady] = useState(false);
   const [finalReleaseReady, setFinalReleaseReady] = useState(false);
   const [progressRoundId, setProgressRoundId] = useState(null);
+  const [calibTracks, setCalibTracks] = useState([]);
+  const [closeEarlyRound, setCloseEarlyRound] = useState(null);
+  const [closingEarly, setClosingEarly] = useState(false);
 
   const activeRounds = rounds.filter((r) => r.is_active);
+  const activePrelimRound =
+    activeRounds.find((r) => !(r.is_final || r.isFinal)) || null;
   const progressRound =
     activeRounds.find((r) => r.id === progressRoundId) || activeRounds[0] || null;
 
@@ -128,7 +135,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
 
       setRounds(sortRoundsByExamAt(fullRounds));
     } catch (error) {
-      message.error(error.message || 'Lỗi khi tải danh sách vòng thi');
+      message.error(getRoundErrorMessage(error) || 'Lỗi khi tải danh sách vòng thi');
     } finally {
       setLoading(false);
     }
@@ -136,6 +143,30 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
 
   useEffect(() => {
     fetchRounds();
+  }, [hackathonId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCalibTracks = async () => {
+      if (!activePrelimRound?.id) {
+        setCalibTracks([]);
+        return;
+      }
+      try {
+        const res = await trackService.listByRound(activePrelimRound.id);
+        const list = (Array.isArray(res) ? res : res?.items || []).map(mapTrackToFE);
+        if (!cancelled) setCalibTracks(list);
+      } catch {
+        if (!cancelled) setCalibTracks([]);
+      }
+    };
+    loadCalibTracks();
+    return () => {
+      cancelled = true;
+    };
+  }, [activePrelimRound?.id]);
+
+  useEffect(() => {
     fetchAdvancementData();
   }, [hackathonId]);
 
@@ -167,7 +198,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       await fetchRounds();
       if (onHackathonSync) await onHackathonSync();
     } catch (error) {
-      message.error(error.message || 'Lỗi khi xóa vòng thi');
+      message.error(getRoundErrorMessage(error) || 'Lỗi khi xóa vòng thi');
       setLoading(false);
     }
   };
@@ -222,9 +253,9 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         }
         if (status === 'PENDING_CONFIRM') {
           Modal.success({
-            title: 'Đã khóa Chung kết — sẵn sàng GĐ6',
+            title: 'Đã khóa Chung kết — sẵn sàng trao giải',
             content:
-              'Hackathon đã chuyển sang trạng thái PENDING_CONFIRM. Tiếp theo: trao giải và chốt sổ kết quả.',
+              'Hackathon đã chuyển sang trạng thái đang chờ chốt sổ điểm. Tiếp theo: trao giải và chốt sổ kết quả.',
             okText: 'Mở kết quả & trao giải',
             onOk: () => navigate(`/hackathons/${hackathonId}/results`),
           });
@@ -259,6 +290,21 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
     });
   };
 
+  const handleCloseSubmissionEarly = async () => {
+    if (!closeEarlyRound?.id) return;
+    setClosingEarly(true);
+    try {
+      await roundService.closeSubmissionEarly(closeEarlyRound.id);
+      message.success(`Đã kết thúc thời gian thi sớm cho ${closeEarlyRound.name}. Có thể xáo trộn hàng đợi và chấm điểm.`);
+      setCloseEarlyRound(null);
+      await fetchRounds();
+    } catch (error) {
+      message.error(getRoundErrorMessage(error) || 'Không thể kết thúc thời gian thi sớm.');
+    } finally {
+      setClosingEarly(false);
+    }
+  };
+
   const handleOpenLockScoring = async (record) => {
     setLockingRound(record);
     setLockReason('');
@@ -277,7 +323,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       setIsLocking(true);
       await finalizeLockScoring(record, { force: false });
     } catch (error) {
-      message.error('Lỗi khi khóa chấm điểm. Vui lòng kiểm tra lại kết nối.');
+      message.error(getRoundErrorMessage(error) || 'Lỗi khi khóa chấm điểm.');
     } finally {
       setIsLocking(false);
     }
@@ -285,7 +331,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
 
   const handleLockScoring = async () => {
     if (lockRequiresForce && !lockReason.trim()) {
-      return message.warning('Vui lòng nhập lý do khóa chấm điểm (force lock).');
+      return message.warning('Vui lòng nhập lý do khóa chấm điểm (bắt buộc khi còn bài chưa chấm).');
     }
 
     setIsLocking(true);
@@ -295,7 +341,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         reason: lockRequiresForce ? lockReason.trim() : undefined,
       });
     } catch (error) {
-      message.error('Lỗi khi khóa chấm điểm. Vui lòng kiểm tra lại kết nối.');
+      message.error(getRoundErrorMessage(error) || 'Lỗi khi khóa chấm điểm.');
     } finally {
       setIsLocking(false);
     }
@@ -317,7 +363,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       setReleasingRound(null);
       fetchRounds();
     } catch (error) {
-      message.error(error?.message || 'Không thể phát đề. Vui lòng thử lại.');
+      message.error(getRoundErrorMessage(error) || 'Không thể phát đề. Vui lòng thử lại.');
     } finally {
       setIsReleasing(false);
     }
@@ -522,7 +568,9 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                   <Text strong type="danger" style={{ display: 'block', marginBottom: '8px' }}>
                     <InfoCircleOutlined /> Lỗi: Tiến độ chia bảng / Giám khảo không hợp lệ
                   </Text>
-                  {actError.response?.data?.message || actError.response?.data?.error?.message || actError.message || 'Thiếu tiêu chí đánh giá hoặc chưa phân công giám khảo'}
+                  {resolveUserError(actError, {
+                    fallback: 'Thiếu tiêu chí đánh giá hoặc chưa phân công giám khảo',
+                  })}
                 </div>
                 <p style={{ marginTop: 8, fontSize: '13px' }}>Vòng thi đã được lưu thành công ở trạng thái "Ngưng hoạt động". Bạn hãy cấu hình đầy đủ tiêu chí trước khi bật kích hoạt nhé.</p>
               </div>
@@ -582,14 +630,15 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       key: 'status',
       render: (_, record) => {
         const isEnded = record.submission_deadline && dayjs().isAfter(dayjs(record.submission_deadline));
+        const closedEarly = Boolean(record.submission_closed_early_at);
         
         // BƯỚC 8: Hiển thị Badge Đã khóa chấm điểm
         if (record.scoring_locked || record.scoringLocked) {
           return <Tag color="red" icon={<Lock size={12} style={{marginRight: 4}}/>}>Đã khóa chấm điểm</Tag>;
         }
 
-        if (isEnded) {
-          return <Tag color="red">Đã kết thúc</Tag>;
+        if (closedEarly || isEnded) {
+          return <Tag color="red">{closedEarly ? 'Đã kết thúc sớm' : 'Đã kết thúc'}</Tag>;
         }
         return (
           <Tag color={record.is_active ? 'green' : 'default'}>
@@ -625,6 +674,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         // Nếu vòng thi ĐANG HOẠT ĐỘNG
         if (record.is_active) {
           const hasReleasedProblem = Boolean(record.problem_released_at);
+          const closedEarly = Boolean(record.submission_closed_early_at);
           return (
             <Space size="middle">
               <Tooltip title="Xếp hạng tạm">
@@ -647,16 +697,31 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                 </Tooltip>
               )}
 
-              <Tooltip title="Mở hàng đợi thuyết trình">
-                <Button
-                  type="text"
-                  style={{ color: 'var(--ant-color-primary)' }}
-                  icon={<History size={16} />}
-                  onClick={() => {
-                    navigate(`${ROUTES.PRESENTATION_QUEUE}?roundId=${record.id}`);
-                  }}
-                />
-              </Tooltip>
+              {!closedEarly && !isEnded && (
+                <Tooltip title="Kết thúc thời gian thi sớm">
+                  <Button
+                    type="text"
+                    danger
+                    data-testid="round-close-submission-early-btn"
+                    icon={<StopCircle size={16} />}
+                    onClick={() => setCloseEarlyRound(record)}
+                  />
+                </Tooltip>
+              )}
+
+              {(closedEarly || isEnded) && (
+                <Tooltip title="Mở hàng đợi thuyết trình (sau khi hết giờ nộp hoặc kết thúc sớm)">
+                  <Button
+                    type="text"
+                    style={{ color: 'var(--ant-color-primary)' }}
+                    icon={<History size={16} />}
+                    data-testid="round-open-presentation-queue-btn"
+                    onClick={() => {
+                      navigate(`${ROUTES.PRESENTATION_QUEUE}?roundId=${record.id}`);
+                    }}
+                  />
+                </Tooltip>
+              )}
 
               {(record.scoring_locked || record.scoringLocked) && !record.is_final && (
                 <Tooltip title="Công bố & chuyển vòng">
@@ -809,6 +874,17 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       )}
       {progressRound && <ScoringProgressCard round={progressRound} />}
 
+      {activePrelimRound?.id &&
+        calibTracks.map((track) => (
+          <CalibrationSessionManager
+            key={track.id}
+            roundId={activePrelimRound.id}
+            trackId={track.id}
+            roundLabel={`Bảng ${track.name || track.id}`}
+            enabled={Boolean(activePrelimRound?.is_active ?? activePrelimRound?.isActive)}
+          />
+        ))}
+
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
         <Space>
           <Button.Group style={{ marginRight: 16 }}>
@@ -918,6 +994,32 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         />
       )}
 
+      {/* Kết thúc thời gian thi sớm — irreversible */}
+      <Modal
+        title="Kết thúc thời gian thi sớm?"
+        open={Boolean(closeEarlyRound)}
+        onOk={handleCloseSubmissionEarly}
+        onCancel={() => !closingEarly && setCloseEarlyRound(null)}
+        okText="Xác nhận kết thúc"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true, loading: closingEarly }}
+        data-testid="close-submission-early-modal"
+      >
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Text>
+            Bạn sắp kết thúc thời gian thi cho <Text strong>{closeEarlyRound?.name}</Text>.
+          </Text>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            <li>Đóng cổng nộp bài (hạn nộp = thời điểm hiện tại)</li>
+            <li>Kết thúc giờ thi — vòng chuyển sang giai đoạn chấm điểm</li>
+            <li>Tiếp theo: xáo trộn hàng đợi thuyết trình → giám khảo chấm → khóa điểm</li>
+          </ul>
+          <Text strong style={{ color: '#cf1322' }}>
+            Hành động này KHÔNG THỂ HOÀN TÁC.
+          </Text>
+        </Space>
+      </Modal>
+
       {/* ========================================== */}
       {/* BƯỚC 8: Modal Nhập lý do khóa điểm */}
       {/* ========================================== */}
@@ -949,7 +1051,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         
         {lockRequiresForce && (
         <div>
-          <Text strong>Lý do khóa (force_lock_reason) <span style={{ color: 'red' }}>*</span></Text>
+          <Text strong>Lý do khóa (bắt buộc khi còn bài chưa chấm) <span style={{ color: 'red' }}>*</span></Text>
           <Input.TextArea 
             rows={3} 
             placeholder="Ví dụ: Đã hết thời gian chấm thi theo quy định..." 

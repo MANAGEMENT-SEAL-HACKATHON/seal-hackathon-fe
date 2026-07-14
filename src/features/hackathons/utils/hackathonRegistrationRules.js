@@ -30,7 +30,7 @@ export const getLotteryGateReason = (hackathon, activeTeams = [], selectedRound 
   }
 
   if (hackathon?.status && hackathon.status !== 'ONGOING') {
-    return 'Bốc thăm chỉ thực hiện khi hackathon đã ONGOING (sau bước Mở đăng ký ở tab Đánh giá).';
+    return 'Bốc thăm chỉ thực hiện khi hackathon đã mở đăng ký và đang diễn ra (sau bước Mở đăng ký ở tab Đánh giá).';
   }
 
   const regEnd = hackathon?.registration_end ?? hackathon?.registrationEnd;
@@ -43,13 +43,13 @@ export const getLotteryGateReason = (hackathon, activeTeams = [], selectedRound 
   }
 
   if (activeTeams.length === 0) {
-    return 'Chưa có đội ACTIVE được duyệt để bốc thăm.';
+    return 'Chưa có đội đã duyệt để bốc thăm.';
   }
 
   const isTeamLocked = (team) => !!(team?.isLocked ?? team?.is_locked);
   const unlockedTeams = activeTeams.filter((t) => !isTeamLocked(t));
   if (unlockedTeams.length > 0) {
-    return `Còn ${unlockedTeams.length} đội chưa bị khóa (is_locked). Chờ hệ thống khóa hoặc kết thúc đăng ký sớm.`;
+    return `Còn ${unlockedTeams.length} đội chưa bị khóa. Hãy đợi hệ thống khóa sau khi hết hạn đăng ký, hoặc dùng «Kết thúc đăng ký sớm».`;
   }
 
   return '';

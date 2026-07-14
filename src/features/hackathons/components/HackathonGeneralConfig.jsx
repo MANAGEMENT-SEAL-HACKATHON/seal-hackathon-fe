@@ -17,6 +17,8 @@ import { hackathonService } from '../services/hackathonService';
 import { mapHackathonToBE, resolveHackathonBannerUrl } from '../mappers/hackathonMapper';
 import HackathonBannerUpload from './HackathonBannerUpload';
 import { ROUTES } from '../../../shared/constants/routes';
+import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
+import { resolveUserError } from '../../../shared/errors/resolveUserError';
 
 const { Text, Title } = Typography;
 
@@ -75,7 +77,7 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
       setBannerFileList([]);
       onUpdated?.();
     } catch (error) {
-      message.error(error?.message || 'Không thể upload banner');
+      message.error(resolveUserError(error, { fallback: 'Không thể upload banner' }));
     } finally {
       setUploadingBanner(false);
     }
@@ -90,7 +92,10 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
       message.success('Đã kết thúc đăng ký sớm');
       onUpdated?.();
     } catch (error) {
-      message.error(error?.message || 'Không thể kết thúc đăng ký sớm');
+      message.error(
+        getTeamErrorMessage(error) ||
+          resolveUserError(error, { fallback: 'Không thể kết thúc đăng ký sớm' }),
+      );
     } finally {
       setClosingRegistration(false);
     }

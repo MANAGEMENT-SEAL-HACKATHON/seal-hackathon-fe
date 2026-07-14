@@ -3,14 +3,23 @@ import { Button, Card, Form, Input, InputNumber, List, Select, Space, Spin, Tag,
 import { calibrationService } from '../../judging/services/calibrationService';
 import axiosClient from '../../../shared/api/axiosClient';
 import toast from 'react-hot-toast';
+import { resolveUserError } from '../../../shared/errors/resolveUserError';
 
 const { Title, Text } = Typography;
 const parseList = (res) => (Array.isArray(res) ? res : res?.items || res?.data || []);
 
+const submissionTrackId = (sub) =>
+  sub?.trackId ?? sub?.track_id ?? sub?.track?.id ?? null;
+
 /**
- * Shared calibration CRUD for prelim (GĐ3) and final (GĐ5) rounds.
+ * Shared calibration CRUD for prelim (GĐ3, per-track) and final (GĐ5, trackId omitted).
  */
-const CalibrationSessionManager = ({ roundId, roundLabel = 'vòng thi', enabled = true }) => {
+const CalibrationSessionManager = ({
+  roundId,
+  trackId = null,
+  roundLabel = 'vòng thi',
+  enabled = true,
+}) => {
   const [sessions, setSessions] = useState([]);
   const [sampleSubmissions, setSampleSubmissions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -22,11 +31,15 @@ const CalibrationSessionManager = ({ roundId, roundLabel = 'vòng thi', enabled 
     setLoading(true);
     try {
       const [sessionData, submissionRes] = await Promise.all([
-        calibrationService.listByRound(roundId),
+        calibrationService.listByRound(roundId, trackId),
         axiosClient.get('/api/v1/submissions', { params: { roundId } }).catch(() => []),
       ]);
       setSessions(parseList(sessionData));
-      setSampleSubmissions(parseList(submissionRes));
+      let samples = parseList(submissionRes);
+      if (trackId != null) {
+        samples = samples.filter((sub) => String(submissionTrackId(sub)) === String(trackId));
+      }
+      setSampleSubmissions(samples);
     } catch {
       setSessions([]);
       setSampleSubmissions([]);
@@ -37,22 +50,26 @@ const CalibrationSessionManager = ({ roundId, roundLabel = 'vòng thi', enabled 
 
   useEffect(() => {
     loadData();
-  }, [roundId, enabled]);
+  }, [roundId, trackId, enabled]);
 
   const handleCreate = async (values) => {
     setSubmitting(true);
     try {
-      await calibrationService.create({
+      const payload = {
         roundId,
         sampleSubmissionId: values.sampleSubmissionId,
         targetScore: values.targetScore,
         instructions: values.instructions,
-      });
-      toast.success('Đã tạo phiên calibration.');
+      };
+      if (trackId != null) {
+        payload.trackId = trackId;
+      }
+      await calibrationService.create(payload);
+      toast.success('Đã tạo phiên Calibration.');
       form.resetFields();
       await loadData();
     } catch (err) {
-      toast.error(err?.message || 'Không thể tạo phiên calibration.');
+      toast.error(resolveUserError(err, { fallback: 'Không thể tạo phiên Calibration.' }));
     } finally {
       setSubmitting(false);
     }
@@ -61,17 +78,17 @@ const CalibrationSessionManager = ({ roundId, roundLabel = 'vòng thi', enabled 
   const handleClose = async (sessionId) => {
     try {
       await calibrationService.update(sessionId, { status: 'CLOSED' });
-      toast.success('Đã đóng phiên calibration.');
+      toast.success('Đã đóng phiên Calibration.');
       await loadData();
     } catch (err) {
-      toast.error(err?.message || 'Không thể đóng phiên.');
+      toast.error(resolveUserError(err, { fallback: 'Không thể đóng phiên.' }));
     }
   };
 
   if (!enabled || !roundId) return null;
 
   return (
-    <Card size="small" title={`Calibration — ${roundLabel}`} style={{ marginTop: 16 }}>
+    <Card size="small" title={`Phiên Calibration — ${roundLabel}`} style={{ marginTop: 16 }}>
       {loading ? (
         <Spin />
       ) : (
@@ -106,12 +123,14 @@ const CalibrationSessionManager = ({ roundId, roundLabel = 'vòng thi', enabled 
               renderItem={(session) => {
                 const status = String(session.status || 'OPEN').toUpperCase();
                 const isOpen = status === 'OPEN' || status === 'ACTIVE';
+                const trackLabel = session.trackName || session.track_name;
                 return (
                   <List.Item
                     actions={isOpen ? [<Button key="c" size="small" onClick={() => handleClose(session.id)}>Đóng</Button>] : []}
                   >
                     <Space>
                       <Text>Mẫu #{session.sampleSubmissionId || session.sample_submission_id}</Text>
+                      {trackLabel ? <Tag>{trackLabel}</Tag> : null}
                       <Tag color={isOpen ? 'success' : 'default'}>{status}</Tag>
                     </Space>
                   </List.Item>

@@ -148,7 +148,7 @@ const TeamMentorHistoryPanel = ({ teamId }) => {
           </div>
           <Text style={{ fontSize: 16, fontWeight: 700, color: token.colorTextHeading }}>Đội của bạn chưa có Người hướng dẫn</Text>
           <Text type="secondary" style={{ fontSize: 14, maxWidth: 400 }}>
-            Ban tổ chức sẽ tiến hành phân bổ Mentor cho các đội thi đạt yêu cầu. Vui lòng quay lại kiểm tra sau!
+            Mentor được phân theo bảng đấu. Sau khi Ban tổ chức gán mentor cho bảng và đội đã bốc thăm có bảng, mentor sẽ hiện tại đây.
           </Text>
         </motion.div>
       ) : (

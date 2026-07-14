@@ -22,6 +22,10 @@ import { useStudentDashboard } from '../../../dashboard/hooks/useStudentDashboar
 import RoundProblemPanel from '../../round/components/RoundProblemPanel';
 import FinalRoundProblemPanel from '../../round/components/FinalRoundProblemPanel';
 import FinalSubmissionPanel from '../components/FinalSubmissionPanel';
+import {
+  resolvePreliminarySubmissionError,
+} from '../../../../features/submissions/constants/preliminarySubmissionErrors';
+import { resolveStatusLabel } from '../../../../shared/errors/resolveUserError';
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -172,13 +176,35 @@ const StudentSubmissionPage: React.FC = () => {
     queryKey: ['studentSubmission', studentId],
     queryFn: () => personBApi.getStudentSubmission(studentId),
     retry: false,
+    refetchOnWindowFocus: true,
   });
 
-  const { data: deadlineData, isLoading: isDeadlineLoading } = useQuery<DeadlineResponse>({
+  const { data: deadlineData, isLoading: isDeadlineLoading, refetch: refetchDeadline } = useQuery<DeadlineResponse>({
     queryKey: ['currentDeadline'],
     queryFn: () => personBApi.getCurrentDeadline(),
     retry: false,
+    refetchOnWindowFocus: true,
+    // GĐ2: prelim chưa active → API trả empty (không còn 404 spam)
   });
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refetchSubmission();
+        void refetchDeadline();
+      }
+    };
+    const refreshOnFocus = () => {
+      void refetchSubmission();
+      void refetchDeadline();
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshOnFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
+  }, [refetchSubmission, refetchDeadline]);
 
   const submissionData = submissionDataRaw as any;
   const effectiveTeamId = selectedTeam?.id || submissionData?.teamId || submissionData?.team_id;
@@ -224,13 +250,21 @@ const StudentSubmissionPage: React.FC = () => {
   const mutation = useMutation({
     mutationFn: async (data: SubmissionRequest) => personBApi.submitStudentSubmission(studentId, data),
     onSuccess: (data) => {
-      toast.success('Lưu bài dự thi thành công!');
+      const status = String((data as any)?.status || '').toUpperCase();
+      if (status === 'LATE_PENDING') {
+        toast.success(`Đã ghi nhận bài ${resolveStatusLabel('LATE_PENDING')} — chờ Ban tổ chức duyệt.`);
+      } else if (status === 'REJECTED') {
+        toast.error(`Bài nộp bị từ chối — đã quá hạn theo chính sách vòng thi.`);
+      } else {
+        toast.success('Lưu bài dự thi thành công!');
+      }
       queryClient.setQueryData(['studentSubmission', studentId], data);
       setIsEditing(false);
       refetchSubmission();
+      void refetchDeadline();
     },
     onError: (err: any) => {
-      toast.error(`Lỗi nộp bài: ${err?.message || 'Không thể kết nối máy chủ'}`);
+      toast.error(resolvePreliminarySubmissionError(err, 'Không thể nộp bài.').message);
     },
   });
 
@@ -760,7 +794,7 @@ const StudentSubmissionPage: React.FC = () => {
                                               </Form.Item>
 
                                               {isOverdue && (
-                                                <Alert type="warning" showIcon message="Bạn đang cập nhật bài muộn!" description="Hệ thống sẽ đánh dấu bài nộp là LATE_PENDING. Quyền phê duyệt thuộc về Ban tổ chức." style={{ marginBottom: 24, borderRadius: 10 }} />
+                                                <Alert type="warning" showIcon message="Bạn đang cập nhật bài muộn!" description="Hệ thống sẽ đánh dấu bài nộp là «Nộp muộn (Đang chờ duyệt)». Quyền phê duyệt thuộc về Ban tổ chức." style={{ marginBottom: 24, borderRadius: 10 }} />
                                               )}
 
                                               <Button type="primary" htmlType="submit" size="large" block loading={mutation.isPending} style={{ height: 52, borderRadius: 12, fontSize: 16, fontWeight: 700, background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', border: 'none', boxShadow: '0 6px 16px -4px rgba(37, 99, 235, 0.4)', marginTop: 'auto' }}>

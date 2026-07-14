@@ -181,7 +181,11 @@ const OnboardingPage = () => {
         if (freshUser.status === 'APPROVED') {
           setCurrentStep(3);
         } else {
-          const hasCompletedProfile = Boolean(freshUser.fullName && (freshUser.studentCode || freshUser.institution));
+          const hasCompletedProfile = Boolean(
+            freshUser.fullName
+            && freshUser.studentCode
+            && (freshUser.userType !== 'EXTERNAL' || freshUser.institution)
+          );
           const hasUploadedCard = Boolean(freshUser.studentCardImagePath || freshUser.studentCardUrl || freshUser.studentCardUploaded);
           
           setHasCard(hasUploadedCard);
@@ -215,8 +219,9 @@ const OnboardingPage = () => {
         fullName: values.fullName,
         userType: values.userType,
         phone: values.phone || undefined,
+        studentCode: values.studentCode,
         ...(values.userType === 'INTERNAL'
-          ? { studentCode: values.studentCode, chapterId: values.chapterId }
+          ? { chapterId: values.chapterId }
           : { institution: values.institution }),
       };
 
@@ -400,18 +405,33 @@ const OnboardingPage = () => {
       )}
 
       {userType === 'EXTERNAL' && (
-        <Form.Item
-          label={<Label token={token}>TÊN TRƯỜNG / TỔ CHỨC</Label>}
-          name="institution"
-          rules={[{ required: true, message: 'Vui lòng nhập tên trường!' }]}
-        >
-          <Input
-            prefix={<BankOutlined style={{ color: '#00529C', marginRight: 8 }} />}
-            placeholder="Đại học Bách Khoa..."
-            style={dynamicInputStyle}
-            className="custom-ob-input"
-          />
-        </Form.Item>
+        <>
+          <Form.Item
+            label={<Label token={token}>TÊN TRƯỜNG / TỔ CHỨC</Label>}
+            name="institution"
+            rules={[{ required: true, message: 'Vui lòng nhập tên trường!' }]}
+          >
+            <Input
+              prefix={<BankOutlined style={{ color: '#00529C', marginRight: 8 }} />}
+              placeholder="Đại học Bách Khoa..."
+              style={dynamicInputStyle}
+              className="custom-ob-input"
+            />
+          </Form.Item>
+
+          <Form.Item
+            label={<Label token={token}>MÃ SINH VIÊN</Label>}
+            name="studentCode"
+            rules={[{ required: true, message: 'Vui lòng nhập mã sinh viên!' }]}
+          >
+            <Input
+              prefix={<IdcardOutlined style={{ color: '#00529C', marginRight: 8 }} />}
+              placeholder="VD: 21520001 hoặc mã SV trường bạn"
+              style={dynamicInputStyle}
+              className="custom-ob-input"
+            />
+          </Form.Item>
+        </>
       )}
 
       <Form.Item label={<Label token={token}>SỐ ĐIỆN THOẠI (TÙY CHỌN)</Label>} name="phone">

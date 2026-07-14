@@ -22,7 +22,7 @@ async function attemptLogin(page, email, password) {
   await page.getByRole('button', { name: /Đăng nhập/i }).click();
 }
 
-test.describe('Account states — email verify + duyệt tài khoản (Module 5)', () => {
+test.describe('Account states — email verify + duyệt tài khoản (Account gates)', () => {
   test.describe.configure({ mode: 'serial', timeout: 120_000 });
 
   test.beforeAll(async () => {

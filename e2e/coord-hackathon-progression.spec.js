@@ -11,7 +11,7 @@ import { loginAs } from './helpers/uiAuth.js';
 const COORD_EMAIL = process.env.E2E_COORD_EMAIL || 'coord@fpt.edu.vn';
 const COORD_PASSWORD = process.env.E2E_COORD_PASSWORD || 'Coordinator@dev1';
 const ADVANCE_READY_SEED = 'seal-gd4-advance-ready';
-const CONFIRM_READY_SEED = 'seal-gd6-confirm-ready';
+const CONFIRM_READY_SEED = 'seal-gd6-pending-confirm';
 
 test.describe('Coordinator hackathon progression', () => {
   test.beforeAll(async () => {

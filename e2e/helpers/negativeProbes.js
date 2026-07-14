@@ -1,6 +1,6 @@
 /**
- * Negative abuse probes — gọi API sai → expect ErrorCode (không mutate dữ liệu).
- * Chạy qua probe-seeds.mjs cùng slug/account probes.
+ * Negative abuse probes — chỉ dùng 6 happy slug còn lại.
+ * Gate/bad seed đã gỡ; xem BE/docs/testing/intentional-errors-catalog.md để tái tạo tay.
  */
 const BE_BASE = process.env.BE_BASE_URL || 'http://localhost:8080/api/v1';
 const COORD_EMAIL = process.env.E2E_COORD_EMAIL || 'coord@fpt.edu.vn';
@@ -11,9 +11,9 @@ const JUDGE_PASSWORD = process.env.E2E_JUDGE_PASSWORD || 'Judge@dev1';
 /**
  * @param {string} method
  * @param {string} path
- * @param {{ token?: string, body?: object, expectErrorCode?: string }} [opts]
+ * @param {{ token?: string, body?: object, expectErrorCode?: string, expectErrorCodes?: string[] }} [opts]
  */
-async function apiRequest(method, path, { token, body, expectErrorCode } = {}) {
+async function apiRequest(method, path, { token, body, expectErrorCode, expectErrorCodes } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BE_BASE}${path}`, {
@@ -23,9 +23,12 @@ async function apiRequest(method, path, { token, body, expectErrorCode } = {}) {
   });
   const json = await res.json().catch(() => ({}));
   const code = json?.error?.code;
-  if (expectErrorCode) {
-    if (code !== expectErrorCode) {
-      throw new Error(`expected ${expectErrorCode}, got ${code || res.status} — ${json?.error?.message || ''}`);
+  const allowed = expectErrorCodes || (expectErrorCode ? [expectErrorCode] : null);
+  if (allowed) {
+    if (!allowed.includes(code)) {
+      throw new Error(
+        `expected one of [${allowed.join(', ')}], got ${code || res.status} — ${json?.error?.message || ''}`,
+      );
     }
     return { status: res.status, body: json };
   }
@@ -81,33 +84,17 @@ function findPrelim(rounds) {
   );
 }
 
-function extractQueueItems(queue) {
-  if (!queue) return [];
-  if (Array.isArray(queue.tracks)) {
-    return queue.tracks.flatMap((t) => (Array.isArray(t.items) ? t.items : []));
-  }
-  return queue?.slots || queue?.items || (Array.isArray(queue) ? queue : []);
-}
-
-function slotStatus(slot) {
-  return slot?.queueStatus || slot?.queue_status || slot?.status || '';
-}
-
-function isQueueStatus(slot, status) {
-  return String(slotStatus(slot)).toUpperCase() === status;
-}
-
 /** @type {Record<string, () => Promise<void>>} */
 const NEGATIVE_PROBES = {
-  async 'team-on-draft'() {
+  async 'team-on-archived'() {
     const orphanToken = await login('student.e2e.orphan1@fpt.edu.vn', STUDENT_PASSWORD);
     const coordToken = await login(COORD_EMAIL, COORD_PASSWORD);
-    const draft = await findHackathonBySlug('seal-gd1-incomplete', coordToken);
-    if (!draft?.id) throw new Error('seal-gd1-incomplete not found');
+    const archived = await findHackathonBySlug('seal-fall-2025-finished', coordToken);
+    if (!archived?.id) throw new Error('seal-fall-2025-finished not found');
     await apiRequest('POST', '/me/teams', {
       token: orphanToken,
-      body: { hackathonId: draft.id, teamName: 'Probe Draft Team' },
-      expectErrorCode: 'HACKATHON_NOT_ONGOING',
+      body: { hackathonId: archived.id, teamName: 'Probe Archived Team' },
+      expectErrorCodes: ['HACKATHON_NOT_ONGOING', 'HACKATHON_ARCHIVED'],
     });
   },
 
@@ -160,27 +147,24 @@ const NEGATIVE_PROBES = {
     });
   },
 
+  /** Coding còn mở → judge chấm submission đã nộp → SCORING_NOT_OPEN */
   async 'scoring-not-open'() {
     const judgeToken = await login('judge1@fpt.edu.vn', JUDGE_PASSWORD);
     const coordToken = await login(COORD_EMAIL, COORD_PASSWORD);
-    const hackathon = await findHackathonBySlug('seal-gd3-scoring-gate', coordToken);
-    if (!hackathon?.id) throw new Error('seal-gd3-scoring-gate not found');
+    const hackathon = await findHackathonBySlug('seal-gd3-prelim-open', coordToken);
+    if (!hackathon?.id) throw new Error('seal-gd3-prelim-open not found');
     const rounds = await apiRequest('GET', `/hackathons/${hackathon.id}/rounds`, { token: coordToken });
-    const roundList = Array.isArray(rounds) ? rounds : [];
-    const prelim = findPrelim(roundList);
+    const prelim = findPrelim(Array.isArray(rounds) ? rounds : []);
     if (!prelim?.id) throw new Error('prelim not found');
+    const subs = await apiRequest('GET', `/rounds/${prelim.id}/submissions`, { token: coordToken });
+    const subList = Array.isArray(subs) ? subs : subs?.items || [];
+    const submission = subList.find((s) => s.id || s.submissionId);
+    if (!submission) throw new Error('no submitted row on seal-gd3-prelim-open');
+    const submissionId = submission.id ?? submission.submissionId;
     const tracks = await apiRequest('GET', `/hackathons/${hackathon.id}/tracks`, { token: coordToken });
     const trackList = Array.isArray(tracks) ? tracks : tracks?.items || [];
     const track = trackList[0];
     if (!track?.id) throw new Error('track not found');
-    const queue = await apiRequest('GET', `/presentation/queue?roundId=${prelim.id}&trackId=${track.id}`, {
-      token: coordToken,
-    });
-    const slots = extractQueueItems(queue);
-    const waiting = slots.find((s) => isQueueStatus(s, 'WAITING'));
-    if (!waiting) throw new Error('no WAITING slot in seal-gd3-scoring-gate');
-    const submissionId = waiting.submissionId ?? waiting.submission_id;
-    if (!submissionId) throw new Error('WAITING slot missing submissionId');
     const criteria = await apiRequest('GET', `/tracks/${track.id}/criteria`, { token: judgeToken });
     const critList = Array.isArray(criteria) ? criteria : criteria?.items || [];
     const criterion = critList[0];
@@ -244,28 +228,27 @@ const NEGATIVE_PROBES = {
     });
   },
 
+  /** Prelim scoring locked on GĐ4 advance-ready */
   async 'scoring-locked'() {
     const judgeToken = await login('judge1@fpt.edu.vn', JUDGE_PASSWORD);
     const coordToken = await login(COORD_EMAIL, COORD_PASSWORD);
-    const hackathon = await findHackathonBySlug('seal-gd3-tiebreak-hybrid', coordToken);
-    if (!hackathon?.id) throw new Error('seal-gd3-tiebreak-hybrid not found');
+    const hackathon = await findHackathonBySlug('seal-gd4-advance-ready', coordToken);
+    if (!hackathon?.id) throw new Error('seal-gd4-advance-ready not found');
     const rounds = await apiRequest('GET', `/hackathons/${hackathon.id}/rounds`, { token: coordToken });
     const prelim = findPrelim(Array.isArray(rounds) ? rounds : []);
     if (!prelim?.id) throw new Error('prelim not found');
     if (!prelim.scoringLocked && !prelim.scoring_locked) {
-      throw new Error('expected prelim scoringLocked=true on seal-gd3-tiebreak-hybrid');
+      throw new Error('expected prelim scoringLocked=true on seal-gd4-advance-ready');
     }
+    const subs = await apiRequest('GET', `/rounds/${prelim.id}/submissions`, { token: coordToken });
+    const subList = Array.isArray(subs) ? subs : subs?.items || [];
+    const submission = subList[0];
+    if (!submission) throw new Error('no submission on advance-ready');
+    const submissionId = submission.id ?? submission.submissionId;
     const tracks = await apiRequest('GET', `/hackathons/${hackathon.id}/tracks`, { token: coordToken });
     const trackList = Array.isArray(tracks) ? tracks : tracks?.items || [];
     const track = trackList[0];
     if (!track?.id) throw new Error('track not found');
-    const queue = await apiRequest('GET', `/presentation/queue?roundId=${prelim.id}&trackId=${track.id}`, {
-      token: coordToken,
-    });
-    const slots = extractQueueItems(queue);
-    const slot = slots.find((s) => s.submissionId ?? s.submission_id);
-    if (!slot) throw new Error('no submission slot on tiebreak-hybrid');
-    const submissionId = slot.submissionId ?? slot.submission_id;
     const criteria = await apiRequest('GET', `/tracks/${track.id}/criteria`, { token: judgeToken });
     const critList = Array.isArray(criteria) ? criteria : criteria?.items || [];
     const criterion = critList[0];
@@ -302,8 +285,8 @@ const NEGATIVE_PROBES = {
   async 'queue-cross-hackathon'() {
     const studentToken = await login('student.e2e.t01.leader@fpt.edu.vn', STUDENT_PASSWORD);
     const coordToken = await login(COORD_EMAIL, COORD_PASSWORD);
-    const hackathon = await findHackathonBySlug('seal-gd3-scoring-gate', coordToken);
-    if (!hackathon?.id) throw new Error('seal-gd3-scoring-gate not found');
+    const hackathon = await findHackathonBySlug('seal-gd3-prelim-open', coordToken);
+    if (!hackathon?.id) throw new Error('seal-gd3-prelim-open not found');
     const rounds = await apiRequest('GET', `/hackathons/${hackathon.id}/rounds`, { token: coordToken });
     const prelim = findPrelim(Array.isArray(rounds) ? rounds : []);
     if (!prelim?.id) throw new Error('prelim not found');
@@ -313,19 +296,31 @@ const NEGATIVE_PROBES = {
     });
   },
 
-  /** Fall lane — SV Spring không thuộc kỳ Fall không được chọn track Fall */
-  async 'fall-track-cross-season'() {
+  async 'student-score-forbidden'() {
     const studentToken = await login('student.e2e.t01.leader@fpt.edu.vn', STUDENT_PASSWORD);
     const coordToken = await login(COORD_EMAIL, COORD_PASSWORD);
-    const fall = await findHackathonBySlug('seal-fall-ongoing-2026', coordToken);
-    if (!fall?.id) throw new Error('seal-fall-ongoing-2026 not found');
-    const tracks = await apiRequest('GET', `/hackathons/${fall.id}/tracks`, { token: coordToken });
+    const hackathon = await findHackathonBySlug('seal-gd4-advance-ready', coordToken);
+    if (!hackathon?.id) throw new Error('seal-gd4-advance-ready not found');
+    const rounds = await apiRequest('GET', `/hackathons/${hackathon.id}/rounds`, { token: coordToken });
+    const prelim = findPrelim(Array.isArray(rounds) ? rounds : []);
+    if (!prelim?.id) throw new Error('prelim not found');
+    const subs = await apiRequest('GET', `/rounds/${prelim.id}/submissions`, { token: coordToken });
+    const subList = Array.isArray(subs) ? subs : subs?.items || [];
+    const submission = subList[0];
+    if (!submission) throw new Error('no submission on advance-ready');
+    const submissionId = submission.id ?? submission.submissionId;
+    const tracks = await apiRequest('GET', `/hackathons/${hackathon.id}/tracks`, { token: coordToken });
     const trackList = Array.isArray(tracks) ? tracks : tracks?.items || [];
     const track = trackList[0];
-    if (!track?.id) throw new Error('fall track not found');
-    await apiRequest('POST', `/me/tracks/${track.id}/select`, {
+    if (!track?.id) throw new Error('track not found');
+    const criteria = await apiRequest('GET', `/tracks/${track.id}/criteria`, { token: coordToken });
+    const critList = Array.isArray(criteria) ? criteria : criteria?.items || [];
+    const criterion = critList[0];
+    if (!criterion?.id) throw new Error('no criteria');
+    await apiRequest('POST', '/scores', {
       token: studentToken,
-      expectErrorCode: 'NOT_APPLICABLE',
+      body: { submissionId, criterionId: criterion.id, scoreValue: 5, scoreType: 'NORMAL' },
+      expectErrorCodes: ['FORBIDDEN', 'ACCESS_DENIED', 'SCORING_LOCKED'],
     });
   },
 };

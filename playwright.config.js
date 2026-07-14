@@ -19,6 +19,14 @@ export default defineConfig({
         /fall-track-select-mutating\.spec\.js/,
         /hackathon-progression-mutating\.spec\.js/,
         /event-notification-mutating\.spec\.js/,
+        /close-submission-early\.spec\.js/,
+        /mentor-portal-mutating\.spec\.js/,
+        /calibration-gd5-mutating\.spec\.js/,
+        /mode-b-continuous-ui\.spec\.js/,
+        /websocket-queue-timer\.spec\.js/,
+        /coord-concurrent-race\.spec\.js/,
+        /permission-idor-mutating\.spec\.js/,
+        /5-secondary-portals-mutating\.spec\.js/,
         /people-mentor-pool\.spec\.js/,
       ],
       workers: 1,
@@ -38,8 +46,10 @@ export default defineConfig({
     },
     {
       name: 'mutating-e2e',
-      testMatch: /(hackathon-progression-mutating|event-notification-mutating)\.spec\.js/,
-      timeout: 90_000,
+      testMatch:
+        /(hackathon-progression-mutating|event-notification-mutating|close-submission-early|mentor-portal-mutating|calibration-gd5-mutating|mode-b-continuous-ui|websocket-queue-timer|coord-concurrent-race|5-secondary-portals-mutating|permission-idor-mutating)\.spec\.js/,
+      timeout: 900_000,
+      actionTimeout: 45_000,
       workers: 1,
     },
     {

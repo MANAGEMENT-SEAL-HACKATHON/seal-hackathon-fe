@@ -3,6 +3,7 @@ import { Alert, Button, Card, Select, Space, message } from 'antd';
 import { studentPortalService } from '../../portal/services/studentPortal.service';
 import { teamService } from '../../../../features/teams/services/teamService';
 import { getRoundId, isPreliminaryRound } from '../../../../shared/utils/roundUtils';
+import { getTeamErrorMessage } from '../../../../shared/constants/teamErrors';
 
 const StudentRelotteryTrackCard = ({ hackathonId, teamId, team, onChanged }) => {
   const [tracks, setTracks] = useState([]);
@@ -111,16 +112,16 @@ const StudentRelotteryTrackCard = ({ hackathonId, teamId, team, onChanged }) => 
       return;
     }
     if (Number(selectedTrackId) === Number(team?.trackId)) {
-      message.info('Track đã được chọn.');
+      message.info('Bảng đấu đã được chọn.');
       return;
     }
     setSubmitting(true);
     try {
       await studentPortalService.relotteryTrackAsStudent(teamId, prelimRoundId, selectedTrackId);
-      message.success('Đã đổi track thành công.');
+      message.success('Đã đổi bảng đấu thành công.');
       onChanged?.(selectedTrackId);
     } catch (error) {
-      message.error(error?.message || 'Không thể đổi track. Vòng thi có thể đã bắt đầu.');
+      message.error(getTeamErrorMessage(error) || 'Không thể đổi bảng đấu. Vòng thi có thể đã bắt đầu.');
     } finally {
       setSubmitting(false);
     }

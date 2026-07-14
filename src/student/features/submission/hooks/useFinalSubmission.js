@@ -142,6 +142,23 @@ export const useFinalSubmission = (teamId, hackathonId) => {
     fetchSubmissionData();
   }, [fetchSubmissionData]);
 
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchSubmissionData();
+      }
+    };
+    const refreshOnFocus = () => {
+      void fetchSubmissionData();
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshOnFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
+  }, [fetchSubmissionData]);
+
   const calculateDeadline = useCallback(() => {
     if (!finalRound?.submissionDeadline && !finalRound?.submission_deadline) return;
 
@@ -219,6 +236,11 @@ export const useFinalSubmission = (teamId, hackathonId) => {
         message.error('Bài nộp đã bị từ chối (REJECTED) — đã quá hạn nộp Chung kết.');
         await fetchSubmissionData();
         return false;
+      }
+      if (submissionStatus === 'LATE_PENDING') {
+        message.warning('Đã ghi nhận bài nộp muộn (LATE_PENDING) — chờ Ban tổ chức duyệt.');
+        await fetchSubmissionData();
+        return true;
       }
       const slideSaved = Boolean(
         data?.slideFile ??

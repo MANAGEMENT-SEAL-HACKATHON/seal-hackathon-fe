@@ -10,6 +10,7 @@ import {
   waitForSeedSlug,
 } from './helpers/api.js';
 import { loginAs } from './helpers/uiAuth.js';
+test.skip(true, 'deprecated seed slug removed — see intentional-errors-catalog.md');
 
 const FALL_SLUG = 'seal-fall-ongoing-2026';
 const SPRING_SLUG = 'seal-e2e-2026';

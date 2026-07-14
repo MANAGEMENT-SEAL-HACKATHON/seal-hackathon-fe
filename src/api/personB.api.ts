@@ -18,21 +18,26 @@ const mapSubmissionStatusToFe = (beStatus?: string): SubmissionStatusResponse['s
 };
 
 const resolveActiveRoundId = async (): Promise<number | null> => {
-  try {
-    const deadline = await axiosClient.get<any, { roundId?: number }>(
-      '/api/v1/me/rounds/current/deadline'
-    );
-    if (deadline?.roundId) return Number(deadline.roundId);
-  } catch (err: any) {
-    if (err?.status === 404 || err?.response?.status === 404) {
-      return null;
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+  const role = userInfo.role || userInfo.userRole;
+
+  // Student-only endpoint — never call as Coord/Judge/Mentor (causes 403 noise spam).
+  if (role === 'STUDENT') {
+    try {
+      const deadline = await axiosClient.get<any, { roundId?: number }>(
+        '/api/v1/me/rounds/current/deadline'
+      );
+      if (deadline?.roundId) return Number(deadline.roundId);
+    } catch (err: any) {
+      const status = err?.status ?? err?.response?.status;
+      // 404 = no active prelim (GĐ2 / not released); 403 = role/status mismatch
+      if (status === 404 || status === 403) {
+        return null;
+      }
     }
   }
 
   try {
-    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-    const role = userInfo.role || userInfo.userRole;
-
     if (role === 'MENTOR') {
       const rounds = await axiosClient.get<any, any[]>('/api/v1/me/mentor/rounds');
       const list = Array.isArray(rounds) ? rounds : [];
@@ -40,7 +45,7 @@ const resolveActiveRoundId = async (): Promise<number | null> => {
       if (active?.roundId) return Number(active.roundId);
     }
 
-    if (role === 'JUDGE') {
+    if (role === 'JUDGE' || role === 'TEMP_JUDGE') {
       const assignments = await axiosClient.get<any, any[]>('/api/v1/me/judge-track-assignments');
       const list = Array.isArray(assignments) ? assignments : [];
       const ongoing = list.find((a) => a.status === 'ONGOING') || list[0];
@@ -495,7 +500,9 @@ export const personBApi = {
         problemReleased: Boolean(data.problemReleased),
       };
     } catch (err: any) {
-      if (err?.status === 404 || err?.response?.status === 404) {
+      const status = err?.status ?? err?.response?.status;
+      // 404: no active prelim (GĐ2); 403: wrong role — treat as "no deadline"
+      if (status === 404 || status === 403) {
         return { deadline: undefined, round_id: undefined, problemReleased: false };
       }
       throw err;

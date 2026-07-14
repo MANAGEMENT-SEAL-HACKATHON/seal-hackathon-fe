@@ -6,6 +6,11 @@ import { criteriaService } from '../../criteria/services/criteriaService';
 import { presentationService, getQueueBucket } from '../services/presentationService';
 import { roundService } from '../../rounds/services/roundService';
 import { useScoreSavedSocket } from '../../../shared/hooks/useScoreSavedSocket';
+import {
+  PRELIMINARY_SUBMISSION_ERROR_MESSAGES,
+  resolvePreliminarySubmissionError,
+} from '../../submissions/constants/preliminarySubmissionErrors';
+import { resolveUserError } from '../../../shared/errors/resolveUserError';
 
 const getErrorCode = (error) =>
   error?.code || error?.response?.data?.error?.code || error?.response?.data?.code;
@@ -578,17 +583,17 @@ export const useLiveScoringV2 = (
         const code = getErrorCode(error);
         if (code === 'SCORING_LOCKED') {
           setScoringLocked(true);
-          message.error('Vòng đã khóa chấm điểm — không thể nộp điểm.');
+          message.error(PRELIMINARY_SUBMISSION_ERROR_MESSAGES.SCORING_LOCKED);
         } else if (code === 'SCORING_NOT_OPEN') {
-          message.error('Chỉ chấm điểm khi đội đang thuyết trình (slot PRESENTING).');
-        } else if (code === 'JUDGE_NOT_ASSIGNED') {
-          message.error('Bạn không được phân công chấm vòng Chung kết này.');
+          message.error(PRELIMINARY_SUBMISSION_ERROR_MESSAGES.SCORING_NOT_OPEN);
+        } else if (code === 'JUDGE_NOT_ASSIGNED' || code === 'JUDGE_NOT_ASSIGNED_TO_TRACK') {
+          message.error(
+            PRELIMINARY_SUBMISSION_ERROR_MESSAGES[code] ||
+              'Bạn chưa được phân công chấm vòng / bảng đấu này.',
+          );
         } else {
           message.error(
-            error?.response?.data?.error?.message ||
-              error?.response?.data?.message ||
-              error.message ||
-              'Lỗi lưu điểm.'
+            resolvePreliminarySubmissionError(error, 'Lỗi lưu điểm.').message,
           );
         }
       } finally {
@@ -689,11 +694,12 @@ export const useLiveScoringV2 = (
         }
       } catch (error) {
         applyEngineState(previousEngineState.phase, previousEngineState.baseSeconds);
-        const beMsg =
-          error?.response?.data?.error?.message ||
-          error?.response?.data?.message ||
-          error.message;
-        message.error(beMsg || 'Lỗi điều khiển đồng hồ.');
+        message.error(
+          resolveUserError(error, {
+            domainMap: PRELIMINARY_SUBMISSION_ERROR_MESSAGES,
+            fallback: 'Lỗi điều khiển đồng hồ.',
+          }),
+        );
       } finally {
         setIsTimerActionLoading(false);
         setTimeout(() => {

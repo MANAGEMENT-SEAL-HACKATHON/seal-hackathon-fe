@@ -85,12 +85,13 @@ const StudentCardImage = ({ userId }) => {
   );
 };
 
-const UserTypeDetails = ({ userId, initialType, initialInstitution }) => {
+const UserTypeDetails = ({ userId, initialType, initialInstitution, initialStudentCode }) => {
   const [loading, setLoading] = useState(false);
-  const [details, setDetails] = useState(null);
+  const [details, setDetails] = useState(
+    initialStudentCode ? { studentCode: initialStudentCode } : null
+  );
 
   useEffect(() => {
-    if (initialType === 'EXTERNAL') return; // For external, we already have institution from list
     let active = true;
     const loadDetail = async () => {
       setLoading(true);
@@ -101,6 +102,7 @@ const UserTypeDetails = ({ userId, initialType, initialInstitution }) => {
             studentCode: detail?.studentCode,
             chapterId: detail?.chapterId,
             chapterName: detail?.chapterName,
+            institution: detail?.institution,
           });
         }
       } catch (err) {
@@ -113,12 +115,17 @@ const UserTypeDetails = ({ userId, initialType, initialInstitution }) => {
     return () => { active = false; };
   }, [userId, initialType]);
 
+  if (loading && !details) return <Spin size="small" />;
+
   if (initialType === 'EXTERNAL') {
     return (
       <div>
         <Tag color="blue" style={{ borderRadius: 6 }}>Trường ngoài</Tag>
         <div style={{ marginTop: 4, fontSize: '13px', color: '#4b5563' }}>
-          Trường: <strong>{initialInstitution || 'N/A'}</strong>
+          Trường: <strong>{details?.institution || initialInstitution || 'N/A'}</strong>
+        </div>
+        <div style={{ fontSize: '13px', color: '#4b5563' }}>
+          Mã SV: <strong>{details?.studentCode || initialStudentCode || 'N/A'}</strong>
         </div>
       </div>
     );
@@ -301,6 +308,7 @@ const UserApprovalPage = () => {
           userId={record.userId || record.id}
           initialType={type}
           initialInstitution={record.institution}
+          initialStudentCode={record.studentCode}
         />
       ),
     },

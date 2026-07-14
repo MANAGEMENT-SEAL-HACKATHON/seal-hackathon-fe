@@ -4,6 +4,7 @@
 import { test, expect } from '@playwright/test';
 import { waitForBackendReady, waitForLoginToken, waitForSeedSlug } from './helpers/api.js';
 import { loginAs } from './helpers/uiAuth.js';
+test.skip(true, 'deprecated seed slug removed — see intentional-errors-catalog.md');
 
 const SLUG = 'seal-gd3-mentor-track-only';
 const MENTOR_EMAIL = 'mentor.trackonly@fpt.edu.vn';

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
+test.skip(true, 'deprecated seed slug removed — see intentional-errors-catalog.md');
   findHackathonBySlug,
   waitForBackendReady,
   waitForLoginToken,

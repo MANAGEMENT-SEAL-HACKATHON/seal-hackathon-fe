@@ -55,7 +55,7 @@ const JudgeDashboard = ({ user }) => {
   const [searchText, setSearchText] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [hackathonFilter, setHackathonFilter] = useState('ALL');
-  const [calibrationAssignment, setCalibrationAssignment] = useState(null);
+  const [calibrationAssignments, setCalibrationAssignments] = useState([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -158,49 +158,51 @@ const JudgeDashboard = ({ user }) => {
   }, []);
 
   useEffect(() => {
-    const finals = (data.assignments || []).filter((item) => item.isFinal);
-    if (!finals.length) {
-      setCalibrationAssignment(null);
+    const assignments = data.assignments || [];
+    if (!assignments.length) {
+      setCalibrationAssignments([]);
       return;
     }
 
     let cancelled = false;
 
-    const resolveCalibrationAssignment = async () => {
-      const preferred =
-        finals.find((item) => /calibration/i.test(String(item.hackathonName || ''))) || null;
+    const resolveCalibrationAssignments = async () => {
+      const found = [];
+      const seen = new Set();
 
-      const ordered = [];
-      if (preferred) ordered.push(preferred);
-      for (const assignment of finals) {
-        if (!ordered.some((item) => item.roundId === assignment.roundId)) {
-          ordered.push(assignment);
-        }
-      }
-
-      for (const assignment of ordered) {
+      for (const assignment of assignments) {
+        const key = `${assignment.roundId}:${assignment.isFinal ? 'final' : assignment.trackId ?? 't'}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
         try {
-          const response = await calibrationService.listForJudge(assignment.roundId);
+          const listTrackId = assignment.isFinal ? null : assignment.trackId;
+          const response = await calibrationService.listForJudge(assignment.roundId, listTrackId);
           const items = Array.isArray(response) ? response : response?.items || response?.data || [];
           const hasOpen = items.some((session) => {
             const status = String(session.status || session.sessionStatus || '').toUpperCase();
             return status === 'OPEN' || status === 'ACTIVE';
           });
-          if (hasOpen && !cancelled) {
-            setCalibrationAssignment(assignment);
-            return;
+          if (hasOpen) {
+            found.push({
+              ...assignment,
+              trackLabel:
+                assignment.trackName ||
+                assignment.track_name ||
+                items.find((s) => s.trackName || s.track_name)?.trackName ||
+                items.find((s) => s.trackName || s.track_name)?.track_name,
+            });
           }
         } catch {
-          // try next final assignment
+          // try next
         }
       }
 
       if (!cancelled) {
-        setCalibrationAssignment(preferred || finals[0]);
+        setCalibrationAssignments(found);
       }
     };
 
-    resolveCalibrationAssignment();
+    resolveCalibrationAssignments();
     return () => {
       cancelled = true;
     };
@@ -219,8 +221,6 @@ const JudgeDashboard = ({ user }) => {
       || ['COMPLETED', 'FINISHED', 'CLOSED', 'INACTIVE'].includes(a.roundStatus);
     return !isLocked && a.progress < 100;
   }) || data.assignments?.[0];
-  
-  const finalAssignment = calibrationAssignment;
 
   const filteredAssignments = (data.assignments || []).filter(item => {
     const isEventClosed = ['COMPLETED', 'FINISHED', 'CLOSED', 'INACTIVE'].includes(item.hackathonStatus);
@@ -440,7 +440,16 @@ const JudgeDashboard = ({ user }) => {
                 });
               }}
             />
-            <CalibrationSessionsPanel roundId={finalAssignment?.roundId} isFinal={Boolean(finalAssignment)} assignmentId={finalAssignment?.assignmentId ?? finalAssignment?.id} trackId={finalAssignment?.trackId} />
+            {calibrationAssignments.map((assignment) => (
+              <CalibrationSessionsPanel
+                key={`${assignment.roundId}-${assignment.trackId ?? 'final'}-${assignment.assignmentId ?? assignment.id}`}
+                roundId={assignment.roundId}
+                isFinal={Boolean(assignment.isFinal)}
+                assignmentId={assignment.assignmentId ?? assignment.id}
+                trackId={assignment.isFinal ? null : assignment.trackId}
+                trackLabel={assignment.trackLabel}
+              />
+            ))}
             <Card title={<strong style={{ fontSize: '18px' }}><CalendarOutlined style={{ color: '#f59e0b', marginRight: 8 }}/> Lịch trình sắp tới</strong>} style={{ borderRadius: 16 }}>
                {(data.upcomingEvents || []).map(event => (
                   <div key={event.id} style={{ display: 'flex', gap: 12, marginBottom: 16 }}>

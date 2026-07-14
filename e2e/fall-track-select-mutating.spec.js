@@ -5,6 +5,7 @@
 import { test, expect } from '@playwright/test';
 import { waitForBackendReady, waitForLoginToken, waitForSeedSlug } from './helpers/api.js';
 import { loginAs } from './helpers/uiAuth.js';
+test.skip(true, 'deprecated seed slug removed — see intentional-errors-catalog.md');
 
 const BE_BASE = process.env.BE_BASE_URL || 'http://localhost:8080/api/v1';
 const FALL_SLUG = 'seal-fall-ongoing-2026';

@@ -11,6 +11,8 @@ import { hackathonService } from '../../hackathons/services/hackathonService';
 import { roundService } from '../../rounds/services/roundService';
 import { reviewService } from '../../review/services/reviewService';
 import { ROUTES } from '../../../shared/constants/routes';
+import { resolveUserError, resolveStatusLabel } from '../../../shared/errors/resolveUserError';
+import { resolveProgressionError } from '../../rounds/constants/progressionErrors';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
@@ -73,7 +75,7 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
       setRounds(Array.isArray(roundItems) ? roundItems : roundItems?.items || []);
       setReadiness(readinessResult?.data || readinessResult);
     } catch (error: any) {
-      message.error(error?.message || 'Không tải được cấu hình chung kết.');
+      message.error(resolveUserError(error, { fallback: 'Không tải được cấu hình chung kết.' }));
     } finally {
       setLoading(false);
     }
@@ -84,7 +86,11 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
   }, [loadData]);
 
   const finalRound = useMemo(
-    () => rounds.find((round) => Boolean(round?.isFinal ?? round?.is_final)) || null,
+    () =>
+      rounds.find((round) => Boolean(round?.isFinal ?? round?.is_final)) ||
+      rounds.find((round) => /chung kết|final/i.test(String(round?.name || ''))) ||
+      rounds.find((round) => String(round?.roundType || round?.round_type || '').toUpperCase() === 'FINAL') ||
+      null,
     [rounds],
   );
   const blockers = readiness?.blockers || [];
@@ -93,8 +99,14 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
   const finalRoundActive = Boolean(finalRound?.isActive ?? finalRound?.is_active);
 
   const prelimRound = useMemo(
-    () => rounds.find((round) => !(round?.isFinal ?? round?.is_final)) || null,
-    [rounds],
+    () =>
+      rounds.find((round) => {
+        if (finalRound && round?.id === finalRound.id) return false;
+        if (Boolean(round?.isFinal ?? round?.is_final)) return false;
+        if (/chung kết|final/i.test(String(round?.name || ''))) return false;
+        return true;
+      }) || rounds[0] || null,
+    [rounds, finalRound],
   );
   const finalScoringLocked = Boolean(finalRound?.scoringLocked ?? finalRound?.scoring_locked);
 
@@ -115,7 +127,9 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
       } else if (code === 'RESULT_NOT_PUBLISHED') {
         message.error('Cần công bố và chốt chuyển vòng Sơ loại trước.');
       } else {
-        message.error(error?.message || 'Không thể kích hoạt vòng Chung kết.');
+        message.error(
+          resolveProgressionError(error, 'Không thể kích hoạt vòng Chung kết.').message,
+        );
       }
     } finally {
       setSubmitting(false);
@@ -324,17 +338,17 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
             showIcon
             type="success"
             message="Vòng Chung kết đã được kích hoạt"
-            description="Hoàn thành các bước sau để kết thúc GĐ5 và chuyển sang GĐ6 (PENDING_CONFIRM)."
+            description={`Hoàn thành các bước sau để kết thúc Chung kết và chuyển sang giai đoạn ${resolveStatusLabel('PENDING_CONFIRM')}.`}
             style={{ marginBottom: 16 }}
           />
           <List
             size="small"
             dataSource={[
               'Phát đề Chung kết (tab Quản lý vòng thi → Phát đề)',
-              'Tạo phiên calibration (tùy chọn — form bên dưới)',
-              'Student các đội advanced nộp bài CK (multipart PDF, không trackId)',
-              'Guest judge (FINAL_EXTERNAL) chấm điểm trên Judge Dashboard',
-              'Khóa chấm CK → hackathon chuyển PENDING_CONFIRM',
+              'Tạo phiên Calibration (tùy chọn — form bên dưới)',
+              'Sinh viên các đội đi tiếp nộp bài Chung kết',
+              'Giám khảo khách (Chung kết) chấm điểm trên bảng điều khiển giám khảo',
+              `Khóa chấm Chung kết → hackathon chuyển «${resolveStatusLabel('PENDING_CONFIRM')}»`,
             ]}
             renderItem={(item, index) => (
               <List.Item>
