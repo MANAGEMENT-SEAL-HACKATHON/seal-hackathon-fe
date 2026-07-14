@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Divider, Grid, List, Select, Space, Spin, Tag, Typography, message } from 'antd';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Settings } from 'lucide-react';
+import { Settings, RefreshCw, UserPlus, Clock, FileText, Play, CheckCircle2, AlertCircle } from 'lucide-react';
 import FinalRoundCoordinatorStepper from '../components/FinalRoundCoordinatorStepper';
 import CalibrationSessionManager from '../components/CalibrationSessionManager';
 import FinalPresentationDurationCard from '../../presentation/components/FinalPresentationDurationCard';
@@ -32,6 +32,91 @@ const formatReadinessMessage = (msg: string) => {
   friendly = friendly.replace(/CK/gi, 'Chung kết');
   friendly = friendly.replace(/Chưa có đội tham gia/gi, 'Chưa chuyển danh sách đội thi tham gia');
   return friendly;
+};
+
+const TechDecoration: React.FC = () => {
+  return (
+    <svg
+      width="380"
+      height="100%"
+      viewBox="0 0 380 200"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        height: '100%',
+        pointerEvents: 'none',
+        opacity: 0.85,
+        zIndex: 0,
+      }}
+    >
+      <defs>
+        <radialGradient id="glow" cx="80%" cy="50%" r="60%">
+          <stop offset="0%" stopColor="#c7d2fe" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="cubeGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.8" />
+          <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.45" />
+        </linearGradient>
+      </defs>
+      
+      {/* Background Glow */}
+      <rect width="100%" height="100%" fill="url(#glow)" />
+
+      {/* Connection Grid Lines */}
+      <path d="M 280,100 L 320,60 M 280,100 L 240,80 M 320,60 L 360,80 M 320,60 L 320,10" stroke="#818cf8" strokeOpacity="0.25" strokeWidth="1.5" strokeDasharray="3 3" />
+      
+      {/* Glowing Nodes */}
+      <circle cx="320" cy="60" r="4" fill="#818cf8" opacity="0.6" />
+      <circle cx="240" cy="80" r="3" fill="#818cf8" opacity="0.4" />
+
+      {/* Floating Isometric Cube 1 (Small Top Right) */}
+      <g transform="translate(320, 20)">
+        {/* Top Face */}
+        <polygon points="0,-8 14,-15 28,-8 14,0" fill="#a5b4fc" fillOpacity="0.65" />
+        {/* Left Face */}
+        <polygon points="0,-8 14,0 14,16 0,8" fill="#818cf8" fillOpacity="0.5" />
+        {/* Right Face */}
+        <polygon points="14,0 28,-8 28,8 14,16" fill="#4f46e5" fillOpacity="0.75" />
+      </g>
+
+      {/* Floating Isometric Cube 2 (Small Left) */}
+      <g transform="translate(210, 110)">
+        {/* Top Face */}
+        <polygon points="0,-6 10,-11 20,-6 10,0" fill="#a5b4fc" fillOpacity="0.55" />
+        {/* Left Face */}
+        <polygon points="0,-6 10,0 10,12 0,6" fill="#818cf8" fillOpacity="0.45" />
+        {/* Right Face */}
+        <polygon points="10,0 20,-6 20,6 10,12" fill="#4f46e5" fillOpacity="0.65" />
+      </g>
+
+      {/* Main Big Isometric Cube (Center Right) */}
+      <g transform="translate(260, 60)">
+        {/* Outer Hexagon outline glow */}
+        <polygon points="30,-10 65,-30 100,-10 100,30 65,50 30,30" stroke="#818cf8" strokeWidth="1.5" strokeOpacity="0.35" fill="none" />
+        
+        {/* Inner Cube */}
+        {/* Top Face */}
+        <polygon points="35,-4 65,-20 95,-4 65,12" fill="#e0e7ff" fillOpacity="0.8" />
+        {/* Left Face */}
+        <polygon points="35,-4 65,12 65,42 35,26" fill="url(#cubeGrad)" />
+        {/* Right Face */}
+        <polygon points="65,12 95,-4 95,26 65,42" fill="#4f46e5" fillOpacity="0.9" />
+        
+        {/* Inside core glow */}
+        <circle cx="65" cy="12" r="10" fill="#818cf8" opacity="0.6" style={{ filter: 'blur(4px)' }} />
+      </g>
+
+      {/* Gear Icon (Outline/Tech Style) */}
+      <g transform="translate(330, 115)" stroke="#818cf8" strokeOpacity="0.35" strokeWidth="1.5" fill="none">
+        <circle cx="15" cy="15" r="8" />
+        <path d="M15,2 L15,5 M15,25 L15,28 M2,15 L5,15 M25,15 L28,15 M6,6 L8,8 M22,22 L24,24 M6,24 L8,22 M22,6 L24,8" />
+      </g>
+    </svg>
+  );
 };
 
 type FinalRoundConfigPageProps = {
@@ -232,107 +317,220 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
         scoringLocked={finalScoringLocked}
       />
 
-      <Card style={{
-        borderRadius: 16,
-        background: '#ffffff',
-        boxShadow: '0 8px 32px rgba(15, 23, 42, 0.05)',
-        border: '1px solid rgba(15, 23, 42, 0.06)'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Space direction="vertical" size={8} style={{ flex: 1, minWidth: '280px' }}>
-            <Space wrap size={6}>
-              <Tag style={{
-                background: 'rgba(59, 130, 246, 0.06)',
-                border: '1px solid rgba(59, 130, 246, 0.15)',
+      <Card 
+        bordered={false}
+        style={{
+          borderRadius: 20,
+          background: 'linear-gradient(135deg, #f5f7ff 0%, #f4f6fc 50%, #eff2fa 100%)',
+          boxShadow: '0 10px 30px rgba(99, 102, 241, 0.05)',
+          border: '1px solid rgba(99, 102, 241, 0.12)',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+        styles={{ body: { padding: '32px 24px', position: 'relative', zIndex: 1 } }}
+      >
+        {/* Vector background art */}
+        {!isMobile && <TechDecoration />}
+
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          {/* Tag Header Row */}
+          <div style={{ marginBottom: 16 }}>
+            <Space wrap size={8}>
+              <span style={{
+                background: 'rgba(59, 130, 246, 0.08)',
                 color: '#2563eb',
                 fontWeight: 600,
-                borderRadius: '6px',
-                padding: '2px 8px'
-              }}>Vòng Chung kết</Tag>
-              <Tag style={{
-                background: finalRoundActive ? 'rgba(16, 185, 129, 0.06)' : 'rgba(100, 116, 139, 0.06)',
-                border: finalRoundActive ? '1px solid rgba(16, 185, 129, 0.15)' : '1px solid rgba(100, 116, 139, 0.15)',
-                color: finalRoundActive ? '#059669' : '#475569',
-                fontWeight: 600,
-                borderRadius: '6px',
-                padding: '2px 8px'
+                fontSize: 13,
+                borderRadius: '8px',
+                padding: '6px 12px',
+                display: 'inline-flex',
+                alignItems: 'center',
               }}>
+                Vòng Chung kết
+              </span>
+              <span style={{
+                background: finalRoundActive ? 'rgba(16, 185, 129, 0.08)' : 'rgba(100, 116, 139, 0.08)',
+                color: finalRoundActive ? '#10b981' : '#475569',
+                fontWeight: 600,
+                fontSize: 13,
+                borderRadius: '8px',
+                padding: '6px 12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}>
+                <span style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: finalRoundActive ? '#10b981' : '#475569',
+                  marginRight: 8,
+                  display: 'inline-block',
+                }} />
                 Trạng thái: {finalRoundActive ? 'Đang diễn ra' : 'Chưa kích hoạt'}
-              </Tag>
-              <Tag style={{
-                background: isFinalReady ? 'rgba(16, 185, 129, 0.06)' : 'rgba(239, 68, 68, 0.06)',
-                border: isFinalReady ? '1px solid rgba(16, 185, 129, 0.15)' : '1px solid rgba(239, 68, 68, 0.15)',
-                color: isFinalReady ? '#059669' : '#dc2626',
+              </span>
+              <span style={{
+                background: isFinalReady ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                color: isFinalReady ? '#10b981' : '#dc2626',
                 fontWeight: 600,
-                borderRadius: '6px',
-                padding: '2px 8px'
+                fontSize: 13,
+                borderRadius: '8px',
+                padding: '6px 12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
               }}>
+                {isFinalReady ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
                 Điều kiện kích hoạt: {isFinalReady ? 'Đủ điều kiện' : 'Chưa đủ điều kiện'}
-              </Tag>
+              </span>
               {blockers.length > 0 && (
-                <Tag style={{
+                <span style={{
                   background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
                   color: '#b91c1c',
                   fontWeight: 700,
-                  borderRadius: '6px',
-                  padding: '2px 8px',
-                  boxShadow: '0 0 8px rgba(239, 68, 68, 0.1)'
-                }}>Yêu cầu cần xử lý: {blockers.length}</Tag>
+                  fontSize: 13,
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  boxShadow: '0 0 8px rgba(239, 68, 68, 0.05)'
+                }}>
+                  Yêu cầu cần xử lý: {blockers.length}
+                </span>
               )}
             </Space>
-            <Title level={2} style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.02em', color: '#0f172a' }}>
-              Cấu hình Vòng Chung kết
-            </Title>
-          </Space>
+          </div>
 
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Space wrap style={{ marginRight: 16, borderRight: '1px solid #f1f5f9', paddingRight: 16 }}>
-              <Button icon={<ReloadOutlined />} onClick={loadData} style={{ borderRadius: 8 }}>
+          {/* Heading */}
+          <Title level={2} style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.02em', color: '#0f172a', marginBottom: 28 }}>
+            Cấu hình Vòng Chung kết
+          </Title>
+
+          {/* Action Row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Button
+                onClick={loadData}
+                style={{
+                  height: 'auto',
+                  padding: '10px 20px',
+                  background: '#ffffff',
+                  border: '1px solid rgba(226, 232, 240, 0.8)',
+                  borderRadius: 12,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  color: '#1e293b',
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <RefreshCw size={15} style={{ color: '#4f46e5' }} />
                 Làm mới
               </Button>
-              <Button onClick={() => navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hackathon.id)) + '?tab=people')} style={{ borderRadius: 8 }}>
+
+              <Button
+                onClick={() => navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hackathon.id)) + '?tab=people')}
+                style={{
+                  height: 'auto',
+                  padding: '10px 20px',
+                  background: '#ffffff',
+                  border: '1px solid rgba(226, 232, 240, 0.8)',
+                  borderRadius: 12,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  color: '#1e293b',
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <UserPlus size={16} style={{ color: '#4f46e5' }} />
                 Gán Giám khảo Khách mời
               </Button>
+
               {finalRound?.id && (
-                <Button onClick={() => navigate(`/presentation/queue?roundId=${finalRound.id}`)} style={{ borderRadius: 8 }}>
+                <Button
+                  onClick={() => navigate(`/presentation/queue?roundId=${finalRound.id}`)}
+                  style={{
+                    height: 'auto',
+                    padding: '10px 20px',
+                    background: '#ffffff',
+                    border: '1px solid rgba(226, 232, 240, 0.8)',
+                    borderRadius: 12,
+                    fontWeight: 600,
+                    fontSize: 14,
+                    color: '#1e293b',
+                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Clock size={16} style={{ color: '#4f46e5' }} />
                   Hàng đợi Thuyết trình
                 </Button>
               )}
-              <Button onClick={() => navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hackathon.id)) + '?tab=rounds')} style={{ borderRadius: 8 }}>
+
+              <Button
+                onClick={() => navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hackathon.id)) + '?tab=rounds')}
+                style={{
+                  height: 'auto',
+                  padding: '10px 20px',
+                  background: '#ffffff',
+                  border: '1px solid rgba(226, 232, 240, 0.8)',
+                  borderRadius: 12,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  color: '#1e293b',
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <FileText size={16} style={{ color: '#4f46e5' }} />
                 Cấu hình Đề & Trạng thái
               </Button>
-            </Space>
+            </div>
 
             <Button
               type="primary"
               loading={submitting}
-              onClick={(!finalRound || finalRoundActive || !isFinalReady) ? undefined : handleActivateFinal}
-              style={(!finalRound || finalRoundActive || !isFinalReady) ? {
-                background: 'rgba(59, 130, 246, 0.35)',
-                borderColor: 'rgba(59, 130, 246, 0.1)',
-                color: 'rgba(255, 255, 255, 0.75)',
-                cursor: 'not-allowed',
-                boxShadow: 'none',
-                height: '36px',
+              disabled={!finalRound || finalRoundActive || !isFinalReady}
+              onClick={handleActivateFinal}
+              style={{
+                height: 'auto',
+                padding: '12px 24px',
+                background: (!finalRound || finalRoundActive || !isFinalReady) 
+                  ? 'rgba(79, 70, 229, 0.35)' 
+                  : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+                border: 'none',
+                borderRadius: 12,
                 fontWeight: 600,
-                borderRadius: '8px'
-              } : {
-                background: '#3b82f6',
-                borderColor: '#2563eb',
+                fontSize: 14,
                 color: '#ffffff',
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
-                height: '36px',
-                fontWeight: 600,
-                borderRadius: '8px'
+                boxShadow: (!finalRound || finalRoundActive || !isFinalReady) 
+                  ? 'none' 
+                  : '0 4px 14px rgba(79, 70, 229, 0.35)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: (!finalRound || finalRoundActive || !isFinalReady) ? 'not-allowed' : 'pointer',
               }}
             >
+              <Play size={14} fill="currentColor" />
               Kích hoạt Vòng Chung kết
             </Button>
           </div>
         </div>
 
-        {(blockers.length > 0 || warnings.length > 0) && <Divider style={{ margin: '20px 0' }} />}
+        {(blockers.length > 0 || warnings.length > 0) && <Divider style={{ margin: '20px 0', position: 'relative', zIndex: 2 }} />}
 
         {blockers.length > 0 && (
           <div style={{
@@ -341,7 +539,9 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
             borderRadius: '12px',
             padding: '16px',
             boxShadow: '0 4px 16px rgba(239, 68, 68, 0.02)',
-            marginBottom: warnings.length > 0 ? 12 : 0
+            marginBottom: warnings.length > 0 ? 12 : 0,
+            position: 'relative',
+            zIndex: 2
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
               <div style={{
@@ -373,7 +573,9 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
             border: '1.5px solid rgba(245, 158, 11, 0.2)',
             borderRadius: '12px',
             padding: '16px',
-            boxShadow: '0 4px 16px rgba(245, 158, 11, 0.02)'
+            boxShadow: '0 4px 16px rgba(245, 158, 11, 0.02)',
+            position: 'relative',
+            zIndex: 2
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
               <div style={{
