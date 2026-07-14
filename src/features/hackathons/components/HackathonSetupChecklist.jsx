@@ -278,7 +278,9 @@ const HackathonSetupChecklist = ({
       <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
         {/* Dark cosmic header and progress card */}
         <div style={{
-          background: 'linear-gradient(180deg, #090d1a 0%, #0d1224 40%, #1e1b4b 100%)',
+          background: 'url("/Check-listCK.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
           padding: '24px 24px 28px 24px',
           borderBottomLeftRadius: 24,
           borderBottomRightRadius: 24,

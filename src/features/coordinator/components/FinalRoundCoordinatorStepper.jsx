@@ -173,9 +173,9 @@ const FinalRoundCoordinatorStepper = ({
       size="small" 
       title={<span style={{ color: '#f8fafc', fontWeight: 600, fontSize: '14px' }}>Checklist vận hành — Chung kết</span>}
       style={{
-        background: 'rgba(30, 41, 59, 0.95)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
+        background: 'url("/Check-listCK.jpg")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
         border: '1px solid rgba(255, 255, 255, 0.1)',
         borderRadius: 16,
         boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
