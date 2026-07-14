@@ -30,6 +30,7 @@ import ActivateScheduleModal from '../components/ActivateScheduleModal';
 
 const { Title, Text } = Typography;
 
+
 const hasTrackProblem = (track) =>
   Boolean(track?.problem_statement_filename || track?.problem_statement_url);
 
@@ -849,14 +850,87 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   }
 
   return (
-    <div>
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-        message="Vòng thi"
-        description={<span style={{ fontSize: 12 }}>Tạo Sơ loại + Chung kết. Số đội đi tiếp nhập dự tính trước, xác nhận lại trước khi mở thi.</span>}
-      />
+    <div className="round-management-page-wrapper">
+      <style>{`
+        .round-management-page-wrapper {
+          --ant-color-primary: #818cf8 !important;
+          --ant-color-primary-hover: #a78bfa !important;
+          --ant-color-primary-active: #6366f1 !important;
+          --ant-color-success: #10b981 !important;
+          --ant-color-purple: #a78bfa !important;
+        }
+        .round-management-page-wrapper .ant-btn-primary {
+          background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%) !important;
+          border: none !important;
+          color: #ffffff !important;
+          font-weight: 600 !important;
+          box-shadow: 0 4px 12px rgba(135, 92, 255, 0.2) !important;
+          border-radius: 8px !important;
+          transition: all 0.3s ease !important;
+        }
+        .round-management-page-wrapper .ant-btn-primary:hover {
+          background: linear-gradient(135deg, #b59dfb 0%, #76b3fc 100%) !important;
+          box-shadow: 0 6px 16px rgba(135, 92, 255, 0.3) !important;
+        }
+        /* Group buttons styling */
+        .round-management-page-wrapper .ant-btn-group .ant-btn {
+          border-color: #ddd6fe !important;
+          color: #64748b !important;
+          font-weight: 600 !important;
+        }
+        .round-management-page-wrapper .ant-btn-group .ant-btn-primary {
+          background: #818cf8 !important;
+          border-color: #818cf8 !important;
+          color: #ffffff !important;
+          box-shadow: none !important;
+        }
+        .round-management-page-wrapper .ant-btn-group .ant-btn-primary:hover {
+          background: #6366f1 !important;
+          color: #ffffff !important;
+        }
+        .round-management-page-wrapper .ant-table-thead > tr > th {
+          background: linear-gradient(90deg, #f5f3ff 0%, #eff6ff 100%) !important;
+          color: #4f46e5 !important;
+          font-weight: 700 !important;
+          border-bottom: 2.5px solid #ddd6fe !important;
+        }
+        .round-management-page-wrapper .ant-table {
+          background: transparent !important;
+        }
+        .round-management-page-wrapper .ant-table-tbody > tr > td {
+          border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+        }
+        .round-management-page-wrapper .ant-table-tbody > tr:nth-child(even) {
+          background-color: #faf5ff !important;
+        }
+        .round-management-page-wrapper .ant-table-tbody > tr:nth-child(odd) {
+          background-color: #ffffff !important;
+        }
+        .round-management-page-wrapper .ant-table-row:hover > td {
+          background: #f3e8ff !important;
+        }
+        /* Custom tags styling */
+        .round-management-page-wrapper .ant-tag {
+          border-radius: 6px !important;
+          padding: 2px 8px !important;
+          font-weight: 600 !important;
+        }
+        .round-management-page-wrapper .ant-tag-green {
+          background: #f0fdf4 !important;
+          border-color: #bbf7d0 !important;
+          color: #16a34a !important;
+        }
+        .round-management-page-wrapper .ant-tag-red {
+          background: #fee2e2 !important;
+          border-color: #fca5a5 !important;
+          color: #dc2626 !important;
+        }
+        .round-management-page-wrapper .ant-tag-gold {
+          background: #f5f3ff !important;
+          border-color: #ddd6fe !important;
+          color: #7c3aed !important;
+        }
+      `}</style>
       {/* ========================================== */}
       {/* THÊM MỚI (BƯỚC 2): Hiển thị Banner Đếm ngược */}
       {/* ========================================== */}

@@ -11,7 +11,8 @@ import {
   Timer, 
   PlayCircle,
   Lock,
-  CheckCircle // ĐÃ FIX LỖI CRASH Ở ĐÂY: Dùng đúng CheckCircle của lucide-react
+  CheckCircle,
+  Calendar
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -142,8 +143,8 @@ const LiveCodingMonitor = ({ activeRound }) => {
       gap: 6,
       padding: '4px 12px', 
       borderRadius: 20,
-      fontSize: 12, 
-      fontWeight: 600, 
+      fontSize: 11, 
+      fontWeight: 700, 
       marginBottom: 14,
     };
 
@@ -153,9 +154,8 @@ const LiveCodingMonitor = ({ activeRound }) => {
           <span 
             style={{ 
               ...base, 
-              background: 'var(--ant-color-info-bg)', 
-              color: 'var(--ant-color-info-text)', 
-              border: '1px solid var(--ant-color-info-border)' 
+              background: '#f5f3ff', 
+              color: '#6366f1', 
             }}
           >
             <PlayCircle size={12} />
@@ -168,9 +168,8 @@ const LiveCodingMonitor = ({ activeRound }) => {
           <span 
             style={{ 
               ...base, 
-              background: 'var(--ant-color-info-bg)', 
-              color: 'var(--ant-color-info-text)', 
-              border: '1px solid var(--ant-color-info-border)' 
+              background: '#f5f3ff', 
+              color: '#6366f1', 
             }}
           >
             <span 
@@ -178,7 +177,7 @@ const LiveCodingMonitor = ({ activeRound }) => {
                 width: 7, 
                 height: 7, 
                 borderRadius: '50%',
-                background: 'var(--ant-color-primary)', 
+                background: '#6366f1', 
                 flexShrink: 0,
                 animation: 'livePulse 2s infinite',
               }} 
@@ -194,9 +193,8 @@ const LiveCodingMonitor = ({ activeRound }) => {
           <span 
             style={{ 
               ...base, 
-              background: 'var(--ant-color-success-bg)', 
-              color: 'var(--ant-color-success-text)', 
-              border: '1px solid var(--ant-color-success-border)' 
+              background: '#f0fdf4', 
+              color: '#16a34a', 
             }}
           >
             <CheckCircle size={12} />
@@ -211,9 +209,8 @@ const LiveCodingMonitor = ({ activeRound }) => {
           <span 
             style={{ 
               ...base, 
-              background: 'var(--ant-color-success-bg)', 
-              color: 'var(--ant-color-success-text)', 
-              border: '1px solid var(--ant-color-success-border)' 
+              background: '#f0fdf4', 
+              color: '#16a34a', 
             }}
           >
             <CheckCircle size={12} />
@@ -236,40 +233,6 @@ const LiveCodingMonitor = ({ activeRound }) => {
     LOCKED_OR_COMPLETED: 'Quy trình hoàn tất',
   }[status];
 
-  const boxStyle = {
-    WAITING: { 
-      bg: 'var(--ant-color-info-bg)', 
-      border: 'var(--ant-color-info-border)', 
-      labelColor: 'var(--ant-color-info-text)', 
-      digitColor: 'var(--ant-color-primary)', 
-      sepColor: 'var(--ant-color-info-border)' 
-    },
-    ONGOING: { 
-      bg: 'var(--ant-color-info-bg)', 
-      border: 'var(--ant-color-info-border)', 
-      labelColor: 'var(--ant-color-info-text)', 
-      digitColor: 'var(--ant-color-primary)', 
-      sepColor: 'var(--ant-color-info-border)' 
-    },
-    // Chuyển màu cảnh báo Hết hạn thành màu xanh Success (Hoàn thành)
-    ENDED: { 
-      bg: 'var(--ant-color-success-bg)', 
-      border: 'var(--ant-color-success-border)', 
-      labelColor: 'var(--ant-color-success-text)', 
-      digitColor: 'var(--ant-color-success)', 
-      sepColor: 'var(--ant-color-success-border)' 
-    },
-    LOCKED_OR_COMPLETED: { 
-      bg: 'var(--ant-color-success-bg)', 
-      border: 'var(--ant-color-success-border)', 
-      labelColor: 'var(--ant-color-success-text)', 
-      digitColor: 'var(--ant-color-success)', 
-      sepColor: 'var(--ant-color-success-border)' 
-    },
-  }[status] || { 
-      bg: '#fff', border: '#d9d9d9', labelColor: '#000', digitColor: '#000', sepColor: '#d9d9d9' 
-  };
-
   // ==========================================
   // 5. RENDER GIAO DIỆN CHÍNH
   // ==========================================
@@ -277,18 +240,20 @@ const LiveCodingMonitor = ({ activeRound }) => {
     <>
       <style>{`
         @keyframes livePulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(1.2); }
         }
       `}</style>
 
       <Card
         style={{
           marginBottom: 24,
-          borderRadius: 16,
-          background: 'var(--ant-color-bg-container)',
-          border: '1px solid var(--ant-color-border-secondary)',
-          boxShadow: 'var(--ant-box-shadow-tertiary)',
+          borderRadius: 20,
+          background: 'url("/banner-hackathon.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          border: '1px solid rgba(167, 139, 250, 0.35)',
+          boxShadow: '0 8px 30px rgba(99, 102, 241, 0.15)',
           overflow: 'hidden',
         }}
         styles={{ 
@@ -297,66 +262,41 @@ const LiveCodingMonitor = ({ activeRound }) => {
           } 
         }}
       >
-        {/* Progress bar xanh trên cùng */}
-        <div 
-          style={{ 
-            height: 3, 
-            background: (status === 'LOCKED_OR_COMPLETED' || status === 'ENDED') 
-              ? 'var(--ant-color-success-bg)' 
-              : 'var(--ant-color-primary-bg)' 
-          }}
-        >
-          <div 
-            style={{
-              height: '100%',
-              width: `${progress}%`,
-              background: (status === 'LOCKED_OR_COMPLETED' || status === 'ENDED') 
-                ? 'var(--ant-color-success)' 
-                : 'var(--ant-color-primary)',
-              borderRadius: '0 2px 2px 0',
-              transition: 'width 1s linear',
-            }} 
-          />
-        </div>
-
-        {/* Layout 1/3 | divider | 2/3 */}
+        {/* Layout 1/3 | 2/3 */}
         <div 
           style={{
-            padding: '28px 32px',
-            display: 'grid',
-            gridTemplateColumns: '1fr 1px 2fr',
+            padding: '24px 28px',
+            display: 'flex',
             alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '24px'
           }}
         >
-
           {/* === CỘT TRÁI 1/3 === */}
-          <div 
-            style={{ 
-              paddingRight: 32 
-            }}
-          >
-            {renderStatusChip()}
+          <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column' }}>
+            <div>{renderStatusChip()}</div>
 
             <div 
               style={{
                 fontSize: 10, 
-                color: (status === 'LOCKED_OR_COMPLETED' || status === 'ENDED') 
-                  ? 'var(--ant-color-success)' 
-                  : 'var(--ant-color-primary)', 
-                fontWeight: 700,
+                color: '#e9d5ff', 
+                fontWeight: 800,
                 letterSpacing: 1.5, 
                 textTransform: 'uppercase', 
-                marginBottom: 5,
+                marginBottom: 6,
               }}
             >
-              Màn hình phát đề bài (Live Coding)
+              MÀN HÌNH PHÁT ĐỀ BÀI (LIVE CODING)
             </div>
 
             <Title
+              level={2}
               style={{ 
-                margin: '0 0 20px 0', 
-                fontWeight: 800, 
-                lineHeight: 1.2 
+                margin: '0 0 16px 0', 
+                fontWeight: 900, 
+                color: '#ffffff',
+                fontSize: '28px'
               }}
             >
               {activeRound?.name}
@@ -366,104 +306,65 @@ const LiveCodingMonitor = ({ activeRound }) => {
               style={{ 
                 display: 'flex', 
                 flexDirection: 'column', 
-                gap: 10 
+                gap: 12 
               }}
             >
-              <div>
-                <Text 
-                  type="secondary" 
-                  style={{
-                    fontSize: 10, 
-                    fontWeight: 700,
-                    letterSpacing: 1, 
-                    textTransform: 'uppercase', 
-                    display: 'block', 
-                    marginBottom: 2,
-                  }}
-                >
-                  Bắt đầu
-                </Text>
-                <Text 
-                  strong 
-                  style={{ 
-                    fontSize: 13 
-                  }}
-                >
-                  {dayjs(activeRound?.exam_at).format('HH:mm · DD/MM/YYYY')}
-                </Text>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Calendar size={14} style={{ color: '#cbd5e1' }} />
+                <div style={{ fontSize: 12 }}>
+                  <span style={{ color: '#cbd5e1', fontWeight: 700, marginRight: 6 }}>BẮT ĐẦU</span>
+                  <span style={{ color: '#ffffff', fontWeight: 800 }}>
+                    {dayjs(activeRound?.exam_at).format('HH:mm - DD/MM/YYYY')}
+                  </span>
+                </div>
               </div>
-              <div>
-                <Text 
-                  type="secondary" 
-                  style={{
-                    fontSize: 10, 
-                    fontWeight: 700,
-                    letterSpacing: 1, 
-                    textTransform: 'uppercase', 
-                    display: 'block', 
-                    marginBottom: 2,
-                  }}
-                >
-                  Hạn nộp bài
-                </Text>
-                <Text 
-                  strong 
-                  style={{ 
-                    fontSize: 13 
-                  }}
-                >
-                  {dayjs(activeRound?.submission_deadline).format('HH:mm · DD/MM/YYYY')}
-                </Text>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Calendar size={14} style={{ color: '#cbd5e1' }} />
+                <div style={{ fontSize: 12 }}>
+                  <span style={{ color: '#cbd5e1', fontWeight: 700, marginRight: 6 }}>HẠN NỘP BÀI</span>
+                  <span style={{ color: '#ffffff', fontWeight: 800 }}>
+                    {dayjs(activeRound?.submission_deadline).format('HH:mm - DD/MM/YYYY')}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* === DIVIDER DỌC === */}
-          <div 
-            style={{ 
-              height: 110, 
-              background: 'var(--ant-color-border-secondary)', 
-              margin: '0 32px' 
-            }} 
-          />
-
           {/* === CỘT PHẢI 2/3: Nền cảnh báo và Thông tin === */}
           <div 
             style={{
-              background: boxStyle.bg,
-              border: `1px solid ${boxStyle.border}`,
-              borderRadius: 14,
-              padding: '20px 28px',
-              height: '100%',
+              flex: '1.2 1 400px',
+              background: 'rgba(255, 255, 255, 0.75)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.85)',
+              borderRadius: 16,
+              padding: '24px',
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              position: 'relative'
             }}
           >
             <div 
               style={{
-                fontSize: 10, 
-                color: boxStyle.labelColor, 
-                fontWeight: 700,
+                fontSize: 11, 
+                color: '#6366f1', 
+                fontWeight: 800,
                 letterSpacing: 1.4, 
                 textTransform: 'uppercase',
                 marginBottom: 16, 
                 display: 'flex', 
                 alignItems: 'center', 
-                gap: 5,
+                gap: 6,
               }}
             >
-              {status === 'LOCKED_OR_COMPLETED' ? (
-                <Lock size={13} color={boxStyle.labelColor} />
-              ) : status === 'ENDED' ? (
-                <CheckCircle size={13} color={boxStyle.labelColor} />
-              ) : (
-                <Timer size={13} color={boxStyle.labelColor} />
-              )}
+              <Timer size={14} style={{ color: '#6366f1' }} />
               {countdownLabel}
             </div>
 
-            {/* KHI ĐÃ HẾT HẠN HOẶC KHÓA ĐIỂM: Ẩn đồng hồ và hiện chữ "VÒNG THI ĐÃ HOÀN THÀNH" */}
+            {/* KHI ĐÃ HẾT HẠN HOẶC KHÓA ĐIỂM: Hiện chữ "VÒNG THI ĐÃ HOÀN THÀNH" */}
             {(status === 'ENDED' || status === 'LOCKED_OR_COMPLETED') ? (
               <div 
                 style={{ 
@@ -471,14 +372,14 @@ const LiveCodingMonitor = ({ activeRound }) => {
                   flexDirection: 'column', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  padding: '10px 0'
+                  padding: '20px 0'
                 }}
               >
                 <div 
                   style={{
-                    fontSize: 28, 
-                    fontWeight: 800,
-                    color: boxStyle.digitColor, 
+                    fontSize: 24, 
+                    fontWeight: 900,
+                    color: '#6366f1', 
                     lineHeight: 1.2,
                     textAlign: 'center',
                     textTransform: 'uppercase',
@@ -489,9 +390,9 @@ const LiveCodingMonitor = ({ activeRound }) => {
                 </div>
                 <div 
                   style={{
-                    fontSize: 13, 
-                    color: boxStyle.labelColor,
-                    fontWeight: 500, 
+                    fontSize: 12, 
+                    color: '#64748b',
+                    fontWeight: 600, 
                     marginTop: 8,
                     textAlign: 'center'
                   }}
@@ -502,12 +403,14 @@ const LiveCodingMonitor = ({ activeRound }) => {
                 </div>
               </div>
             ) : (
-              /* NẾU ĐANG CHỜ HOẶC ĐANG THI: HIỂN THỊ CÁC CON SỐ ĐẾM NGƯỢC */
+              /* NẾU ĐANG CHỜ HOẶC ĐANG THI: HIỂN THỊ CÁC CON SỐ ĐẾM NGƯỢC CARD TRẮNG */
               <div 
                 style={{ 
                   display: 'flex', 
-                  alignItems: 'flex-end', 
-                  justifyContent: 'space-evenly' 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  gap: 12,
+                  marginBottom: 16
                 }}
               >
                 {[
@@ -520,11 +423,9 @@ const LiveCodingMonitor = ({ activeRound }) => {
                       <div 
                         key={`sep-${i}`} 
                         style={{
-                          fontSize: 52, 
-                          color: boxStyle.sepColor,
+                          fontSize: 32, 
+                          color: '#6366f1',
                           fontWeight: 800, 
-                          marginBottom: 22, 
-                          padding: '0 4px',
                           fontFamily: 'ui-monospace, monospace',
                         }}
                       >
@@ -536,17 +437,24 @@ const LiveCodingMonitor = ({ activeRound }) => {
                     <div 
                       key={item.label} 
                       style={{ 
-                        textAlign: 'center', 
-                        flex: 1 
+                        background: '#ffffff',
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        borderRadius: 12,
+                        padding: '10px 16px',
+                        minWidth: '76px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.02)'
                       }}
                     >
                       <div 
                         style={{
-                          fontSize: 72, 
-                          fontWeight: 800,
-                          color: boxStyle.digitColor, 
-                          lineHeight: 1,
-                          letterSpacing: -3,
+                          fontSize: 40, 
+                          fontWeight: 900,
+                          color: '#6366f1', 
+                          lineHeight: 1.1,
                           fontFamily: 'ui-monospace, monospace',
                         }}
                       >
@@ -554,13 +462,17 @@ const LiveCodingMonitor = ({ activeRound }) => {
                       </div>
                       <div 
                         style={{
-                          fontSize: 11, 
-                          color: boxStyle.labelColor,
-                          fontWeight: 600, 
-                          marginTop: 8, 
-                          letterSpacing: 2,
+                          fontSize: 9, 
+                          color: '#64748b',
+                          fontWeight: 800, 
+                          marginTop: 6, 
+                          letterSpacing: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
                         }}
                       >
+                        <Timer size={10} style={{ color: '#64748b' }} />
                         {item.label}
                       </div>
                     </div>
@@ -570,15 +482,16 @@ const LiveCodingMonitor = ({ activeRound }) => {
               </div>
             )}
 
-            {/* Progress bar — chỉ hiện khi ONGOING */}
-            {status === 'ONGOING' && (
+            {/* Progress bar — chỉ hiện khi ONGOING hoặc WAITING */}
+            {(status === 'ONGOING' || status === 'WAITING') && (
               <Progress
                 percent={Math.round(progress)}
                 showInfo={false}
-                strokeColor="#1677ff"
-                trailColor="#bae0ff"
+                strokeColor="#6366f1"
+                trailColor="#e0e7ff"
+                strokeWidth={5}
                 style={{ 
-                  marginTop: 18, 
+                  marginTop: 8, 
                   marginBottom: 0 
                 }}
               />
