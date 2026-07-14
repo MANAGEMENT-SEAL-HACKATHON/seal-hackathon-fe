@@ -34,6 +34,7 @@ export const CriteriaHeader = ({
             width: "100%",
             alignItems: "flex-start",
             flexWrap: "wrap",
+            marginBottom: 12,
           }}
         >
           <div style={{ minWidth: 300, flex: 1 }}>
@@ -46,9 +47,6 @@ export const CriteriaHeader = ({
               }}
             >
               Vòng thi (Round)
-            </Text>
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
-              Sơ loại: theo từng bảng đấu. Chung kết: theo vòng. Tổng trọng số = 1.
             </Text>
             <Select
               style={{ width: "100%" }}
@@ -93,6 +91,9 @@ export const CriteriaHeader = ({
             </div>
           )}
         </Space>
+        <Text type="secondary" style={{ fontSize: 12, display: "block" }}>
+          ℹ️ Sơ loại: theo từng bảng đấu. Chung kết: theo vòng. Tổng trọng số = 1.
+        </Text>
       </Card>
 
       {currentRound && (currentRound.is_final || selectedTrackId) && (

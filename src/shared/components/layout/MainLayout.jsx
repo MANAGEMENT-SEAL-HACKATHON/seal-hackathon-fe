@@ -104,7 +104,6 @@ const MainLayout = ({ children }) => {
   if (userRole === 'COORDINATOR' || userRole === 'ADMIN') {
     menuItems = [
       { key: ROUTES.DASHBOARD, icon: <LayoutDashboard size={18} />, label: 'Tổng quan' },
-      { key: ROUTES.PROFILE, icon: <User size={18} />, label: 'Trang cá nhân' },
       { key: ROUTES.HACKATHONS, icon: <Trophy size={18} />, label: 'Cấu hình sự kiện' },
       { key: ROUTES.GLOBAL_TEAMS, icon: <Users size={18} />, label: 'Quản lý đội thi' },
       { key: ROUTES.COORDINATOR_ANALYTICS, icon: <BarChart3 size={18} />, label: 'Phân tích & dữ liệu' },
@@ -454,8 +453,8 @@ const MainLayout = ({ children }) => {
             ) : (
               <Avatar 
                 src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" 
-                style={{ cursor: 'pointer', border: `2px solid ${token.colorBorder}` }} 
-                onClick={() => navigate(ROUTES.PROFILE)}
+                style={{ cursor: isCoordinatorOrAdmin ? 'default' : 'pointer', border: `2px solid ${token.colorBorder}` }} 
+                onClick={isCoordinatorOrAdmin ? undefined : () => navigate(ROUTES.PROFILE)}
               />
             )}
           </Space>
