@@ -235,14 +235,18 @@ const HackathonSetupPage = () => {
               font-size: 14px !important;
               font-weight: 600 !important;
               color: #64748b !important;
+              transition: color 0.2s ease !important;
+            }
+            .hackathon-setup-tabs .ant-tabs-tab:hover {
+              color: #818cf8 !important;
             }
             .hackathon-setup-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
-              color: #0f172a !important;
+              color: #6366f1 !important;
               font-weight: 700 !important;
             }
             .hackathon-setup-tabs .ant-tabs-ink-bar {
-              background: #3b82f6 !important;
-              height: 3px !important;
+              background: linear-gradient(90deg, #a78bfa 0%, #60a5fa 100%) !important;
+              height: 3.5px !important;
               border-radius: 3px !important;
             }
             .hackathon-setup-tabs .ant-tabs-tab-disabled {
