@@ -337,17 +337,15 @@ const HackathonSetupPage = () => {
           },
           content: {
             borderRadius: '20px',
-            background: 'rgba(255, 255, 255, 0.65)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid rgba(255, 255, 255, 0.4)',
+            background: '#ffffff',
+            border: '1px solid rgba(226, 232, 240, 0.8)',
             boxShadow: '-10px 0 30px rgba(0, 0, 0, 0.03), 0 10px 30px rgba(0, 0, 0, 0.03)',
+            overflow: 'hidden',
           },
           body: {
-            padding: '24px',
+            padding: '0px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '20px',
           },
           mask: {
             background: 'rgba(0, 0, 0, 0.02)',
@@ -356,26 +354,6 @@ const HackathonSetupPage = () => {
           }
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-          <Button 
-            type="text" 
-            icon={<CloseOutlined style={{ fontSize: '14px', color: '#64748b' }} />} 
-            onClick={() => setDrawerOpen(false)} 
-            style={{ 
-              width: '28px', 
-              height: '28px', 
-              borderRadius: '50%', 
-              backgroundColor: 'rgba(0, 0, 0, 0.04)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          />
-          <span style={{ fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
-            Tiến độ chuẩn bị kỳ thi
-          </span>
-        </div>
-
         <HackathonSetupChecklist
           rounds={rounds}
           tracksCount={tracksCount}
@@ -386,6 +364,7 @@ const HackathonSetupPage = () => {
             changeTab(tab);
             setDrawerOpen(false);
           }}
+          onClose={() => setDrawerOpen(false)}
           direction="vertical"
         />
       </Drawer>
