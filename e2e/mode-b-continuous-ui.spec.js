@@ -47,7 +47,7 @@ import {
   createMilestoneEvents,
   registerStudentForHackathon,
   applyStandardCriteriaBundle,
-  createPrelimAndFinalRounds,
+  createPrelimAndFinalRoundsViaUi,
   createPrelimTrack,
   createStudentTeam,
   approvePendingTeams,
@@ -166,11 +166,6 @@ test.describe('Mode B Continuous UI (create → FINISHED)', () => {
     // eslint-disable-next-line no-console
     console.log('[ModeB] GĐ1 dates filled');
 
-    const wildcard = page.locator('.ant-form-item').filter({ hasText: /Wild Card/i }).locator('.ant-switch');
-    if (!(await wildcard.getAttribute('aria-checked').then((v) => v === 'true').catch(() => false))) {
-      await wildcard.click();
-    }
-
     await page.getByRole('button', { name: /Tạo sự kiện/i }).last().click();
     await expect(page.getByText(/Đã tạo sự kiện thành công|thành công/i).first()).toBeVisible({
       timeout: 30_000,
@@ -191,12 +186,12 @@ test.describe('Mode B Continuous UI (create → FINISHED)', () => {
     await page.goto(`/hackathons/${ctx.hackathonId}/setup?tab=rounds`, { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(new RegExp(`/hackathons/${ctx.hackathonId}/setup`), { timeout: 30_000 });
 
-    // --- Rounds + track via API (Ant Select flaky on Windows) ---
-    const rounds = await createPrelimAndFinalRounds(ctx.coordToken, ctx.hackathonId, t);
+    // --- Rounds via UI (GĐ1 refactor — không bypass POST /rounds) ---
+    const rounds = await createPrelimAndFinalRoundsViaUi(page, ctx.coordToken, ctx.hackathonId, t);
     ctx.prelimRoundId = rounds.prelimRoundId;
     ctx.finalRoundId = rounds.finalRoundId;
     // eslint-disable-next-line no-console
-    console.log('[ModeB] GĐ1 prelim+final rounds created');
+    console.log('[ModeB] GĐ1 rounds via UI');
 
     // eslint-disable-next-line no-console
     console.log('[ModeB] GĐ1 tracks…');

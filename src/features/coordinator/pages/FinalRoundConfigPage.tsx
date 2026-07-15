@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Divider, Grid, List, Select, Space, Spin, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Divider, Grid, List, Select, Space, Spin, Tag, Tooltip, Typography, message } from 'antd';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Settings, RefreshCw, UserPlus, Clock, FileText, Play, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -9,10 +9,16 @@ import FinalPresentationDurationCard from '../../presentation/components/FinalPr
 import { useHackathonSelect } from '../hooks/useHackathonSelect';
 import { hackathonService } from '../../hackathons/services/hackathonService';
 import { roundService } from '../../rounds/services/roundService';
+import { mapRoundToFE } from '../../rounds/mappers/roundMapper';
 import { reviewService } from '../../review/services/reviewService';
 import { ROUTES } from '../../../shared/constants/routes';
 import { resolveUserError, resolveStatusLabel } from '../../../shared/errors/resolveUserError';
 import { resolveProgressionError } from '../../rounds/constants/progressionErrors';
+import {
+  canOpenPresentationQueue,
+  getOpenQueueTooltip,
+  isRoundActive,
+} from '../../rounds/utils/roundLifecycleGates';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
@@ -122,9 +128,14 @@ const TechDecoration: React.FC = () => {
 type FinalRoundConfigPageProps = {
   /** Khi mở từ tab setup hackathon — bắt buộc truyền để readiness khớp GĐ4 vừa advance */
   hackathonId?: number | string;
+  /** Hub Setup: refresh checklist/counts sau mutation thành công */
+  onUpdated?: () => void | Promise<void>;
 };
 
-const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId: hackathonIdProp }) => {
+const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({
+  hackathonId: hackathonIdProp,
+  onUpdated,
+}) => {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const { hackathonId: hackathonIdFromRoute } = useParams<{ hackathonId?: string }>();
@@ -187,18 +198,30 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
     loadData();
   }, [loadData]);
 
-  const finalRound = useMemo(
-    () =>
+  // UX-FOCUS: khi Coord quay lại tab Config sau ops trên Round Management, Stepper cập nhật.
+  useEffect(() => {
+    const onFocus = () => {
+      if (activeHackathonId) loadData();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [activeHackathonId, loadData]);
+
+  const finalRound = useMemo(() => {
+    const raw =
       rounds.find((round) => Boolean(round?.isFinal ?? round?.is_final)) ||
       rounds.find((round) => /chung kết|final/i.test(String(round?.name || ''))) ||
       rounds.find((round) => String(round?.roundType || round?.round_type || '').toUpperCase() === 'FINAL') ||
-      null,
-    [rounds],
-  );
+      null;
+    return raw ? mapRoundToFE(raw) : null;
+  }, [rounds]);
   const blockers = readiness?.blockers || [];
   const warnings = readiness?.warnings || [];
   const isFinalReady = Boolean(readiness?.ready) && blockers.length === 0;
-  const finalRoundActive = Boolean(finalRound?.isActive ?? finalRound?.is_active);
+  const finalRoundActive = isRoundActive(finalRound);
+  const queueOpenAllowed = canOpenPresentationQueue(finalRound);
+  const queueOpenTooltip = getOpenQueueTooltip(finalRound);
+  const roundsManagementUrl = `/hackathons/${hackathon?.id ?? activeHackathonId}/setup?tab=rounds&from=final-config`;
 
   const prelimRound = useMemo(
     () =>
@@ -210,7 +233,7 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
       }) || rounds[0] || null,
     [rounds, finalRound],
   );
-  const finalScoringLocked = Boolean(finalRound?.scoringLocked ?? finalRound?.scoring_locked);
+  const finalScoringLocked = Boolean(finalRound?.scoring_locked ?? finalRound?.scoringLocked);
 
   const handleActivateFinal = async () => {
     if (!finalRound?.id) return;
@@ -222,6 +245,7 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
       await roundService.activate(finalRound.id, { note: 'Activate final round by coordinator' });
       message.success('Đã kích hoạt vòng Chung kết.');
       await loadData();
+      if (typeof onUpdated === 'function') await onUpdated();
     } catch (error: any) {
       const code = error?.code || error?.response?.data?.error?.code;
       if (code === 'JUDGE_NOT_ASSIGNED') {
@@ -313,6 +337,7 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
         hackathonId={hackathon.id}
         prelimRoundId={prelimRound?.id}
         finalRoundId={finalRound?.id}
+        finalRound={finalRound}
         finalActive={finalRoundActive}
         scoringLocked={finalScoringLocked}
       />
@@ -453,31 +478,44 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({ hackathonId
               </Button>
 
               {finalRound?.id && (
-                <Button
-                  onClick={() => navigate(`/presentation/queue?roundId=${finalRound.id}`)}
-                  style={{
-                    height: 'auto',
-                    padding: '10px 20px',
-                    background: '#ffffff',
-                    border: '1px solid rgba(226, 232, 240, 0.8)',
-                    borderRadius: 12,
-                    fontWeight: 600,
-                    fontSize: 14,
-                    color: '#1e293b',
-                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <Clock size={16} style={{ color: '#4f46e5' }} />
-                  Hàng đợi Thuyết trình
-                </Button>
+                <Tooltip title={queueOpenAllowed ? undefined : queueOpenTooltip}>
+                  <span>
+                    <Button
+                      disabled={!queueOpenAllowed}
+                      onClick={() => {
+                        if (!queueOpenAllowed) return;
+                        window.open(
+                          `/presentation/queue?roundId=${finalRound.id}&from=final-config`,
+                          '_blank',
+                          'noopener,noreferrer',
+                        );
+                      }}
+                      style={{
+                        height: 'auto',
+                        padding: '10px 20px',
+                        background: '#ffffff',
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        borderRadius: 12,
+                        fontWeight: 600,
+                        fontSize: 14,
+                        color: '#1e293b',
+                        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        transition: 'all 0.2s ease',
+                        opacity: queueOpenAllowed ? 1 : 0.55,
+                      }}
+                    >
+                      <Clock size={16} style={{ color: '#4f46e5' }} />
+                      Hàng đợi Thuyết trình
+                    </Button>
+                  </span>
+                </Tooltip>
               )}
 
               <Button
-                onClick={() => navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hackathon.id)) + '?tab=rounds')}
+                onClick={() => window.open(roundsManagementUrl, '_blank', 'noopener,noreferrer')}
                 style={{
                   height: 'auto',
                   padding: '10px 20px',

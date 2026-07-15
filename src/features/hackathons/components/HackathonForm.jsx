@@ -205,16 +205,6 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
       <Row gutter={24}>
         <Col span={12}>
           <Form.Item
-            name="wildcard_enabled"
-            label="Cho phép bổ sung đội (Wild Card)"
-            extra={fieldHint('Dùng khi thiếu đội vào Chung kết.')}
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item
             name="individual_ranking_enabled"
             label="Bật Bảng xếp hạng cá nhân"
             valuePropName="checked"

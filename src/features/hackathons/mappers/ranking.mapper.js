@@ -16,12 +16,10 @@ export const mapChapterRankings = (data) => {
   if (!data) return [];
   return data.map((item, index) => ({
     key: item.chapterId ?? item.chapter_id ?? index,
-    rank: item.rank ?? item.rank_in_hackathon ?? item.rank_in_academic_year ?? (index + 1),
+    rank: item.rank ?? item.rank_in_hackathon ?? (index + 1),
     chapter_name: item.chapterName ?? item.chapter_name ?? item.chapter?.name ?? 'N/A',
     best_team_score: item.bestTeamScore ?? item.best_team_score ?? 0,
-    prize_bonus: item.prizeBonus ?? item.prize_bonus ?? (item.prizesWon ?? item.prizes_won ?? 0) * 10,
-    season_score: item.totalScore ?? item.season_score ?? 0,
-    cumulative_score: item.cumulativeScore ?? item.cumulative_score ?? item.totalScore ?? 0,
+    total_score: item.totalScore ?? item.total_score ?? 0,
     teams_participated: item.teamsParticipated ?? item.teams_participated ?? 0,
     prizes_won: item.prizesWon ?? item.prizes_won ?? 0,
   }));

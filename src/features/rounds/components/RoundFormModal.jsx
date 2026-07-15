@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Row, Col, Select, DatePicker, Switch, Tooltip, Alert, Button, message } from 'antd';
+import { Modal, Form, Input, InputNumber, Row, Col, Select, DatePicker, Switch, Tooltip, Alert, Button, message, Card, Typography } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { ROUND_TIEBREAK_RULE } from '../../../shared/constants/status';
 import {
   buildRoundScheduleContext,
   getMinFinalExamMoment,
@@ -25,6 +26,13 @@ import RoundProblemPdfUpload from './RoundProblemPdfUpload';
 import { roundService } from '../services/roundService';
 
 const { Option } = Select;
+const { Text } = Typography;
+
+const TIEBREAK_OPTIONS = [
+  { value: ROUND_TIEBREAK_RULE.PENALTY_SCORE, label: 'Điểm phạt (Penalty)' },
+  { value: ROUND_TIEBREAK_RULE.SUBMISSION_TIME, label: 'Nộp sớm / Submission Time' },
+  { value: ROUND_TIEBREAK_RULE.COORDINATOR_DECISION, label: 'Quyết định Ban tổ chức (Manual)' },
+];
 
 const RoundFormModal = ({
   visible,
@@ -66,6 +74,26 @@ const RoundFormModal = ({
       }),
     [topNWatch, minFinalWatch, partitions, advancementMode]
   );
+
+  const trackCount = advancementTracks?.length || partitions?.length || 0;
+  const wildcardSlotsPreview = useMemo(() => {
+    const topN = Number(topNWatch);
+    const minFinal = Number(minFinalWatch);
+    if (!Number.isFinite(topN) || !Number.isFinite(minFinal) || topN <= 0 || minFinal <= 0) {
+      return null;
+    }
+    // slots = minTeamsFinal − (topN × trackCount); trackCount=0 lúc mới tạo vòng
+    return minFinal - topN * trackCount;
+  }, [topNWatch, minFinalWatch, trackCount]);
+  const wildcardSlotsNonPositive =
+    wildcardSlotsPreview != null && wildcardSlotsPreview <= 0;
+
+  useEffect(() => {
+    if (!visible || isFinal || !wildcardSlotsNonPositive) return;
+    if (form.getFieldValue('wildcard_enabled')) {
+      form.setFieldsValue({ wildcard_enabled: false });
+    }
+  }, [visible, isFinal, wildcardSlotsNonPositive, form]);
 
   // Tập hợp round_type đã dùng (loại trừ round đang edit)
   const usedRoundTypes = new Set(
@@ -489,7 +517,11 @@ const RoundFormModal = ({
         </Form.Item>
 
         {!isFinal && (
-          <>
+          <Card
+            size="small"
+            title="Cấu hình đi tiếp vào Chung kết"
+            style={{ marginBottom: 16 }}
+          >
             <Alert
               type={advancementMode === 'confirm' && !advancementValidation.valid ? 'warning' : 'info'}
               showIcon
@@ -506,7 +538,7 @@ const RoundFormModal = ({
             />
 
             <Row gutter={24}>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item
                   name="top_n_advance"
                   label={
@@ -543,7 +575,7 @@ const RoundFormModal = ({
                   />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item
                   name="min_teams_final"
                   label={
@@ -577,22 +609,64 @@ const RoundFormModal = ({
                   <InputNumber min={1} style={{ width: '100%' }} placeholder="VD: 6" />
                 </Form.Item>
               </Col>
-              <Col span={8}>
-                <Form.Item name="tiebreak_rule" label="Luật Tiebreak">
-                  <Select>
-                    <Option value="PENALTY_SCORE">Điểm phạt (Penalty)</Option>
-                    <Option value="LATEST_SUBMISSION">Bài nộp muộn nhất</Option>
-                    <Option value="EARLIEST_SUBMISSION">Bài nộp sớm nhất</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
             </Row>
+
+            <Form.Item
+              name="wildcard_enabled"
+              label="Bật Wildcard (vé vớt)"
+              valuePropName="checked"
+              extra={
+                <div style={{ marginTop: 4 }}>
+                  {trackCount === 0 ? (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Tạo bảng đấu trước để tính ghế vé vớt chính xác. Công thức:
+                      Số ghế = [Tối đa đội CK] − ([Top N] × [Số lượng bảng]).
+                    </Text>
+                  ) : wildcardSlotsPreview != null ? (
+                    <Text
+                      type={wildcardSlotsNonPositive ? 'danger' : 'secondary'}
+                      style={{ fontSize: 12 }}
+                    >
+                      Số ghế vé vớt (Wildcard slots) = {minFinalWatch} − ({topNWatch} × {trackCount}) ={' '}
+                      <strong>{wildcardSlotsPreview}</strong>
+                      {wildcardSlotsNonPositive
+                        ? ' — Top N đã lấp đủ/vượt trần CK; không cần vé vớt.'
+                        : ''}
+                    </Text>
+                  ) : (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Số ghế vé vớt (Wildcard slots) = [Tối đa đội CK] − ([Top N] × [Số lượng bảng])
+                    </Text>
+                  )}
+                </div>
+              }
+            >
+              <Switch disabled={wildcardSlotsNonPositive} />
+            </Form.Item>
+
+            <Form.Item
+              name="tiebreak_rule"
+              label="Luật Tiebreak"
+              extra={
+                <span style={{ fontSize: 12 }}>
+                  Khi đồng điểm tại biên Top-N mỗi bảng trước khi chốt chuyển vòng.
+                </span>
+              }
+            >
+              <Select>
+                {TIEBREAK_OPTIONS.map((opt) => (
+                  <Option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
 
             {advancementMode !== 'estimate' && partitions.length > 0 && (
               <Alert
                 type="info"
                 showIcon
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: 0 }}
                 message="Phân bổ đội"
                 description={
                   <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13 }}>
@@ -605,7 +679,7 @@ const RoundFormModal = ({
                 }
               />
             )}
-          </>
+          </Card>
         )}
 
         {isFinal && (
@@ -614,21 +688,23 @@ const RoundFormModal = ({
             showIcon
             style={{ marginBottom: 16 }}
             message="Vòng Chung kết"
-            description={<span style={{ fontSize: 12 }}>Không có bảng đấu con, không cấu hình số đội đi tiếp.</span>}
+            description={<span style={{ fontSize: 12 }}>Không có bảng đấu con, không cấu hình số đội đi tiếp / vé vớt.</span>}
           />
         )}
 
         {isFinal && (
           <Row gutter={24}>
-            <Col span={12}>
+            <Col span={24}>
               <Form.Item
                 name="tiebreak_rule"
-                label="Luật Tiebreak"
+                label="Luật giải quyết đồng điểm Xếp hạng Nhất/Nhì/Ba"
               >
                 <Select>
-                  <Option value="PENALTY_SCORE">Điểm phạt (Penalty)</Option>
-                  <Option value="LATEST_SUBMISSION">Bài nộp muộn nhất</Option>
-                  <Option value="EARLIEST_SUBMISSION">Bài nộp sớm nhất</Option>
+                  {TIEBREAK_OPTIONS.map((opt) => (
+                    <Option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </Option>
+                  ))}
                 </Select>
               </Form.Item>
             </Col>
@@ -692,18 +768,7 @@ const RoundFormModal = ({
         )}
 
         <Row gutter={24}>
-          {!isFinal && (
-            <Col span={12}>
-              <Form.Item
-                name="wildcard_enabled"
-                label="Wild Card"
-                valuePropName="checked"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-          )}
-          <Col span={isFinal ? 24 : 12}>
+          <Col span={24}>
             <Form.Item
               name="is_active"
               label="Đang hoạt động"

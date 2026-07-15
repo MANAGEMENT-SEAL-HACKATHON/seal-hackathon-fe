@@ -1,4 +1,3 @@
-// src/features/rounds/ranking/components/rankingTone.js
 export const getRankColor = (rank, token) => {
   if (rank === 1) return token.colorWarningText;
   if (rank === 2) return token.colorTextSecondary;

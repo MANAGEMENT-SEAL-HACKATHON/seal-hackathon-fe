@@ -47,14 +47,30 @@ export const presentationService = {
   getTrackController: (trackId) =>
     axiosClient.get(ENDPOINTS.PRESENTATION.TRACK_CONTROLLER(trackId)),
 
-  setTrackController: (trackId, judgeId) =>
-    axiosClient.put(ENDPOINTS.PRESENTATION.TRACK_CONTROLLER(trackId), { judgeId }),
+  setTrackController: (trackId, judgeId, extras = {}) =>
+    axiosClient.put(ENDPOINTS.PRESENTATION.TRACK_CONTROLLER(trackId), {
+      judgeId,
+      ...extras,
+    }),
 
   getRoundController: (roundId) =>
     axiosClient.get(ENDPOINTS.PRESENTATION.ROUND_CONTROLLER(roundId)),
 
-  setRoundController: (roundId, judgeId) =>
-    axiosClient.put(ENDPOINTS.PRESENTATION.ROUND_CONTROLLER(roundId), { judgeId }),
+  setRoundController: (roundId, judgeId, extras = {}) =>
+    axiosClient.put(ENDPOINTS.PRESENTATION.ROUND_CONTROLLER(roundId), {
+      judgeId,
+      ...extras,
+    }),
+
+  heartbeat: (roundId, trackId) =>
+    axiosClient.post(ENDPOINTS.PRESENTATION.CONTROLLER_HEARTBEAT, null, {
+      params: { roundId, ...(trackId ? { trackId } : {}) },
+    }),
+
+  skipNoShow: (roundId, trackId, submissionId) =>
+    axiosClient.patch(ENDPOINTS.PRESENTATION.QUEUE_SKIP, null, {
+      params: { roundId, submissionId, ...(trackId ? { trackId } : {}) },
+    }),
 
   listTrackJudges: (trackId) =>
     axiosClient.get(`/api/v1/tracks/${trackId}/judges`),

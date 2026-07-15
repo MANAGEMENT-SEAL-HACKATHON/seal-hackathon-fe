@@ -8,7 +8,14 @@ const ChapterRankingTable = ({ data, loading }) => {
       dataIndex: 'rank',
       key: 'rank',
       width: 100,
-      render: (rank) => rank <= 3 ? <Tag color="blue" icon={<Medal size={14} />}>#{rank}</Tag> : `#${rank}`
+      render: (rank) =>
+        rank <= 3 ? (
+          <Tag color="blue" icon={<Medal size={14} />}>
+            #{rank}
+          </Tag>
+        ) : (
+          `#${rank}`
+        ),
     },
     {
       title: 'Cơ sở',
@@ -21,29 +28,23 @@ const ChapterRankingTable = ({ data, loading }) => {
       key: 'teams_participated',
     },
     {
-      title: 'Điểm Đội cao nhất',
+      title: 'Điểm đội cao nhất',
       dataIndex: 'best_team_score',
       key: 'best_team_score',
-      render: (val) => Number(val).toFixed(2)
+      render: (val) => Number(val || 0).toFixed(2),
     },
     {
-      title: 'Điểm thưởng (Giải)',
-      dataIndex: 'prize_bonus',
-      key: 'prize_bonus',
-      render: (val) => `+${Number(val).toFixed(2)}`
+      title: 'Tổng điểm cơ sở',
+      dataIndex: 'total_score',
+      key: 'total_score',
+      render: (val) => <strong>{Number(val || 0).toFixed(2)}</strong>,
     },
     {
-      title: 'Điểm kỳ này',
-      dataIndex: 'season_score',
-      key: 'season_score',
-      render: (val) => <strong>{Number(val).toFixed(2)}</strong>
+      title: 'Số giải',
+      dataIndex: 'prizes_won',
+      key: 'prizes_won',
+      render: (val) => Number(val || 0),
     },
-    {
-      title: 'Điểm Tích Luỹ (Xuyên năm)',
-      dataIndex: 'cumulative_score',
-      key: 'cumulative_score',
-      render: (val) => <Tag color="green" style={{ fontSize: 14, padding: '4px 8px' }}>{Number(val).toFixed(2)}</Tag>
-    }
   ];
 
   return (

@@ -14,7 +14,6 @@ function buildCloneInitialValues(source) {
     description: source.description,
     rules: source.rules,
     season: source.season,
-    wildcard_enabled: source.wildcard_enabled,
     individual_ranking_enabled: source.individual_ranking_enabled,
     max_participants: source.max_participants,
     year: new Date().getFullYear(),

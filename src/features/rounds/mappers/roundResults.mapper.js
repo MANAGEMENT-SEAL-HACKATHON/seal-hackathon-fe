@@ -52,6 +52,12 @@ export const mapOfficialRankingItem = (item = {}, index = 0) => {
     teamName: firstDefined(item.teamName, item.team_name, item.name, `Đội ${index + 1}`),
     rank: Number(firstDefined(item.rankInGroup, item.rank_in_group, item.rank, index + 1)),
     weightedAvgScore: Number(score) || 0,
+    penaltyScore: Number(firstDefined(item.penaltyScore, item.penalty_score, 0)) || 0,
+    submittedAt: firstDefined(item.submittedAt, item.submitted_at, null),
+    submissionStatus: String(
+      firstDefined(item.submissionStatus, item.submission_status, ""),
+    ).toUpperCase(),
+    submissionId: firstDefined(item.submissionId, item.submission_id, null),
     status,
     participationStatus,
     qualificationStatus: String(
@@ -106,23 +112,31 @@ export const mapTiebreakItems = (response) =>
     const teams = asArray(item, ["teams", "tiedTeams", "tied_teams", "candidates"]).map(mapTiebreakTeam);
     const group = normalizeGroup(item);
     const resolved = Boolean(firstDefined(item?.resolved, item?.isResolved, item?.is_resolved, false));
+    const reason = firstDefined(item?.reason, null);
+    const requiresManualReorder = Boolean(
+      firstDefined(
+        item?.requiresManualReorder,
+        item?.requires_manual_reorder,
+        reason === "DEEP_TIE" || reason === "COORDINATOR_DECISION" || rule === "COORDINATOR_DECISION",
+      ),
+    );
+    const suggestedOrderedTeamIds = asArray(
+      { ids: firstDefined(item?.suggestedOrderedTeamIds, item?.suggested_ordered_team_ids, []) },
+      ["ids"],
+    );
 
     return {
-      key: String(firstDefined(item?.id, item?.evaluationId, item?.evaluation_id, index)),
+      key: String(firstDefined(item?.id, item?.evaluationId, item?.evaluation_id, item?.partitionKey, index)),
       rule,
+      reason,
+      requiresManualReorder,
+      suggestedOrderedTeamIds,
       resolved,
-      escalationRequired:
-        !resolved &&
-        Boolean(
-          firstDefined(
-            item?.escalationRequired,
-            item?.escalation_required,
-            rule === "COORDINATOR_DECISION",
-          ),
-        ),
+      escalationRequired: !resolved && requiresManualReorder,
       cutoffScore: Number(firstDefined(item?.cutoffScore, item?.cutoff_score, item?.score, 0)) || 0,
       remainingSlots: Number(firstDefined(item?.remainingSlots, item?.remaining_slots, item?.slots, 0)) || 0,
       teams,
+      candidateTeamIds: firstDefined(item?.candidateTeamIds, item?.candidate_team_ids, []),
       ...group,
     };
   });
@@ -211,8 +225,11 @@ export const enrichWildcardFromRound = (wildcard, round, ranking) => {
   }
 
   const availableSlots =
-    wildcard?.config?.availableSlots ||
-    (minFinal > 0 ? Math.max(0, minFinal - autoAdvanced) : 0);
+    wildcard?.config?.availableSlots != null
+      ? Number(wildcard.config.availableSlots)
+      : minFinal > 0
+        ? Math.max(0, minFinal - autoAdvanced)
+        : 0;
 
   return {
     ...wildcard,
@@ -229,31 +246,33 @@ export const enrichWildcardFromRound = (wildcard, round, ranking) => {
   };
 };
 
-// Bổ sung thông tin chi tiết cho Tiebreak bằng cách đối chiếu với Bảng xếp hạng.
-// Mọi item còn trong GET /tiebreak được coi là chưa resolve (sau resolve API trả rỗng).
 export const enrichTiebreakItems = (rawTiebreaks, rankingItems = []) => {
-  const mapped = mapTiebreakItems(rawTiebreaks);
-  if (mapped.length > 0) {
-    return mapped.map((item) => ({
-      ...item,
-      resolved: false,
-      escalationRequired: true,
-    }));
-  }
-
   const items = asArray(rawTiebreaks);
   return items.map((item, index) => {
-    const candidateIds = item.candidateTeamIds || item.candidate_team_ids || [];
-    const teams = candidateIds.map((teamId) => {
+    const mappedList = mapTiebreakItems([item]);
+    const mapped = mappedList[0] || {};
+    const candidateIds =
+      mapped.candidateTeamIds?.length > 0
+        ? mapped.candidateTeamIds
+        : item.candidateTeamIds || item.candidate_team_ids || [];
+    const suggested = mapped.suggestedOrderedTeamIds || [];
+    const orderIds = suggested.length > 0 ? suggested : candidateIds;
+
+    const teams = orderIds.map((teamId) => {
       const foundTeam = rankingItems.find((r) => String(r.teamId) === String(teamId));
       return foundTeam
-        ? { ...foundTeam, penaltyScore: Number(foundTeam.penaltyScore || foundTeam.penalty_score || 0) }
+        ? {
+            ...foundTeam,
+            penaltyScore: Number(foundTeam.penaltyScore || foundTeam.penalty_score || 0),
+          }
         : {
             key: String(teamId),
             teamId,
             teamName: `Đội #${teamId}`,
             weightedAvgScore: 0,
             penaltyScore: 0,
+            submittedAt: null,
+            submissionStatus: "",
             groupLabel: item.partitionKey || "Không rõ",
           };
     });
@@ -261,16 +280,32 @@ export const enrichTiebreakItems = (rawTiebreaks, rankingItems = []) => {
     const groupLabel =
       teams.length > 0 && teams[0].groupLabel ? teams[0].groupLabel : item.partitionKey || "Chưa phân bảng";
     const cutoffScore = teams.length > 0 ? teams[0].weightedAvgScore : 0;
+    const rule = String(
+      firstDefined(item?.tiebreakRule, item?.tiebreak_rule, mapped.rule, "COORDINATOR_DECISION"),
+    ).toUpperCase();
+    const reason = firstDefined(item?.reason, mapped.reason, null);
+    const requiresManualReorder = Boolean(
+      firstDefined(
+        item?.requiresManualReorder,
+        item?.requires_manual_reorder,
+        mapped.requiresManualReorder,
+        true,
+      ),
+    );
 
     return {
       key: String(item.partitionKey || index),
-      rule: "COORDINATOR_DECISION",
+      rule,
+      reason,
+      requiresManualReorder,
+      suggestedOrderedTeamIds: suggested,
       resolved: false,
-      escalationRequired: true,
+      escalationRequired: requiresManualReorder,
       cutoffScore,
-      remainingSlots: Number(item.cutoffRank ?? item.cutoff_rank ?? 1),
+      remainingSlots: Number(firstDefined(item?.remainingSlots, mapped.remainingSlots, 0)) || 0,
       teams,
       groupLabel,
+      groupKey: groupLabel,
     };
   });
 };

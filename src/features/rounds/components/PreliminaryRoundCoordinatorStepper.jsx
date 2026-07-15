@@ -27,7 +27,12 @@ const PreliminaryRoundCoordinatorStepper = ({ round, hackathonId }) => {
 
   const problemReleased = Boolean(round.problem_released_at || round.problemReleasedAt);
   const scoringLocked = Boolean(round.scoring_locked || round.scoringLocked);
-  const shuffled = Boolean(round.presentation_shuffled || round.presentationShuffled);
+  const shuffled = Boolean(
+    round.presentation_shuffled ||
+      round.presentationShuffled ||
+      round.is_presentation_shuffled ||
+      round.isPresentationShuffled,
+  );
 
   let current = 0;
   if (problemReleased) current = 1;

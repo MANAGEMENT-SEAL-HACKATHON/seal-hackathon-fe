@@ -5,6 +5,7 @@ import {
   LockOutlined,
   CloseCircleOutlined,
   CheckCircleOutlined,
+  CheckCircleFilled,
   FilePdfOutlined,
   LinkOutlined,
   ClockCircleOutlined,
@@ -12,6 +13,7 @@ import {
   TrophyOutlined,
   InfoCircleOutlined,
   GithubOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { useFinalSubmission } from '../hooks/useFinalSubmission';
 import { criteriaService } from '../../../../features/criteria/services/criteriaService';
@@ -39,17 +41,141 @@ const validateOptionalUrl = (_, value) => {
   }
 };
 
+const SLIDE_MAX_BYTES = 25 * 1024 * 1024;
+
+const validateRequiredGithubUrl = (_, value) => {
+  if (!value?.trim()) {
+    return Promise.reject(new Error('Link GitHub repository là bắt buộc'));
+  }
+  try {
+    const url = new URL(value.trim());
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('invalid protocol');
+    }
+    return Promise.resolve();
+  } catch {
+    return Promise.reject(new Error('Vui lòng nhập URL GitHub hợp lệ bắt đầu bằng http:// hoặc https://'));
+  }
+};
+
+const FinalSuccessView = ({
+  existingSubmission,
+  submittedSlideName,
+  onViewPdf,
+  onEdit,
+  isDark,
+}) => (
+  <Card
+    style={{
+      borderRadius: 24,
+      border: isDark ? '1px solid rgba(70, 183, 73, 0.3)' : '1px solid #b7eb8f',
+      background: isDark
+        ? 'linear-gradient(135deg, rgba(20, 35, 25, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%)'
+        : '#f6ffed',
+      boxShadow: isDark ? '0 12px 32px rgba(0, 0, 0, 0.3)' : '0 12px 32px rgba(82, 196, 26, 0.1)',
+    }}
+    styles={{ body: { padding: 40 } }}
+  >
+    <div style={{ textAlign: 'center', marginBottom: 32 }}>
+      <CheckCircleFilled style={{ fontSize: 72, color: '#52c41a', marginBottom: 16 }} />
+      <Title level={2} style={{ color: isDark ? '#46B749' : '#237804', margin: 0, fontWeight: 800 }}>
+        Nộp bài Chung kết thành công!
+      </Title>
+      <Text style={{ color: isDark ? '#86efac' : '#389e0d', fontSize: 16 }}>
+        Sản phẩm của đội bạn đã được lưu trữ an toàn trên hệ thống.
+      </Text>
+    </div>
+    <div
+      style={{
+        background: isDark ? 'rgba(30, 41, 59, 0.8)' : '#fff',
+        borderRadius: 16,
+        padding: 24,
+        border: isDark ? '1px solid rgba(70, 183, 73, 0.25)' : '1px solid #d9f7be',
+      }}
+    >
+      <Row gutter={[24, 24]}>
+        <Col span={24}>
+          <Text type="secondary" style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>
+            File Slide PDF
+          </Text>
+          <div
+            style={{
+              marginTop: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12,
+              background: isDark ? 'rgba(70, 183, 73, 0.15)' : '#f0fdf4',
+              padding: '14px 18px',
+              borderRadius: 12,
+            }}
+          >
+            <Space>
+              <FilePdfOutlined style={{ fontSize: 28, color: '#ff4d4f' }} />
+              <Text strong>{submittedSlideName}</Text>
+            </Space>
+            <Button type="primary" icon={<EyeOutlined />} onClick={onViewPdf}>
+              Xem PDF
+            </Button>
+          </div>
+        </Col>
+        <Col xs={24} md={12}>
+          <Text type="secondary" style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>
+            Repository
+          </Text>
+          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <GithubOutlined />
+            <a href={existingSubmission?.repoUrl || existingSubmission?.repo_url} target="_blank" rel="noreferrer">
+              {existingSubmission?.repoUrl || existingSubmission?.repo_url}
+            </a>
+          </div>
+        </Col>
+        <Col xs={24} md={12}>
+          <Text type="secondary" style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>
+            Demo
+          </Text>
+          <div style={{ marginTop: 8 }}>
+            {(existingSubmission?.demoUrl || existingSubmission?.demo_url) ? (
+              <a href={existingSubmission?.demoUrl || existingSubmission?.demo_url} target="_blank" rel="noreferrer">
+                {existingSubmission?.demoUrl || existingSubmission?.demo_url}
+              </a>
+            ) : (
+              <Text type="secondary" italic>
+                Không cung cấp
+              </Text>
+            )}
+          </div>
+        </Col>
+      </Row>
+    </div>
+    <div style={{ textAlign: 'center', marginTop: 28 }}>
+      <Button type="dashed" size="large" icon={<EditOutlined />} onClick={onEdit}>
+        Cập nhật / Thay đổi bài nộp
+      </Button>
+    </div>
+  </Card>
+);
+
 // ==========================================
 // SUB-COMPONENT CHỨA TOÀN BỘ LOGIC FORM/HOOKS
 // (Đảm bảo không bị vi phạm Rule of Hooks)
 // ==========================================
-const FinalSubmissionForm = ({ 
-  finalRound, existingSubmission, isEligible,
-  isLocked, timeLeft, isSubmitting, submitFinalWork 
+const FinalSubmissionForm = ({
+  finalRound,
+  existingSubmission,
+  isEligible,
+  isLocked,
+  isHardLocked,
+  isSubmitted,
+  timeLeft,
+  isSubmitting,
+  submitFinalWork,
 }) => {
   const { token } = theme.useToken();
   const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
 
+  const [isEditing, setIsEditing] = useState(false);
   const [form] = Form.useForm();
   const [slideFile, setSlideFile] = useState(null);
   const [criteria, setCriteria] = useState([]);
@@ -105,7 +231,8 @@ const FinalSubmissionForm = ({
       existingSubmission?.slideDownloadPath ??
       existingSubmission?.slide_download_path
   );
-  const isSubmitted = Boolean(existingSubmission && !submissionIncomplete && !isRejected && hasSavedSlide);
+  const showSuccessView = isSubmitted && !isEditing && !isRejected && !submissionIncomplete;
+  const formDisabled = isRejected || isHardLocked || isSubmitting;
   const deadline = finalRound?.submissionDeadline || finalRound?.submission_deadline;
   const submittedSlideName = existingSubmission?.slideFile || existingSubmission?.slide_file || existingSubmission?.slideUrl || existingSubmission?.slide_url || 'slide.pdf';
   const submissionId = existingSubmission?.submissionId ?? existingSubmission?.submission_id ?? existingSubmission?.id ?? null;
@@ -141,13 +268,59 @@ const FinalSubmissionForm = ({
   };
 
   const handleFinish = async (values) => {
-    await submitFinalWork({
+    if (isSubmitting) return;
+    const ok = await submitFinalWork({
       repoUrl: values.repoUrl || '',
       demoUrl: values.demoUrl || '',
-      reportUrl: values.reportUrl || '',
       slideFile: slideFile || undefined,
     });
+    if (ok) {
+      setIsEditing(false);
+      setSlideFile(null);
+    }
   };
+
+  if (showSuccessView) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <FinalSuccessView
+          existingSubmission={existingSubmission}
+          submittedSlideName={submittedSlideName}
+          onViewPdf={handleViewSubmittedSlide}
+          onEdit={() => setIsEditing(true)}
+          isDark={isDark}
+          token={token}
+        />
+        <Modal
+          title={
+            <Space>
+              <FilePdfOutlined style={{ color: '#ff4d4f', fontSize: 20 }} />
+              <span style={{ fontWeight: 700, fontSize: 18 }}>Chi tiết Slide: {submittedSlideName}</span>
+            </Space>
+          }
+          open={isSlideModalVisible}
+          onCancel={handleCloseSlideModal}
+          width={1050}
+          style={{ top: 20 }}
+          footer={[
+            <Button key="close" type="primary" size="large" onClick={handleCloseSlideModal}>
+              Đóng
+            </Button>,
+          ]}
+        >
+          <div style={{ height: '75vh', position: 'relative' }}>
+            {isLoadingSlide ? (
+              <div style={{ textAlign: 'center', paddingTop: '30%' }}>
+                <Spin size="large" />
+              </div>
+            ) : slideBlobUrl ? (
+              <iframe src={`${slideBlobUrl}#toolbar=0`} title="PDF Viewer" width="100%" height="100%" style={{ border: 'none' }} />
+            ) : null}
+          </div>
+        </Modal>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -255,11 +428,11 @@ const FinalSubmissionForm = ({
         />
       )}
 
-      {isLocked && !isSubmitted && !isRejected && (
+      {isHardLocked && (
         <Alert
-          message="Đã quá hạn nộp bài"
-          description="Thời gian nộp Chung kết đã kết thúc. Bạn vẫn có thể gửi để hệ thống ghi nhận trạng thái REJECTED (HARD_LOCK)."
-          type="warning"
+          message="Đã quá thời gian nộp bài"
+          description="Đã quá thời gian nộp bài. Cổng nộp bài Vòng Chung kết đã đóng hoàn toàn."
+          type="error"
           showIcon
           style={{ borderRadius: 14, padding: '16px 20px', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}
         />
@@ -357,9 +530,25 @@ const FinalSubmissionForm = ({
               height: '100%',
               display: 'flex',
               flexDirection: 'column',
+              position: 'relative',
             }}
             styles={{ body: { padding: '32px 36px', flex: 1, display: 'flex', flexDirection: 'column' } }}
           >
+            {isSubmitting && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(255,255,255,0.65)',
+                  zIndex: 10,
+                  display: 'grid',
+                  placeItems: 'center',
+                  borderRadius: 24,
+                }}
+              >
+                <Spin size="large" tip="Đang tải lên bài nộp..." />
+              </div>
+            )}
             <Title level={4} style={{ margin: 0, color: token.colorTextHeading, fontWeight: 800, marginBottom: 24 }}>
               {isSubmitted ? 'Cập nhật Bài dự thi Chung kết' : 'Nộp Bài dự thi Vòng Chung kết'}
             </Title>
@@ -368,8 +557,11 @@ const FinalSubmissionForm = ({
               form={form}
               layout="vertical"
               onFinish={handleFinish}
-              disabled={isRejected}
-              initialValues={existingSubmission || {}}
+              disabled={formDisabled}
+              initialValues={{
+                repoUrl: existingSubmission?.repoUrl || existingSubmission?.repo_url || '',
+                demoUrl: existingSubmission?.demoUrl || existingSubmission?.demo_url || '',
+              }}
               style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
             >
               <Form.Item
@@ -390,11 +582,15 @@ const FinalSubmissionForm = ({
                       message.error('Chỉ chấp nhận file PDF cho slide thuyết trình.');
                       return Upload.LIST_IGNORE;
                     }
+                    if (file.size > SLIDE_MAX_BYTES) {
+                      message.error('File slide tối đa 25MB.');
+                      return Upload.LIST_IGNORE;
+                    }
                     setSlideFile(file);
                     return false;
                   }}
                   onRemove={() => setSlideFile(null)}
-                  disabled={isRejected}
+                  disabled={formDisabled}
                   style={{
                     background: isDark ? 'rgba(15, 23, 42, 0.6)' : '#eff6ff',
                     borderColor: isDark ? 'rgba(59, 130, 246, 0.4)' : '#60a5fa',
@@ -462,7 +658,15 @@ const FinalSubmissionForm = ({
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
-                  <Form.Item name="repoUrl" label={<Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>Link Source Code (Github/Gitlab)</Text>} rules={[{ validator: validateOptionalUrl }]}>
+                  <Form.Item
+                    name="repoUrl"
+                    label={
+                      <Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>
+                        Link Source Code (Github) <span style={{ color: '#ff4d4f' }}>*</span>
+                      </Text>
+                    }
+                    rules={[{ validator: validateRequiredGithubUrl }]}
+                  >
                     <Input
                       prefix={<GithubOutlined style={{ color: '#94a3b8' }} />}
                       placeholder="https://github.com/team/project"
@@ -471,25 +675,16 @@ const FinalSubmissionForm = ({
                     />
                   </Form.Item>
                 </Col>
-                <Col xs={24}>
-                  <Form.Item name="reportUrl" label={<Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>Link Báo cáo / Tài liệu (Nếu có)</Text>} rules={[{ validator: validateOptionalUrl }]}>
-                    <Input
-                      prefix={<FilePdfOutlined style={{ color: '#94a3b8' }} />}
-                      placeholder="https://docs.example.com/final-report"
-                      size="large"
-                      style={{ borderRadius: 10, padding: '10px 14px', background: isDark ? 'rgba(255,255,255,0.05)' : undefined, color: token.colorTextHeading }}
-                    />
-                  </Form.Item>
-                </Col>
               </Row>
 
-              {!isRejected && (
+              {!isRejected && !isHardLocked && (
                 <Button
                   type="primary"
                   size="large"
                   htmlType="submit"
                   icon={<CloudUploadOutlined />}
                   loading={isSubmitting}
+                  disabled={isSubmitting}
                   block
                   style={{
                     height: 52,
@@ -566,10 +761,10 @@ const FinalSubmissionForm = ({
 // ==========================================
 // MAIN COMPONENT CHỨA CÁC ĐIỀU KIỆN EARLY RETURN
 // ==========================================
-const FinalSubmissionPanel = ({ teamId, hackathonId }) => {
+/** Panel view — nhận state từ parent hoặc từ hook wrapper bên dưới (tránh double-fetch). */
+const FinalSubmissionPanelView = ({ submissionData }) => {
   const { token } = theme.useToken();
   const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
-  const submissionData = useFinalSubmission(teamId, hackathonId);
 
   // Early returns (Tuyệt đối không có Hook nào bên dưới dòng này)
   if (submissionData.isLoading) {
@@ -782,6 +977,19 @@ const FinalSubmissionPanel = ({ teamId, hackathonId }) => {
 
   // Nếu qua hết các bài test trên, hiển thị Form
   return <FinalSubmissionForm {...submissionData} />;
+};
+
+const FinalSubmissionPanelConnected = ({ teamId, hackathonId }) => {
+  const submissionData = useFinalSubmission(teamId, hackathonId);
+  return <FinalSubmissionPanelView submissionData={submissionData} />;
+};
+
+/** Prefer `submissionState` from page (single fetch). Else self-fetch via hook. */
+const FinalSubmissionPanel = ({ teamId, hackathonId, submissionState }) => {
+  if (submissionState) {
+    return <FinalSubmissionPanelView submissionData={submissionState} />;
+  }
+  return <FinalSubmissionPanelConnected teamId={teamId} hackathonId={hackathonId} />;
 };
 
 export default FinalSubmissionPanel;

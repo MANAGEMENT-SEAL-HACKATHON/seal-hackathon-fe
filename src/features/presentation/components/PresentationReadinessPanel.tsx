@@ -9,7 +9,6 @@ import {
   countGradableSubmissions,
   getSubmissionStatusMeta,
 } from '../utils/presentationSubmissionUtils';
-import { getEligibleTeamStatusLabel } from '../utils/presentationQueueUtils';
 import toast from 'react-hot-toast';
 
 const { Text } = Typography;
@@ -27,6 +26,8 @@ interface PresentationReadinessPanelProps {
   trackName?: string;
   canReviewLate?: boolean;
   isFinalRound?: boolean;
+  latePolicy?: string | null;
+  windowClosed?: boolean;
   eligibleTeams?: EligibleTeamItem[];
   participatingCount?: number;
   gradableCount?: number;
@@ -39,6 +40,8 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
   trackName,
   canReviewLate = false,
   isFinalRound = false,
+  latePolicy = null,
+  windowClosed = false,
   eligibleTeams = [],
   participatingCount,
   gradableCount: gradableCountProp,
@@ -46,6 +49,11 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
 }) => {
   const showPanel = canReviewLate || isFinalRound;
   const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const statusOpts = {
+    latePolicy: latePolicy || (isFinalRound ? 'HARD_LOCK' : 'ALLOW_LATE_PENDING'),
+    windowClosed: Boolean(windowClosed || isFinalRound),
+    isFinal: Boolean(isFinalRound),
+  };
 
   const { data: submissions = [], isLoading, refetch } = useQuery<RoundSubmissionItem[]>({
     queryKey: ['roundSubmissions', roundId],
@@ -65,6 +73,32 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
     ? (participatingCount ?? eligibleTeams.length)
     : scopedSubmissions.length;
   const pendingLate = scopedSubmissions.filter((s) => s.status === 'LATE_PENDING');
+
+  const finalBuckets = useMemo(() => {
+    const b = {
+      onTime: 0,
+      notSubmitted: 0,
+      lateRejected: 0,
+      latePending: 0,
+      lateApproved: 0,
+      disqualified: 0,
+    };
+    for (const team of eligibleTeams) {
+      const n =
+        team.submissionStatus == null || team.submissionStatus === ''
+          ? 'NONE'
+          : String(team.submissionStatus).toUpperCase();
+      if (n === 'SUBMITTED' || n === 'ACCEPTED') b.onTime += 1;
+      else if (n === 'LATE_PENDING') b.latePending += 1;
+      else if (n === 'LATE_APPROVED') b.lateApproved += 1;
+      else if (n === 'REJECTED') b.lateRejected += 1;
+      else if (n === 'DISQUALIFIED') b.disqualified += 1;
+      else b.notSubmitted += 1;
+      // Surface invariant violations for HARD_LOCK + LATE_*
+      getSubmissionStatusMeta(team.submissionStatus ?? null, statusOpts);
+    }
+    return b;
+  }, [eligibleTeams, latePolicy, windowClosed, isFinalRound]);
 
   const approveMutation = useMutation({
     mutationFn: (submissionId: number) =>
@@ -151,26 +185,35 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
       ) : isFinalRound ? (
         <>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-            <Tag color="green">Sẵn sàng: {gradableCount}/{totalParticipating}</Tag>
+            <Tag color="green">Vào queue: {finalBuckets.onTime}</Tag>
             <Tag color="default">Tổng đội CK: {totalParticipating}</Tag>
-            {totalParticipating > gradableCount && (
-              <Tag color="orange">Chưa nộp: {totalParticipating - gradableCount}</Tag>
+            {finalBuckets.notSubmitted > 0 && (
+              <Tag color="default">Chưa nộp: {finalBuckets.notSubmitted}</Tag>
+            )}
+            {finalBuckets.lateRejected > 0 && (
+              <Tag color="error">Trễ từ chối: {finalBuckets.lateRejected}</Tag>
+            )}
+            {finalBuckets.latePending > 0 && (
+              <Tag color="orange">Trễ chờ duyệt: {finalBuckets.latePending}</Tag>
+            )}
+            {finalBuckets.lateApproved > 0 && (
+              <Tag color="purple">Trễ đã duyệt: {finalBuckets.lateApproved}</Tag>
             )}
           </div>
 
-          {gradableCount < totalParticipating && (
+          {finalBuckets.onTime < totalParticipating && (
             <Alert
               type="warning"
               showIcon
               style={{ marginBottom: '12px' }}
-              message={`${totalParticipating - gradableCount} đội chưa nộp bài Chung kết`}
-              description="Chỉ đội đã nộp đúng hạn mới vào hàng đợi khi bốc thăm (HARD_LOCK)."
+              message="Chỉ đội nộp đúng hạn (ON_TIME) mới vào hàng đợi khi bốc thăm (HARD_LOCK)"
+              description="Đội chưa nộp / trễ từ chối không vào queue. Trễ chờ duyệt / đã duyệt không tự vào HARD_LOCK queue."
             />
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {eligibleTeams.map((team) => {
-              const meta = getEligibleTeamStatusLabel(team);
+              const meta = getSubmissionStatusMeta(team.submissionStatus ?? null, statusOpts);
               return (
                 <div
                   key={team.teamId}
@@ -238,7 +281,7 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {scopedSubmissions.map((sub) => {
-              const meta = getSubmissionStatusMeta(sub.status);
+              const meta = getSubmissionStatusMeta(sub.status, statusOpts);
               const isPending = sub.status === 'LATE_PENDING';
               return (
                 <div

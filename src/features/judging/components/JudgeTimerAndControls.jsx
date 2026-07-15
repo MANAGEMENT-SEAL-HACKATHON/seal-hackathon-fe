@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, Modal, Spin, Popconfirm, Divider, Tooltip } from 'antd';
+import { Card, Typography, Space, Button, Modal, Spin, Popconfirm, Divider } from 'antd';
 import { 
   ClockCircleOutlined, GithubOutlined, FilePdfOutlined, TeamOutlined, 
   PlayCircleOutlined, PauseCircleOutlined, MessageOutlined, StepForwardOutlined,
@@ -12,12 +12,29 @@ import { formatJudgeQueueTeamLabel } from '../utils/liveScoringUtils';
 const { Title, Text } = Typography;
 
 const JudgeTimerAndControls = ({ logic, isFinal }) => {
-  const { activeSlot, presentingSlot, isLivePresentation, localTimerPhase, localRemainingSeconds, isController, handleTimerAction, isTimerActionLoading, canAdvanceToNext, presentationScoringStatus } = logic;
+  const {
+    activeSlot,
+    presentingSlot,
+    isLivePresentation,
+    localTimerPhase,
+    localRemainingSeconds,
+    isController,
+    handleTimerAction,
+    isTimerActionLoading,
+    canAdvanceToNext,
+    canEarlyEndQa,
+    canCallNextTeam,
+    presentationScoringStatus,
+    timerSyncFallback,
+  } = logic;
   const timerSlot = presentingSlot || activeSlot;
   const teamLabel = formatJudgeQueueTeamLabel(timerSlot);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
+
+  const earlyEndQa = canEarlyEndQa ?? (localTimerPhase === 'QA' && localRemainingSeconds > 0);
+  const callNext = canCallNextTeam ?? canAdvanceToNext;
 
   const formatTimeMinutes = (secs) => Math.floor(Math.max(0, secs) / 60).toString().padStart(2, '0');
   const formatTimeSeconds = (secs) => (Math.max(0, secs) % 60).toString().padStart(2, '0');
@@ -120,48 +137,36 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
               </Button>
             )}
 
-            {localTimerPhase === 'QA' && localRemainingSeconds > 0 && (
-              <Tooltip
-                title={
-                  !canAdvanceToNext
-                    ? `Chờ giám khảo Chốt điểm (${presentationScoringStatus?.judgesConfirmed ?? 0}/${presentationScoringStatus?.judgesAssigned ?? 0}) trước khi kết thúc sớm Q&A`
-                    : undefined
-                }
+            {earlyEndQa && (
+              <Popconfirm
+                title="Kết thúc Hỏi Đáp ngay lập tức?"
+                description="Đồng hồ sẽ về 00:00. Sau đó chờ đủ giám khảo Chốt điểm trước khi gọi đội kế tiếp."
+                onConfirm={() => handleTimerAction('END')}
+                okText="Kết thúc"
+                cancelText="Hủy"
+                okButtonProps={{ danger: true }}
               >
-                <span style={{ width: '100%', display: 'block' }}>
-                  <Popconfirm
-                    title="Kết thúc Hỏi Đáp ngay lập tức?"
-                    description="Đồng hồ sẽ về 00:00. Chỉ dùng khi đã đủ giám khảo Chốt điểm."
-                    onConfirm={() => handleTimerAction('END')}
-                    okText="Kết thúc"
-                    cancelText="Hủy"
-                    okButtonProps={{ danger: true }}
-                    disabled={!canAdvanceToNext}
-                  >
-                    <Button
-                      type="primary"
-                      icon={<StepForwardOutlined />}
-                      loading={isTimerActionLoading}
-                      disabled={!canAdvanceToNext}
-                      block
-                      style={{
-                        color: '#fff',
-                        background: canAdvanceToNext ? '#dc2626' : undefined,
-                        borderColor: canAdvanceToNext ? '#dc2626' : undefined,
-                        fontWeight: 800,
-                        minHeight: 48,
-                        borderRadius: 10,
-                        fontSize: 15,
-                      }}
-                    >
-                      Kết thúc sớm Hỏi Đáp
-                    </Button>
-                  </Popconfirm>
-                </span>
-              </Tooltip>
+                <Button
+                  type="primary"
+                  icon={<StepForwardOutlined />}
+                  loading={isTimerActionLoading}
+                  block
+                  style={{
+                    color: '#fff',
+                    background: '#dc2626',
+                    borderColor: '#dc2626',
+                    fontWeight: 800,
+                    minHeight: 48,
+                    borderRadius: 10,
+                    fontSize: 15,
+                  }}
+                >
+                  Kết thúc sớm Hỏi Đáp
+                </Button>
+              </Popconfirm>
             )}
 
-            {canAdvanceToNext && (
+            {callNext && (
               <Popconfirm title="Chốt sổ và gọi đội kế tiếp?" onConfirm={() => handleTimerAction('NEXT')} okText="Chuyển đội" cancelText="Hủy" okButtonProps={{ danger: true }}>
                 <Button type="primary" danger icon={<StepForwardOutlined />} loading={isTimerActionLoading} style={{ fontWeight: 800, width: '100%', marginTop: 8, minHeight: 48, borderRadius: 10, fontSize: 15 }}>
                   Kết Thúc & Gọi Đội Kế Tiếp
@@ -169,7 +174,10 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
               </Popconfirm>
             )}
 
-            {localTimerPhase !== 'IDLE' && localTimerPhase !== 'SETUP' && (
+            {localTimerPhase !== 'IDLE' &&
+              localTimerPhase !== 'SETUP' &&
+              localTimerPhase !== 'QA' &&
+              localTimerPhase !== 'ENDED' && (
               <Popconfirm
                 title="Reset timer về trạng thái chờ?"
                 description="Slot đang thuyết trình sẽ về IDLE. Chỉ dùng khi điều phối nhầm."
@@ -188,13 +196,38 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
               </Popconfirm>
             )}
 
-            {!canAdvanceToNext &&
+            {!callNext &&
               (presentationScoringStatus?.judgesAssigned ?? 0) >= 2 &&
               (localTimerPhase === 'QA' || localTimerPhase === 'ENDED') && (
               <Text type="secondary" style={{ display: 'block', textAlign: 'center', fontSize: 12, lineHeight: 1.5 }}>
                 Chờ tất cả giám khảo Chốt điểm (
                 {presentationScoringStatus?.judgesConfirmed ?? 0}/{presentationScoringStatus?.judgesAssigned})
-                trước khi kết thúc sớm hoặc chuyển đội.
+                trước khi chuyển đội.
+              </Text>
+            )}
+
+            {/* G5-G: minimal judge presence from last scored activity */}
+            {presentationScoringStatus?.lastJudgeScoredAt && (
+              <Text
+                data-testid="judge-presence-badge"
+                type="secondary"
+                style={{ display: 'block', textAlign: 'center', fontSize: 11 }}
+              >
+                GK gần đây:{' '}
+                {new Date(presentationScoringStatus.lastJudgeScoredAt).toLocaleTimeString('vi-VN')}
+                {' · '}
+                {presentationScoringStatus?.judgesScored ?? 0}/
+                {presentationScoringStatus?.judgesAssigned ?? 0} đã chấm
+              </Text>
+            )}
+
+            {timerSyncFallback && (
+              <Text
+                data-testid="timer-sync-fallback-badge"
+                type="warning"
+                style={{ display: 'block', textAlign: 'center', fontSize: 12, fontWeight: 700 }}
+              >
+                Đang đồng bộ lại…
               </Text>
             )}
 

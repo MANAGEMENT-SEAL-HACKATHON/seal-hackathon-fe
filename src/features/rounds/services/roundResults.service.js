@@ -36,4 +36,25 @@ export const roundResultsService = {
 
   resolveTiebreak: (roundId, payload) =>
     axiosClient.post(`/api/v1/rounds/${roundId}/tiebreak/resolve`, payload),
+
+  getAdvanceRoster: async (roundId, { page = 0, size = 50 } = {}) => {
+    const response = await axiosClient.get(`/api/v1/rounds/${roundId}/advance-roster`, {
+      params: { page, size },
+    });
+    const raw = response?.data !== undefined ? response.data : response;
+    return {
+      items: Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : [],
+      page: raw?.page ?? page,
+      size: raw?.size ?? size,
+      totalElements: raw?.totalElements ?? raw?.total_elements ?? 0,
+      totalPages: raw?.totalPages ?? raw?.total_pages ?? 0,
+    };
+  },
+
+  getScoreBreakdown: async (roundId, submissionId) => {
+    const response = await axiosClient.get(`/api/v1/rounds/${roundId}/score-breakdown`, {
+      params: { submissionId },
+    });
+    return response?.data !== undefined ? response.data : response;
+  },
 };

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { studentTeamService } from "../../team/services/studentTeam.service";
 import { studentHackathonService } from "../../hackathon/services/studentHackathon.service";
+import LifecycleBanner from "../../../../shared/components/LifecycleBanner";
 
 const { Text, Title } = Typography;
 
@@ -84,6 +85,7 @@ const StudentResultsIndexPage = () => {
 
   return (
     <div style={{ width: "100%", maxWidth: 1150, margin: "0 auto", paddingBottom: 60 }}>
+      <LifecycleBanner role="STUDENT" hackathonStatus="ONGOING" />
       {/* 1. ESPORTS MISSION CONTROL HERO BANNER */}
       <div
         style={{

@@ -2,7 +2,7 @@ import { resolveUserError } from '../../../shared/errors/resolveUserError';
 
 export const PROGRESSION_ERROR_MESSAGES = {
   RESULT_NOT_PUBLISHED: 'Cần công bố kết quả sơ loại trước khi thực hiện bước này.',
-  TIEBREAK_REQUIRED: 'Còn trường hợp đồng điểm tại ranh giới Top N — hãy phân xử ở tab Tiebreak trước.',
+  TIEBREAK_REQUIRED: 'Có các đội đồng điểm tại ranh giới đi tiếp. Vui lòng giải quyết Tiebreak.',
   ROUND_NOT_SCORING_LOCKED: 'Vòng thi chưa khóa chấm điểm — không thể công bố hoặc chốt kết quả.',
   INVALID_STATE: 'Thao tác không hợp lệ ở trạng thái hiện tại của vòng thi.',
   TEAM_NOT_IN_ROUND: 'Đội không thuộc vòng thi này.',
@@ -19,6 +19,7 @@ export const PROGRESSION_ERROR_MESSAGES = {
     'Đội thi chưa được phân bảng trong vòng này. Hãy hoàn tất kết thúc đăng ký, khóa đội và bốc thăm trước.',
   PENDING_CONFIRM: 'Đang chờ chốt sổ điểm',
   SUBMISSION_ALREADY_CLOSED: 'Vòng thi đã khóa sổ, không thể nộp bài hay chỉnh sửa điểm.',
+  WILDCARD_PENDING: 'Còn vé vớt chưa duyệt/từ chối. Hoàn tất Wild Card trước khi chuyển vòng.',
 };
 
 export const extractProgressionErrorCode = (error) =>

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Crown, Medal, Trophy } from "lucide-react";
 import { getActiveRankingItems } from "../services/rankingPreviewMapper";
 import RankingMovementTag from "./RankingMovementTag";
-import { getTopStepMeta } from "./rankingTone";
+import { getTopStepMeta } from "../utils/rankingTone";
 
 const { Text, Title } = Typography;
 

@@ -10,13 +10,17 @@ import { getLotteryGateReason } from '../../hackathons/utils/hackathonRegistrati
 import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
 import { mapTrackToBE } from '../../tracks/mappers/trackMapper';
 
-export const useLotteryManagement = (hackathonId) => {
+export const useLotteryManagement = (hackathonId, onUpdated) => {
   const [rounds, setRounds] = useState([]);
   const [tracks, setTracks] = useState([]);
   const [activeTeams, setActiveTeams] = useState([]);
   const [hackathon, setHackathon] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRoundId, setSelectedRoundId] = useState(null);
+
+  const notifyHub = useCallback(async () => {
+    if (typeof onUpdated === 'function') await onUpdated();
+  }, [onUpdated]);
 
   const fetchLotteryData = useCallback(async () => {
     setIsLoading(true);
@@ -80,6 +84,7 @@ export const useLotteryManagement = (hackathonId) => {
       await trackService.update(trackId, payload);
       message.success('Đã gửi yêu cầu cập nhật lên hệ thống!');
       await fetchLotteryData();
+      await notifyHub();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
     } finally {
@@ -98,6 +103,7 @@ export const useLotteryManagement = (hackathonId) => {
       await teamService.runLottery(hackathonId, { roundId: selectedRoundId, assignments: [] });
       message.success('Bốc thăm phân bảng thành công cho tất cả các đội!');
       await fetchLotteryData();
+      await notifyHub();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
     } finally {
@@ -112,6 +118,7 @@ export const useLotteryManagement = (hackathonId) => {
       await teamService.changeTrack(teamId, selectedRoundId, Number(newTrackId));
       message.success('Đã đổi Bảng đấu cho đội thi thành công!');
       await fetchLotteryData();
+      await notifyHub();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
     } finally {

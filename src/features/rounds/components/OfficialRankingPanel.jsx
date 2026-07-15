@@ -1,7 +1,8 @@
 // src/features/rounds/results/components/OfficialRankingPanel.jsx
 import { useMemo, useState } from "react";
-import { Alert, Card, Empty, Segmented, Space, Table, Tag, Typography } from "antd";
-import { TrophyOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Empty, Segmented, Space, Table, Tag, Typography } from "antd";
+import { TrophyOutlined, UnorderedListOutlined } from "@ant-design/icons";
+import ScoreBreakdownDrawer from "./ScoreBreakdownDrawer";
 
 const { Text } = Typography;
 
@@ -17,9 +18,11 @@ const OfficialRankingPanel = ({
   isPublished,
   rosterDecided,
   wildcardData,
-  topN,         
+  topN,
+  roundId,
 }) => {
   const [selectedGroup, setSelectedGroup] = useState("all");
+  const [breakdownTarget, setBreakdownTarget] = useState(null);
   const previewSet = useMemo(
     () => advancePreviewTeamIds ?? new Set(),
     [advancePreviewTeamIds],
@@ -125,7 +128,7 @@ const OfficialRankingPanel = ({
                return <Tag color="processing" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Đề xuất vào Chung kết</Tag>;
             }
             // Nếu được đề xuất nhưng KHÔNG thuộc Top N -> Chắc chắn là do duyệt Vé vớt
-            return <Tag color="purple" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Vào CK (Vé vớt)</Tag>;
+            return <Tag color="purple" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Sẽ vào CK (Vé vớt)</Tag>;
           }
 
           // Nếu KHÔNG được đề xuất vào CK
@@ -148,6 +151,22 @@ const OfficialRankingPanel = ({
 
         return <Tag style={{ padding: "4px 12px", borderRadius: 4 }}>Chưa công bố</Tag>;
       },
+    },
+    {
+      title: "",
+      key: "breakdown",
+      width: 120,
+      render: (_, item) =>
+        item.submissionId ? (
+          <Button
+            size="small"
+            type="link"
+            icon={<UnorderedListOutlined />}
+            onClick={() => setBreakdownTarget(item)}
+          >
+            Chi tiết chấm
+          </Button>
+        ) : null,
     },
   ];
 
@@ -188,6 +207,13 @@ const OfficialRankingPanel = ({
           size="middle"
         />
       </Card>
+      <ScoreBreakdownDrawer
+        open={Boolean(breakdownTarget)}
+        onClose={() => setBreakdownTarget(null)}
+        roundId={roundId}
+        submissionId={breakdownTarget?.submissionId}
+        teamName={breakdownTarget?.teamName}
+      />
     </Space>
   );
 };

@@ -329,7 +329,113 @@ async function apiPatch(path, token, body) {
   return { res, json, data: json?.data ?? json };
 }
 
-/** Create prelim + final rounds for Mode B setup. */
+/**
+ * Mode B GĐ1 — tạo Sơ loại + Chung kết qua UI (Thêm vòng thi), không POST API create.
+ * Sau UI thành công, GET /hackathons/{id}/rounds chỉ để lấy id.
+ *
+ * @param {import('@playwright/test').Page} page — đã ở setup?tab=rounds, logged-in coord
+ * @param {string} token
+ * @param {number|string} hackathonId
+ * @param {ReturnType<typeof buildTimelineDates>} timeline
+ */
+export async function createPrelimAndFinalRoundsViaUi(page, token, hackathonId, timeline) {
+  const codingHours = String(timeline.codingDurationHours || 1);
+
+  async function openCreateModal() {
+    await page.getByRole('button', { name: /Thêm vòng thi/i }).click();
+    await expect(page.getByRole('dialog').getByText(/Thêm vòng thi/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
+  }
+
+  async function saveModal() {
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: /^Lưu$/i }).click();
+    await expect(dialog).toBeHidden({ timeout: 30_000 });
+  }
+
+  // --- Sơ loại ---
+  await openCreateModal();
+  await fillFormInput(page, /Tên vòng thi/, 'Vòng Sơ loại');
+  await selectFormOption(page, /Loại vòng thi/, /Sơ loại/);
+  await fillAntDateTime(page, /Ngày giờ thi/, timeline.prelimExamAtStr);
+  await fillFormInput(page, /Thời gian thi \(Giờ\)/, codingHours);
+  // topN / minFinal — slots = minFinal − (topN × tracks); 1 track sau setup → slots = 1 nếu topN=1,minFinal=2
+  const topNItem = page
+    .locator('.ant-form-item')
+    .filter({ hasText: /Vào chung kết mỗi bảng/i })
+    .first();
+  if (await topNItem.count()) {
+    const input = topNItem.locator('input').first();
+    if (await input.isVisible().catch(() => false)) {
+      await input.click({ clickCount: 3 });
+      await input.fill('1');
+    }
+  }
+  const minFinalItem = page
+    .locator('.ant-form-item')
+    .filter({ hasText: /Tối đa vào chung kết/i })
+    .first();
+  if (await minFinalItem.count()) {
+    const input = minFinalItem.locator('input').first();
+    if (await input.isVisible().catch(() => false)) {
+      await input.click({ clickCount: 3 });
+      await input.fill('2');
+    }
+  }
+  // Bật Wildcard trên vòng Sơ loại (không còn trên Create Event)
+  const wildcardItem = page
+    .locator('.ant-form-item')
+    .filter({ hasText: /Bật Wildcard|Wildcard \(vé vớt\)/i })
+    .first();
+  if (await wildcardItem.count()) {
+    const sw = wildcardItem.locator('.ant-switch').first();
+    if (await sw.isVisible().catch(() => false)) {
+      const checked = await sw.getAttribute('aria-checked').then((v) => v === 'true').catch(() => false);
+      if (!checked) {
+        const disabled = await sw.isDisabled().catch(() => false);
+        if (!disabled) await sw.click();
+      }
+    }
+  }
+  await saveModal();
+  // eslint-disable-next-line no-console
+  console.log('[ModeB] GĐ1 rounds via UI — prelim saved');
+
+  // --- Chung kết (cùng ngày Sơ loại, sau grading buffer) ---
+  await openCreateModal();
+  await fillFormInput(page, /Tên vòng thi/, 'Vòng Chung kết');
+  await selectFormOption(page, /Loại vòng thi/, /Chung kết/);
+  await fillAntDateTime(page, /Ngày giờ thi/, timeline.finalExamAtStr);
+  await fillFormInput(page, /Thời gian thi \(Giờ\)/, codingHours);
+  await saveModal();
+  // eslint-disable-next-line no-console
+  console.log('[ModeB] GĐ1 rounds via UI — final saved');
+
+  const { data, res } = await apiGet(`/hackathons/${hackathonId}/rounds`, token);
+  if (!res.ok) {
+    throw new Error(`list rounds failed ${res.status}`);
+  }
+  const rounds = Array.isArray(data) ? data : data?.items || data?.data || [];
+  // List DTO may omit isFinal — match by name we just saved (or isFinal when present).
+  const prelim =
+    rounds.find((r) => r.isFinal === false || r.is_final === false) ||
+    rounds.find((r) => /Sơ loại/i.test(r.name || ''));
+  const fin =
+    rounds.find((r) => r.isFinal === true || r.is_final === true) ||
+    rounds.find((r) => /Chung kết/i.test(r.name || ''));
+  if (!prelim?.id || !fin?.id) {
+    throw new Error(`UI rounds missing ids: ${JSON.stringify(rounds)}`);
+  }
+  return {
+    prelimRoundId: prelim.id,
+    finalRoundId: fin.id,
+    prelim,
+    final: fin,
+  };
+}
+
+/** Create prelim + final rounds for Mode B setup (API — deprecated for GĐ1 UI path). */
 export async function createPrelimAndFinalRounds(token, hackathonId, timeline) {
   const toIso = (d) => {
     const x = d instanceof Date ? d : new Date(d);
@@ -351,7 +457,7 @@ export async function createPrelimAndFinalRounds(token, hackathonId, timeline) {
     roundType: 'PRELIMINARY',
     submissionDeadline: toIso(prelimDeadline),
     codingDurationHours: coding,
-    topNAdvance: 5,
+    topNAdvance: 1,
     minTeamsFinal: 2,
     wildcardEnabled: true,
   };
@@ -811,11 +917,18 @@ export async function releaseTrackProblem(token, trackId) {
 }
 
 /** PATCH /rounds/{id}/activate — Mode B nén lịch START_NOW để coding/submit không chờ examAt xa. */
-export async function activateRoundByApi(token, roundId, note = 'Mode B E2E', scheduleMode = 'START_NOW') {
-  const { res, json } = await apiPatch(`/rounds/${roundId}/activate`, token, {
-    note,
-    scheduleMode,
-  });
+export async function activateRoundByApi(
+  token,
+  roundId,
+  note = 'Mode B E2E',
+  scheduleMode = 'START_NOW',
+  setupLeadMinutes = 2,
+) {
+  const body = { note, scheduleMode };
+  if (scheduleMode === 'START_NOW') {
+    body.setupLeadMinutes = setupLeadMinutes;
+  }
+  const { res, json } = await apiPatch(`/rounds/${roundId}/activate`, token, body);
   if (!res.ok) {
     throw new Error(`activate round ${roundId} failed ${res.status}: ${JSON.stringify(json)}`);
   }
@@ -826,18 +939,25 @@ export async function activateRoundByApi(token, roundId, note = 'Mode B E2E', sc
  * UI ActivateScheduleModal: chọn START_NOW (nếu hiện) rồi OK "Kích hoạt".
  * @param {import('@playwright/test').Page} page
  */
-export async function confirmActivateScheduleModal(page, { startNow = true } = {}) {
-  const modal = page.locator('.ant-modal').filter({ hasText: /Kích hoạt/i }).last();
+export async function confirmActivateScheduleModal(page, { startNow = true, setupLeadMinutes } = {}) {
+  const modal = page.locator('.ant-modal').filter({ hasText: /Kích hoạt|Dời lịch/i }).last();
   await expect(modal).toBeVisible({ timeout: 15_000 });
   if (startNow) {
-    const startNowRadio = modal.getByRole('radio', { name: /bắt đầu thi ngay/i });
+    const startNowRadio = modal.getByRole('radio', { name: /bắt đầu thi sớm/i });
     if (await startNowRadio.isVisible({ timeout: 3_000 }).catch(() => false)) {
       await startNowRadio.check({ force: true }).catch(async () => {
-        await modal.getByText(/bắt đầu thi ngay/i).first().click();
+        await modal.getByText(/bắt đầu thi sớm/i).first().click();
       });
     }
+    if (setupLeadMinutes != null) {
+      const input = modal.locator('.ant-input-number-input').first();
+      if (await input.isVisible({ timeout: 2_000 }).catch(() => false)) {
+        await input.fill(String(setupLeadMinutes));
+      }
+    }
   }
-  await modal.getByRole('button', { name: /^Kích hoạt$/i }).click({ timeout: 15_000, noWaitAfter: true });
+  const ok = modal.getByRole('button', { name: /^(Kích hoạt|Lưu lịch mới)$/i });
+  await ok.click({ timeout: 15_000, noWaitAfter: true });
 }
 
 export async function getRoundActive(token, roundId) {

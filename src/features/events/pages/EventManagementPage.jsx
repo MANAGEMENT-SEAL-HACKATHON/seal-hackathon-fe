@@ -35,7 +35,7 @@ const getEventTypeStyle = (type) => EVENT_TYPE_STYLES[type] || EVENT_TYPE_STYLES
 
 const { TextArea } = Input;
 const { Text } = Typography;
-const EventManagementPage = ({ hackathonId }) => {
+const EventManagementPage = ({ hackathonId, onUpdated }) => {
   const { refreshNotifications } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('list');
@@ -45,7 +45,11 @@ const EventManagementPage = ({ hackathonId }) => {
   const selectedType = Form.useWatch('type', form);
   const startsAt = Form.useWatch('starts_at', form);
 
-  const { events, rounds, currentHackathon, isLoading, createEvent, deleteEvent } = useEventManagement(hackathonId, refreshNotifications);
+  const { events, rounds, currentHackathon, isLoading, createEvent, deleteEvent } = useEventManagement(
+    hackathonId,
+    refreshNotifications,
+    onUpdated,
+  );
   const [awardsReadiness, setAwardsReadiness] = useState(null);
 
   useEffect(() => {

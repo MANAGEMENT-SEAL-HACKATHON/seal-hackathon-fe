@@ -76,11 +76,58 @@ async function findStudentTeamForHackathon(studentToken, hackathonId) {
   );
 }
 
-async function ensureCloseEarly(roundId, coordToken) {
+async function releaseProblemIfNeeded(roundId, token) {
+  const form = new FormData();
+  const res = await fetch(`${BE_BASE}/rounds/${roundId}/release-problem`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const json = await res.json().catch(() => ({}));
+  return { res, json };
+}
+
+async function ensureCloseEarlyPrerequisites(round, token) {
+  const released = Boolean(round.problemReleasedAt || round.problem_released_at);
+  if (!released) {
+    const releaseResult = await releaseProblemIfNeeded(round.id, token);
+    if (!releaseResult.res.ok) {
+      const code = releaseResult.json?.error?.code || releaseResult.json?.code;
+      // Already released / race — continue; otherwise fail clearly
+      if (code !== 'INVALID_STATE' && code !== 'CONFLICT') {
+        throw new Error(
+          `release-problem failed: ${code || releaseResult.res.status} ${releaseResult.json?.error?.message || ''}`,
+        );
+      }
+    }
+  }
+  const examAt = round.examAt || round.exam_at;
+  if (examAt && new Date(examAt).getTime() > Date.now()) {
+    throw new Error(
+      `Round ${round.id} examAt is still in the future (${examAt}) — cannot close-early gate`,
+    );
+  }
+}
+
+async function ensureCloseEarly(roundId, coordToken, roundSnapshot = null) {
+  if (roundSnapshot) {
+    await ensureCloseEarlyPrerequisites(roundSnapshot, coordToken);
+  }
   const first = await closeSubmissionEarly(roundId, coordToken);
   if (first.res.ok) return first;
   const code = first.json?.error?.code || first.json?.code;
   if (code === 'SUBMISSION_ALREADY_CLOSED') return first;
+  // Gate failures: try release once then retry (seed may lack problemReleasedAt)
+  if (code === 'INVALID_ROUND_STATE_UNRELEASED') {
+    await releaseProblemIfNeeded(roundId, coordToken);
+    const retry = await closeSubmissionEarly(roundId, coordToken);
+    if (retry.res.ok || (retry.json?.error?.code || retry.json?.code) === 'SUBMISSION_ALREADY_CLOSED') {
+      return retry;
+    }
+    throw new Error(
+      `close-submission-early retry failed: ${retry.json?.error?.code || retry.res.status} ${retry.json?.error?.message || ''}`,
+    );
+  }
   throw new Error(`close-submission-early failed: ${code || first.res.status} ${first.json?.error?.message || ''}`);
 }
 
@@ -116,6 +163,7 @@ test.describe('Close submission early (mutating)', () => {
     );
 
     if (!alreadyClosed) {
+      await ensureCloseEarlyPrerequisites(prelim, token);
       const first = await closeSubmissionEarly(prelim.id, token);
       expect(first.res.ok).toBeTruthy();
       expect(first.data?.deadlineAdjusted === true || first.data?.examAtAdjusted === true).toBeTruthy();
@@ -191,7 +239,7 @@ test.describe('Close submission early (mutating)', () => {
     test.skip(!prelim, 'No prelim round');
     test.skip(!(prelim.isActive || prelim.is_active), 'Prelim not active');
 
-    await ensureCloseEarly(prelim.id, coordToken);
+    await ensureCloseEarly(prelim.id, coordToken, prelim);
     // Đợi clock vượt deadline==now (kể cả khi BE chưa có check submissionClosedEarlyAt)
     await new Promise((r) => setTimeout(r, 1500));
 
@@ -230,7 +278,7 @@ test.describe('Close submission early (mutating)', () => {
       'Final already scoring-locked',
     );
 
-    await ensureCloseEarly(finalRound.id, coordToken);
+    await ensureCloseEarly(finalRound.id, coordToken, finalRound);
 
     const second = await closeSubmissionEarly(finalRound.id, coordToken);
     expect(second.json?.error?.code || second.json?.code).toBe('SUBMISSION_ALREADY_CLOSED');

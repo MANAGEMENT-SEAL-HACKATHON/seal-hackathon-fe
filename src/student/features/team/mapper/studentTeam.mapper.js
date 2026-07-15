@@ -118,6 +118,7 @@ export const mapStudentTeam = (team) => {
   );
 
   const canChangeMembership = [TEAM_STATUS.PENDING, TEAM_STATUS.ACTIVE].includes(team.status) && !isLocked;
+  const isPrelimLocked = participationRaw === 'ADVANCED' || participationRaw === 'ELIMINATED';
   const isMemberCountReady =
     acceptedMemberCount >= minTeamSize && acceptedMemberCount <= maxTeamSize;
   const canConfirmFormation =
@@ -143,6 +144,7 @@ export const mapStudentTeam = (team) => {
     participationColor: participationMeta?.color ?? null,
     isAdvanced: participationRaw === 'ADVANCED',
     isEliminatedFromFinal: participationRaw === 'ELIMINATED',
+    isPrelimReadOnly: participationRaw === 'ADVANCED' || participationRaw === 'ELIMINATED',
     leaderId: team.leaderId,
     leaderName: team.leaderName || 'Chưa cập nhật',
     chapterId: team.chapterId,
@@ -167,11 +169,13 @@ export const mapStudentTeam = (team) => {
     isFull: acceptedMemberCount >= maxTeamSize,
     hasMentor,
     canInvite:
+      !isPrelimLocked &&
       leaderCanEditRoster && isCurrentUserLeader && acceptedMemberCount < maxTeamSize,
-    canTransferLeader: leaderCanEditRoster && isCurrentUserLeader,
-    canCancelInvite: leaderCanEditRoster && isCurrentUserLeader,
+    canTransferLeader: !isPrelimLocked && leaderCanEditRoster && isCurrentUserLeader,
+    canCancelInvite: !isPrelimLocked && leaderCanEditRoster && isCurrentUserLeader,
     canLeaveTeam: canChangeMembership && !isCurrentUserLeader && currentMember?.isAccepted,
     canDisband:
+      !isPrelimLocked &&
       isCurrentUserLeader && isPendingTeam && !isLocked && !formationSubmitted && !hasMentor,
     isCurrentUserLeader,
     currentMember,

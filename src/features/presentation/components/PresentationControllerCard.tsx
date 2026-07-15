@@ -122,19 +122,32 @@ const PresentationControllerCard: React.FC<PresentationControllerCardProps> = ({
   }, [controllerResponse]);
 
   const grantMutation = useMutation({
-    mutationFn: async (judgeId: number) => {
+    mutationFn: async ({ judgeId, mode: grantMode }: { judgeId: number; mode: string }) => {
       if (!scopeId) throw new Error('Thiếu thông tin bảng đấu hoặc vòng thi');
+      const safe = (controllerResponse as any)?.data || controllerResponse;
+      const currentId = safe?.judgeId ?? safe?.judge_id ?? null;
+      const extras = {
+        expectedControllerJudgeId: currentId == null ? 0 : Number(currentId),
+        mode: grantMode,
+      };
       if (mode === 'round') {
-        return presentationService.setRoundController(scopeId, judgeId);
+        return presentationService.setRoundController(scopeId, judgeId, extras);
       }
-      return presentationService.setTrackController(scopeId, judgeId);
+      return presentationService.setTrackController(scopeId, judgeId, extras);
     },
     onSuccess: async () => {
       toast.success('Đã cập nhật người điều phối timer.');
       await queryClient.invalidateQueries({ queryKey: ['presentationController', mode, scopeId] });
     },
     onError: (err: any) => {
-      toast.error(err?.message || 'Không thể gán quyền. Vui lòng thử lại.');
+      const code = err?.code || err?.response?.data?.error?.code;
+      if (code === 'CONTROLLER_CONFLICT') {
+        toast.error('Controller đã được chuyển bởi người khác — làm mới trang.');
+      } else if (code === 'JUDGE_OFFLINE') {
+        toast.error('Judge chưa online — chỉ transfer khi có heartbeat < 60s.');
+      } else {
+        toast.error(err?.message || 'Không thể gán quyền. Vui lòng thử lại.');
+      }
     },
   });
 
@@ -191,7 +204,7 @@ const PresentationControllerCard: React.FC<PresentationControllerCardProps> = ({
             allowClear={false}
             onChange={(value) => {
               setSelectedJudgeId(Number(value));
-              grantMutation.mutate(Number(value));
+              grantMutation.mutate({ judgeId: Number(value), mode: 'TRANSFER' });
             }}
             optionLabelProp="label"
           >
@@ -219,6 +232,17 @@ const PresentationControllerCard: React.FC<PresentationControllerCardProps> = ({
               );
             })}
           </Select>
+          <Button
+            type="default"
+            loading={grantMutation.isPending}
+            disabled={!selectedJudgeId}
+            onClick={() => {
+              if (!selectedJudgeId) return;
+              grantMutation.mutate({ judgeId: selectedJudgeId, mode: 'TAKEOVER' });
+            }}
+          >
+            Takeover tạm
+          </Button>
           <Popconfirm
             title="Gỡ quyền điều phối timer?"
             onConfirm={() => revokeMutation.mutate()}

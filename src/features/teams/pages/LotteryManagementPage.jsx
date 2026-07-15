@@ -10,7 +10,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { useToken } = theme;
 
-const LotteryManagementPage = ({ hackathonId }) => {
+const LotteryManagementPage = ({ hackathonId, onUpdated }) => {
   const { token } = useToken();
   const [topicModalVisible, setTopicModalVisible] = useState(false);
   const [changeTrackModalVisible, setChangeTrackModalVisible] = useState(false);
@@ -24,7 +24,7 @@ const LotteryManagementPage = ({ hackathonId }) => {
     rounds, tracks, activeTeams, hackathon, isLoading,
     selectedRoundId, setSelectedRoundId, lotteryGate,
     handleAssignTopic, handleRunAutoLottery, handleChangeTrack
-  } = useLotteryManagement(hackathonId);
+  } = useLotteryManagement(hackathonId, onUpdated);
 
   const closedEarly = isRegistrationClosedEarly(hackathon);
   const lotteryHelpText = lotteryGate.allowed

@@ -13,7 +13,7 @@ import {
 const { Option } = Select;
 const { Text } = Typography;
 
-const PeopleManagementPage = ({ hackathonId }) => {
+const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [assignmentsPerson, setAssignmentsPerson] = useState(null);
   const [inviteForm] = Form.useForm();
@@ -49,7 +49,7 @@ const PeopleManagementPage = ({ hackathonId }) => {
     patchUserDeptHead,
     isMentorBlockedForTrack,
     isJudgeBlockedForTrack,
-  } = usePeopleManagement(hackathonId);
+  } = usePeopleManagement(hackathonId, onUpdated);
   const trackByRoundType = (isFinal) =>
     tracks.filter((track) => {
       const roundId = track.roundId || track.round_id;

@@ -29,7 +29,7 @@ const openPdfBlob = (blob, filename) => {
 const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
   const { token } = theme.useToken();
   const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(teamId && hackathonId));
   const [roundId, setRoundId] = useState(null);
   const [roundName, setRoundName] = useState('');
   const [problem, setProblem] = useState(null);
@@ -41,6 +41,8 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
   const loadProblem = useCallback(async () => {
     if (!teamId || !hackathonId) {
       setLoading(false);
+      setNotEligible(false);
+      setProblem(null);
       return;
     }
 
@@ -73,7 +75,7 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
       const data = await studentRoundService.getProblem(finalRound.roundId);
       setProblem(data);
     } catch (error) {
-      if (error?.status === 403 || error?.status === 404) {
+      if (error?.status === 403 || error?.status === 404 || error?.status === 422) {
         setNotEligible(true);
       }
     } finally {
@@ -206,7 +208,7 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
               </Tag>
             </div>
             <Text style={{ color: token.colorTextSecondary, fontSize: 14, lineHeight: 1.5, display: 'block' }}>
-              Vòng Chung kết đã chính thức mở. Ban tổ chức sẽ phát đề chung cho toàn bộ các đội tiến vào vòng này — vui lòng chờ thông báo!
+              Vòng Chung kết đã mở. Ban tổ chức sẽ mở đề theo bảng đấu sơ loại của đội bạn — vui lòng chờ thông báo!
             </Text>
           </div>
         </div>
@@ -251,7 +253,9 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
               <Title level={4} style={{ margin: 0, color: token.colorTextHeading, fontWeight: 800 }}>
-                Đề thi Vòng Chung kết
+                {problem?.trackName || problem?.track_name
+                  ? `Đề thi Chung kết (Kế thừa từ Track: ${problem.trackName || problem.track_name})`
+                  : 'Đề thi Chung kết'}
               </Title>
               <Tag color="orange" style={{ borderRadius: 6, fontWeight: 700, fontSize: 11, border: 0, margin: 0 }}>
                 ✔ ĐÃ CÔNG BỐ

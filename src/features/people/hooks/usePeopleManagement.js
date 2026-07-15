@@ -16,7 +16,7 @@ import {
   isEligibleForPrelimJudge,
 } from '../utils/peoplePersonnelRules';
 
-export const usePeopleManagement = (hackathonId) => {
+export const usePeopleManagement = (hackathonId, onUpdated) => {
   const [mentors, setMentors] = useState([]);
   const [judges, setJudges] = useState([]);
   const [tempJudges, setTempJudges] = useState([]);
@@ -26,6 +26,9 @@ export const usePeopleManagement = (hackathonId) => {
   const [judgeAssignments, setJudgeAssignments] = useState([]);
   const [finalJudgeAssignments, setFinalJudgeAssignments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const notifyHub = async () => {
+    if (typeof onUpdated === 'function') await onUpdated();
+  };
   const isFinalRound = (round) =>
     Boolean(round?.isFinal ?? round?.is_final) ||
     String(round?.roundType || round?.round_type || '').toUpperCase() === 'FINAL' ||
@@ -217,6 +220,7 @@ export const usePeopleManagement = (hackathonId) => {
       await peopleService.createTempJudge({ ...values, hackathonId });
       message.success('Đã gửi lời mời giám khảo khách mời.');
       await fetchBaseData();
+      await notifyHub();
       if (onSuccess) onSuccess();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
@@ -234,6 +238,7 @@ export const usePeopleManagement = (hackathonId) => {
       });
       message.success('Đã gán mentor cho bảng đấu.');
       await fetchBaseData();
+      await notifyHub();
       if (onSuccess) onSuccess();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
@@ -248,6 +253,7 @@ export const usePeopleManagement = (hackathonId) => {
       await peopleService.removeMentorAssignment(assignmentId);
       message.success('Đã gỡ mentor khỏi bảng đấu.');
       await fetchBaseData();
+      await notifyHub();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
     } finally {
@@ -300,6 +306,7 @@ export const usePeopleManagement = (hackathonId) => {
         message.success(`Đã gán giám khảo Sơ loại (${assignmentType}).`);
       }
       await fetchBaseData();
+      await notifyHub();
       if (onSuccess) onSuccess();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
@@ -314,6 +321,7 @@ export const usePeopleManagement = (hackathonId) => {
       await peopleService.removeJudgeAssignment(assignmentId);
       message.success('Đã gỡ giám khảo.');
       await fetchBaseData();
+      await notifyHub();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
     } finally {
@@ -327,6 +335,7 @@ export const usePeopleManagement = (hackathonId) => {
       await peopleService.patchUserDeptHead(userId, isDeptHead);
       message.success(isDeptHead ? 'Đã đặt Trưởng ban' : 'Đã gỡ Trưởng ban');
       await fetchBaseData();
+      await notifyHub();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
     } finally {

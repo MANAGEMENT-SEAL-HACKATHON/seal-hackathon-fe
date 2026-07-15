@@ -73,6 +73,7 @@ const StudentRelotteryTrackCard = ({ hackathonId, teamId, team, onChanged }) => 
   }, [hackathonId, teamId, isLeader, hasTrack, team]);
 
   if (!isLeader || !hasTrack || !hackathonId || !teamId) return null;
+  if (team?.isPrelimReadOnly || team?.isAdvanced || team?.isEliminatedFromFinal) return null;
   if (!prelimRoundId && !loading && errorState) {
     return null; // Ẩn card nếu không đủ dữ liệu hoặc vòng thi đã active theo đúng Plan, không gọi API sai quyền
   }

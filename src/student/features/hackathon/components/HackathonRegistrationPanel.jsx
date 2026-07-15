@@ -183,7 +183,7 @@ const HackathonRegistrationPanel = ({ hasTeam = false, onRegistrationChange }) =
         <Text type="secondary" style={{ fontSize: 13, fontWeight: 500 }}>
           Đang kiểm tra giải đấu Hackathon FPTU...
         </Text>
-      </div>
+        </div>
     );
   }
 
@@ -355,7 +355,7 @@ const HackathonRegistrationPanel = ({ hasTeam = false, onRegistrationChange }) =
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div
-                style={{
+      style={{
                   width: 48,
                   height: 48,
                   borderRadius: 14,
@@ -395,7 +395,7 @@ const HackathonRegistrationPanel = ({ hasTeam = false, onRegistrationChange }) =
             flexWrap: 'wrap',
             marginBottom: 16,
             padding: '12px 16px',
-            borderRadius: 16,
+        borderRadius: 16,
             background: isDark ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF',
             border: `2px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 82, 156, 0.1)'}`,
             boxShadow: isDark ? '0 4px 24px rgba(0, 0, 0, 0.3)' : '0 8px 24px rgba(0, 82, 156, 0.06)',
@@ -594,11 +594,11 @@ const HackathonBoothCard = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const isRegistered = Boolean(item.registered);
-  const isSlotFull = registrationBlocked[item.id];
-  const isWithdrawn = Boolean(item.registrationWithdrawn);
-  const isRegisteredElsewhere = Boolean(item.registeredElsewhere);
-  const canRegister = !isRegistered && !isSlotFull && !isWithdrawn && !isRegisteredElsewhere;
+          const isRegistered = Boolean(item.registered);
+          const isSlotFull = registrationBlocked[item.id];
+          const isWithdrawn = Boolean(item.registrationWithdrawn);
+          const isRegisteredElsewhere = Boolean(item.registeredElsewhere);
+          const canRegister = !isRegistered && !isSlotFull && !isWithdrawn && !isRegisteredElsewhere;
 
   const regEnd = item.registrationEnd ? dayjs(item.registrationEnd) : null;
   const daysLeft = regEnd ? regEnd.endOf('day').diff(dayjs(), 'day') : null;
@@ -637,7 +637,7 @@ const HackathonBoothCard = ({
     };
   }, [isRegistered, isUrgent, isDark]);
 
-  return (
+          return (
     <motion.div
       layout
       initial={{ opacity: 0, scale: 0.94 }}
@@ -843,7 +843,7 @@ const HackathonBoothCard = ({
               </div>
 
               {/* Benefits Section */}
-              {canRegister && (
+                {canRegister && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <Text strong style={{ fontSize: 13, color: token.colorTextHeading }}>
                     🎁 Quyền lợi & Đặc quyền sinh viên FPTU:
@@ -879,7 +879,7 @@ const HackathonBoothCard = ({
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     ℹ️ Bạn đang tham gia một giải khác. Mỗi sinh viên chỉ được đăng ký một giải tại một thời điểm.
                   </Text>
-                </div>
+            </div>
               )}
             </motion.div>
           </motion.div>

@@ -3,7 +3,7 @@ import { Button, Space, Tag, Tooltip, Typography, theme } from "antd";
 import { motion } from "framer-motion";
 import { Ban } from "lucide-react";
 import RankingMovementTag from "./RankingMovementTag";
-import { getRankColor, getRowTone } from "./rankingTone";
+import { getRankColor, getRowTone } from "../utils/rankingTone";
 
 const { Text } = Typography;
 

@@ -19,6 +19,7 @@ import HackathonBannerUpload from './HackathonBannerUpload';
 import { ROUTES } from '../../../shared/constants/routes';
 import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
 import { resolveUserError } from '../../../shared/errors/resolveUserError';
+import { isRegistrationPeriodEnded } from '../utils/hackathonRegistrationRules';
 
 const { Text, Title } = Typography;
 
@@ -33,9 +34,11 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
   const [bannerFileList, setBannerFileList] = useState([]);
   const isDraft = hackathon?.status === 'DRAFT';
   const isOngoing = hackathon?.status === 'ONGOING';
+  const registrationEnded = isRegistrationPeriodEnded(hackathon);
   const closedEarly = Boolean(
     hackathon?.registration_closed_early_at ?? hackathon?.registrationClosedEarlyAt,
   );
+  const registrationClosedUi = registrationEnded;
   const bannerSrc = resolveHackathonBannerUrl(hackathon);
 
   React.useEffect(() => {
@@ -113,21 +116,21 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
 
       {isOngoing && (
         <Alert
-          type={closedEarly ? 'success' : 'warning'}
+          type={registrationClosedUi ? 'success' : 'warning'}
           showIcon
           style={{ marginBottom: 16, borderRadius: 8 }}
           message={
-            closedEarly
-              ? 'Đã đóng cổng đăng ký sớm'
+            registrationClosedUi
+              ? (closedEarly ? 'Đã đóng cổng đăng ký sớm' : 'Đăng ký đã đóng')
               : 'Đóng cổng đăng ký sớm (chỉ dùng khi cần thiết)'
           }
           description={
-            closedEarly
+            registrationClosedUi
               ? 'Cổng đăng ký đã đóng. Danh sách đội thi chính thức đã được chốt — vui lòng chuyển sang mục «Bốc thăm & khai mạc» để phân chia bảng đấu. Thời gian thi dự kiến vẫn được giữ nguyên; khi bắt đầu vòng thi, bạn có thể lựa chọn giữ nguyên lịch này hoặc bắt đầu làm bài ngay.'
               : 'Dùng khi số lượng đội đã đủ hoặc cần dừng nhận đăng ký vì lý do đặc biệt. Hệ thống sẽ chốt danh sách các đội thi chính thức, tự động loại các thí sinh và nhóm chưa hoàn thành thủ tục đăng ký, đồng thời gửi thông báo đến Ban tổ chức nếu có đội đang chờ duyệt. Những nhóm đã đủ thành viên nhưng chưa xác nhận sẽ có thêm 24 giờ để Trưởng nhóm xác nhận tham gia.'
           }
           action={
-            closedEarly ? (
+            registrationClosedUi ? (
               onGoToLottery ? (
                 <Button type="primary" onClick={onGoToLottery}>
                   Bốc thăm & Khai mạc

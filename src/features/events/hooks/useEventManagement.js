@@ -9,7 +9,7 @@ import { mapHackathonToFE } from '../../hackathons/mappers/hackathonMapper';
 import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
 import { EVENT_TYPE_LABELS, UNIQUE_EVENT_TYPES } from '../utils/eventTypeRules';
 
-export const useEventManagement = (hackathonId, refreshNotifications) => {
+export const useEventManagement = (hackathonId, refreshNotifications, onUpdated) => {
   const [events, setEvents] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [currentHackathon, setCurrentHackathon] = useState(null);
@@ -137,6 +137,9 @@ export const useEventManagement = (hackathonId, refreshNotifications) => {
         });
 
         fetchData();
+        if (typeof onUpdated === 'function') {
+          await onUpdated();
+        }
         if (onSuccess) onSuccess();
       } catch (error) {
         message.error(getTeamErrorMessage(error) || 'Có lỗi xảy ra khi tạo sự kiện. Vui lòng thử lại.');
@@ -165,6 +168,9 @@ export const useEventManagement = (hackathonId, refreshNotifications) => {
       await eventService.delete(eventId);
       message.success('Đã xóa sự kiện thành công');
       fetchData();
+      if (typeof onUpdated === 'function') {
+        await onUpdated();
+      }
     } catch (error) {
       message.error(error.message || 'Lỗi khi xóa sự kiện');
     } finally {

@@ -24,9 +24,9 @@ export const judgeService = {
   },
 
   // 3.1 GET /scores - Lấy danh sách điểm đã chấm của chính mình
-  getMyScores: async (roundId) => {
-    // Lưu ý: PDF quy định chỉ có tham số roundId 
-    return axiosClient.get('/api/v1/me/scores', { params: { roundId } });
+  getMyScores: async (roundId, config = {}) => {
+    // Lưu ý: PDF quy định chỉ có tham số roundId
+    return axiosClient.get('/api/v1/me/scores', { params: { roundId }, ...config });
   },
 
   // 3.2 PATCH /scores/{scoreId}/comment - Cập nhật Comment cho bài chấm

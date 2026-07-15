@@ -10,7 +10,7 @@ import { trackService } from "../../tracks/services/trackService";
 import { mapRoundToFE } from "../../rounds/mappers/roundMapper";
 import { mapTrackToFE } from "../../tracks/mappers/trackMapper";
 
-export const useCriteriaManagement = (hackathonId) => {
+export const useCriteriaManagement = (hackathonId, onUpdated) => {
   const [rounds, setRounds] = useState([]);
   const [tracks, setTracks] = useState([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -19,6 +19,9 @@ export const useCriteriaManagement = (hackathonId) => {
   const [criteriaList, setCriteriaList] = useState([]);
   const [weightSummary, setWeightSummary] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const notifyHub = useCallback(async () => {
+    if (typeof onUpdated === "function") await onUpdated();
+  }, [onUpdated]);
 
   const fetchBaseData = useCallback(async () => {
     try {
@@ -158,6 +161,7 @@ export const useCriteriaManagement = (hackathonId) => {
         }
         message.success("Sao chép tiêu chí thành công");
         fetchCriteria();
+        await notifyHub();
         return 1;
       } catch (error) {
         message.error("Lỗi khi sao chép tiêu chí");
@@ -166,7 +170,7 @@ export const useCriteriaManagement = (hackathonId) => {
         setIsLoading(false);
       }
     },
-    [currentRound, selectedRoundId, selectedTrackId, fetchCriteria],
+    [currentRound, selectedRoundId, selectedTrackId, fetchCriteria, notifyHub],
   );
 
   const handleSaveCriteria = useCallback(
@@ -183,13 +187,14 @@ export const useCriteriaManagement = (hackathonId) => {
           message.success("Thêm tiêu chí thành công");
         }
         fetchCriteria();
+        await notifyHub();
       } catch (error) {
         message.error("Có lỗi xảy ra");
       } finally {
         setIsLoading(false);
       }
     },
-    [currentRound, selectedRoundId, selectedTrackId, fetchCriteria],
+    [currentRound, selectedRoundId, selectedTrackId, fetchCriteria, notifyHub],
   );
 
   const handleBatchSaveCriteria = useCallback(
@@ -205,13 +210,14 @@ export const useCriteriaManagement = (hackathonId) => {
           await criteriaService.createBatchForTrack(selectedTrackId, itemsData);
         message.success(`Đã thêm thành công ${itemsData.length} tiêu chí mới!`);
         fetchCriteria();
+        await notifyHub();
       } catch (error) {
         message.error("Lỗi khi thêm hàng loạt tiêu chí");
       } finally {
         setIsLoading(false);
       }
     },
-    [currentRound, selectedRoundId, selectedTrackId, fetchCriteria],
+    [currentRound, selectedRoundId, selectedTrackId, fetchCriteria, notifyHub],
   );
 
   const handleApplyStandardCriteria = useCallback(
@@ -228,13 +234,14 @@ export const useCriteriaManagement = (hackathonId) => {
         }
         message.success("Đã áp dụng bộ tiêu chí chuẩn");
         fetchCriteria();
+        await notifyHub();
       } catch (error) {
         message.error("Không thể áp dụng tiêu chí chuẩn");
       } finally {
         setIsLoading(false);
       }
     },
-    [currentRound, selectedRoundId, selectedTrackId, currentCriteria, fetchCriteria],
+    [currentRound, selectedRoundId, selectedTrackId, currentCriteria, fetchCriteria, notifyHub],
   );
 
   const handleDeleteCriteria = useCallback(
@@ -244,6 +251,7 @@ export const useCriteriaManagement = (hackathonId) => {
         await criteriaService.delete(id);
         message.success("Đã xóa tiêu chí");
         fetchCriteria();
+        await notifyHub();
       } catch (error) {
         error.status === 409
           ? message.error("Không thể xóa do tiêu chí đã có dữ liệu chấm điểm")
@@ -252,7 +260,7 @@ export const useCriteriaManagement = (hackathonId) => {
         setIsLoading(false);
       }
     },
-    [fetchCriteria],
+    [fetchCriteria, notifyHub],
   );
 
   return {

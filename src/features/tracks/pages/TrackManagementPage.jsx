@@ -9,7 +9,7 @@ import { mapRoundToFE } from '../../rounds/mappers/roundMapper';
 import { mapTrackToFE, mapTrackToBE, mapTrackDurationToBE, formatTrackDurationLabel, hasTrackDurationInput, isTrackDurationCleared, trackHasDurationOverride } from '../mappers/trackMapper';
 import { presentationService } from '../../judging/services/presentationService';
 
-const TrackManagementPage = ({ hackathonId }) => {
+const TrackManagementPage = ({ hackathonId, onUpdated }) => {
   const [tracks, setTracks] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +76,7 @@ const TrackManagementPage = ({ hackathonId }) => {
       await trackService.delete(id);
       message.success('Đã xóa bảng đấu');
       fetchData();
+      await onUpdated?.();
     } catch (error) {
       message.error(error.message || 'Không xóa được bảng đấu');
       setLoading(false);
@@ -140,6 +141,7 @@ const TrackManagementPage = ({ hackathonId }) => {
 
       setIsModalVisible(false);
       await fetchData();
+      await onUpdated?.();
     } catch (error) {
       message.error(error.message || 'Không lưu được bảng đấu');
       setLoading(false);
@@ -205,15 +207,15 @@ const TrackManagementPage = ({ hackathonId }) => {
       key: 'release',
       align: 'center',
       render: (_, record) => {
-        // Kiểm tra xem đã upload file chưa
+        const parentRound = rounds.find((r) => r.id === record.round_id || r.id === record.roundId);
+        const roundReleased = Boolean(parentRound?.problem_released_at || parentRound?.problemReleasedAt);
         const hasProblem = record.problem_statement_filename || record.problem_statement_url;
-        // Kiểm tra xem đã được phát trước đó chưa
-        const isReleased = record.is_released || record.problem_released_at;
-        
+        const isReleased = Boolean(record.is_released || record.problem_released_at || roundReleased);
+
         if (isReleased) {
           return (
-            <span style={{ color: '#16a34a', fontWeight: 600, fontSize: 13 }}>
-              ✓ Đã phát
+            <span style={{ color: '#64748b', fontWeight: 600, fontSize: 13 }}>
+              ✓ Đã phát đề
             </span>
           );
         }

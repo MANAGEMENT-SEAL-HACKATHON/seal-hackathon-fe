@@ -36,6 +36,10 @@ export const roundService = {
     return axiosClient.patch(`/api/v1/rounds/${id}/lock-scoring`, payload);
   },
 
+  unlockScoring: async (id, payload) => {
+    return axiosClient.patch(`/api/v1/rounds/${id}/unlock-scoring`, payload);
+  },
+
   releaseProblem: async (id, file) => {
     if (file) {
       const formData = new FormData();

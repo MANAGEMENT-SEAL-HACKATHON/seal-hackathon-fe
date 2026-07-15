@@ -1,141 +1,118 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Space, Tag, Upload, message } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, EyeOutlined } from '@ant-design/icons';
+import { Alert, Tag } from 'antd';
+import { CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { roundService } from '../services/roundService';
+import { trackService } from '../../tracks/services/trackService';
 import { mapRoundToFE } from '../mappers/roundMapper';
+import { mapTrackToFE } from '../../tracks/mappers/trackMapper';
 
-const hasRoundProblem = (round) =>
-  Boolean(round?.problem_statement_filename || round?.problem_statement_url);
-
+/**
+ * CK không upload PDF riêng — tái dùng đề PDF của các bảng đấu sơ loại.
+ * Checklist chỉ xác nhận sẵn sàng phát (flip problemReleasedAt).
+ */
 const FinalReleaseChecklist = ({ roundId, onReadyChange }) => {
   const [round, setRound] = useState(null);
+  const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [viewing, setViewing] = useState(false);
 
-  const loadRound = useCallback(async () => {
+  const loadData = useCallback(async () => {
     if (!roundId) return;
     setLoading(true);
     try {
       const res = await roundService.getById(roundId);
-      setRound(mapRoundToFE(res));
-    } catch (error) {
-      message.error(error?.message || 'Không tải được thông tin vòng Chung kết');
+      const mapped = mapRoundToFE(res);
+      setRound(mapped);
+      const hackathonId = mapped?.hackathon_id ?? mapped?.hackathonId;
+      if (hackathonId) {
+        const trackList = await trackService.listByHackathon(hackathonId);
+        const items = Array.isArray(trackList) ? trackList : trackList?.items || [];
+        setTracks(items.map(mapTrackToFE).filter((t) => !t.is_final));
+      } else {
+        setTracks([]);
+      }
+    } catch {
       setRound(null);
+      setTracks([]);
     } finally {
       setLoading(false);
     }
   }, [roundId]);
 
   useEffect(() => {
-    loadRound();
-  }, [loadRound]);
+    loadData();
+  }, [loadData]);
 
-  const isReady = useMemo(() => hasRoundProblem(round), [round]);
+  const tracksWithPdf = useMemo(
+    () =>
+      tracks.filter(
+        (t) => t.problem_statement_filename || t.problem_statement_url || t.problemStatementFilename,
+      ),
+    [tracks],
+  );
+
+  const isReady = tracks.length > 0 && tracksWithPdf.length === tracks.length;
 
   useEffect(() => {
     onReadyChange?.(isReady);
   }, [isReady, onReadyChange]);
 
-  const handleViewPdf = async () => {
-    setViewing(true);
-    try {
-      const blob = await roundService.getProblemStatement(roundId);
-      const fileUrl = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-      const opened = window.open(fileUrl, '_blank', 'noopener,noreferrer');
-      if (!opened) {
-        URL.revokeObjectURL(fileUrl);
-        message.warning('Trình duyệt chặn popup — hãy cho phép để xem PDF.');
-      }
-    } catch {
-      message.error('Không mở được file đề bài.');
-    } finally {
-      setViewing(false);
-    }
-  };
-
-  const handleReplacePdf = async (file) => {
-    if (!file) return Upload.LIST_IGNORE;
-    setUploading(true);
-    try {
-      await roundService.uploadProblemStatement(roundId, file);
-      message.success('Đã cập nhật đề bài Chung kết.');
-      await loadRound();
-    } catch (error) {
-      message.error(error?.message || 'Không upload được đề bài.');
-    } finally {
-      setUploading(false);
-    }
-    return Upload.LIST_IGNORE;
-  };
-
   return (
     <div>
       <Alert
-        type="warning"
+        type="info"
         showIcon
+        icon={<InfoCircleOutlined />}
         style={{ marginBottom: 12 }}
-        message="Nguyên tắc vàng"
+        message="Chung kết sử dụng lại đề sơ loại"
         description={
           <span style={{ fontSize: 13 }}>
-            Chỉ phát đề sau khi vòng đã <strong>kích hoạt</strong>. Sau khi bấm «Phát đề», thao tác{' '}
-            <strong>one-way</strong> — không đổi file đề Chung kết nữa. Chỉ đội đã vào Chung kết mới tải được đề.
+            Không upload đề PDF riêng cho vòng Chung kết. Mỗi đội tiếp tục làm đề của{' '}
+            <strong>bảng đấu sơ loại</strong> đã phân (ví dụ Train AI / RAG AI). Bấm «Phát đề» chỉ mở quyền
+            tải đề cho đội đã vào CK.
           </span>
         }
       />
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-          padding: '12px 0',
-          borderBottom: '1px solid #f0f0f0',
-        }}
-      >
-        <div>
-          <strong>{round?.name || 'Vòng Chung kết'}</strong>
-          <div style={{ marginTop: 8 }}>
-            {!loading && hasRoundProblem(round) ? (
-              <Tag color="success" icon={<CheckCircleOutlined />}>
-                {round.problem_statement_filename || 'Đã có PDF'}
-              </Tag>
-            ) : (
-              <Tag color="error" icon={<CloseCircleOutlined />}>
-                Chưa upload
-              </Tag>
-            )}
-          </div>
-        </div>
-        <Space wrap>
-          {hasRoundProblem(round) && (
-            <Button size="small" icon={<EyeOutlined />} loading={viewing} onClick={handleViewPdf}>
-              Xem
-            </Button>
+      <div style={{ padding: '8px 0' }}>
+        <strong>{round?.name || 'Vòng Chung kết'}</strong>
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {loading && <Tag>Đang tải bảng đấu…</Tag>}
+          {!loading && tracks.length === 0 && (
+            <Tag color="warning">Chưa tìm thấy bảng đấu sơ loại</Tag>
           )}
-          <Upload
-            accept="application/pdf,.pdf"
-            showUploadList={false}
-            beforeUpload={(file) => handleReplacePdf(file)}
-          >
-            <Button size="small" loading={uploading}>
-              {hasRoundProblem(round) ? 'Đổi PDF' : 'Upload PDF'}
-            </Button>
-          </Upload>
-        </Space>
+          {!loading &&
+            tracks.map((t) => {
+              const hasPdf = Boolean(
+                t.problem_statement_filename || t.problem_statement_url || t.problemStatementFilename,
+              );
+              return (
+                <div
+                  key={t.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <span>{t.name || `Track #${t.id}`}</span>
+                  {hasPdf ? (
+                    <Tag color="success" icon={<CheckCircleOutlined />}>
+                      {t.problem_statement_filename || 'Có PDF'}
+                    </Tag>
+                  ) : (
+                    <Tag color="error">Thiếu PDF</Tag>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+        {!loading && isReady && (
+          <Tag color="success" icon={<CheckCircleOutlined />} style={{ marginTop: 12 }}>
+            Sẵn sàng phát đề (tái dùng PDF sơ loại)
+          </Tag>
+        )}
       </div>
-
-      {!loading && !isReady && (
-        <Alert
-          type="error"
-          showIcon
-          style={{ marginTop: 12 }}
-          message="Chưa có đề bài"
-          description="Upload PDF đề Chung kết trước khi phát cho sinh viên."
-        />
-      )}
     </div>
   );
 };

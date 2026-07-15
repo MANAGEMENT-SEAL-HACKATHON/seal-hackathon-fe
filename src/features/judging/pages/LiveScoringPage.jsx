@@ -181,7 +181,10 @@ const LiveScoringPage = () => {
           {/* CỘT 2: KHÔNG GIAN CHẤM ĐIỂM (WORKSPACE) */}
           <Col xs={24} lg={12}>
              <div style={{ borderRadius: 20, paddingBottom: 24 }}>
-               <JudgeScoringWorkspace logic={scoringLogic} />
+               <JudgeScoringWorkspace
+                 key={scoringLogic.selectedSubmissionId ?? 'empty'}
+                 logic={scoringLogic}
+               />
              </div>
           </Col>
 

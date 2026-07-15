@@ -166,8 +166,10 @@ export const useRoundResults = (roundId) => {
   );
 
   const wildcardDecisionsReady = useMemo(() => {
+    const slots = Number(wildcard.config?.availableSlots ?? 0);
     const pool = wildcard.items;
-    if (pool.length === 0 || !wildcard.config.roundEnabled) return true;
+    // Runtime hết ghế (kể cả DB wildcardEnabled=true) → không bắt duyệt WC
+    if (slots <= 0 || pool.length === 0 || !wildcard.config.roundEnabled) return true;
     return Boolean(
       wildcard.decisionsFinalized ??
         wildcard.config?.decisionsFinalized ??
@@ -175,6 +177,11 @@ export const useRoundResults = (roundId) => {
           (item) => item.coordinatorApproved === true || item.coordinatorApproved === false,
         ),
     );
+  }, [wildcard]);
+
+  const showWildcardTab = useMemo(() => {
+    const slots = Number(wildcard.config?.availableSlots ?? 0);
+    return Boolean(wildcard.config?.roundEnabled) && slots > 0;
   }, [wildcard]);
 
   const advancePreview = useMemo(() => {
@@ -250,7 +257,9 @@ export const useRoundResults = (roundId) => {
     if (!isPublished) return "Cần công bố kết quả trước khi chốt chuyển vòng.";
     if (hasAdvanced) return "Danh sách chuyển vòng đã được chốt.";
     if (!wildcardDecisionsReady) return "Cần duyệt xong Wild Card trước khi chốt chuyển vòng.";
-    if (hasUnresolvedTiebreak) return "Còn tiebreak chưa phân xử — mở tab Tiebreak.";
+    if (hasUnresolvedTiebreak) {
+      return "Có các đội đồng điểm tại ranh giới đi tiếp. Vui lòng giải quyết Tiebreak.";
+    }
     if (errors.ranking) return "Chưa tải được bảng xếp hạng.";
     return "";
   }, [scoringLocked, isPublished, hasAdvanced, wildcardDecisionsReady, hasUnresolvedTiebreak, errors.ranking]);
@@ -306,6 +315,7 @@ export const useRoundResults = (roundId) => {
     ranking,
     tiebreaks,
     wildcard,
+    showWildcardTab,
     round,
     errors,
     isLoading,

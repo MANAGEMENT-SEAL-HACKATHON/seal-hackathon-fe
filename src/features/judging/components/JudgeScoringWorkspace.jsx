@@ -163,6 +163,13 @@ const JudgeScoringWorkspace = ({ logic }) => {
       }}
       styles={{ body: { padding: '24px 32px' } }}
     >
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Chấm tuyệt đối theo rubric"
+        description="Nếu có đội chèn cuối (nộp trễ đã duyệt), giữ chuẩn tiêu chí cố định — không so sánh tương đối với đội trước."
+      />
       {isCalibration && (
         <Alert
           type="info"
@@ -296,7 +303,7 @@ const JudgeScoringWorkspace = ({ logic }) => {
                   min={0}
                   max={10}
                   step={0.1}
-                  value={currentScores[c.id] || 0}
+                  value={currentScores[c.id] ?? null}
                   onChange={(v) => handleScoreChange(c.id, v)}
                   style={{ width: 80, fontSize: 18, fontWeight: 800, borderRadius: 6 }}
                   size="large"
@@ -309,7 +316,7 @@ const JudgeScoringWorkspace = ({ logic }) => {
               min={0}
               max={10}
               step={0.1}
-              value={currentScores[c.id] || 0}
+              value={currentScores[c.id] ?? 0}
               onChange={(v) => handleScoreChange(c.id, v)}
               trackStyle={{
                 background: hasScoredCurrentTeam ? '#94a3b8' : '#2563eb',

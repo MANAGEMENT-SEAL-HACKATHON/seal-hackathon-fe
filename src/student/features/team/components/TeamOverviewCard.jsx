@@ -5,12 +5,15 @@
  * - Tối ưu khoảng cách và chiều cao dải banner, giữ trọn nét sang trọng nhưng không tốn diện tích màn hình.
  * - Biểu tượng Cúp Vàng 3D và nút Xác nhận đội hình được căn chỉnh súc tích, đẳng cấp.
  */
-import { Button, Modal, Progress, Space, Tag, Typography, message, theme, Row, Col } from 'antd';
+import { useEffect, useState } from 'react';
+import { Button, Modal, Progress, Space, Tag, Typography, message, theme, Row, Col, Spin } from 'antd';
 import { CheckCircleOutlined, LockOutlined, UnlockOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { Trophy, Shield, Flame, Sparkles, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getStudentTeamErrorMessage } from '../constants/studentTeam.constants';
+import { teamService } from '../../../../features/teams/services/teamService';
+import { studentResultsService } from '../../results/services/studentResults.service';
 
 const { Text, Title } = Typography;
 
@@ -26,6 +29,67 @@ const FPT = {
 const TeamOverviewCard = ({ team, onConfirmFormation, actionLoading = false }) => {
   const { token } = theme.useToken();
   const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
+  const [teamResult, setTeamResult] = useState(null);
+  const [isPublished, setIsPublished] = useState(false);
+  const [isLoadingScores, setIsLoadingScores] = useState(false);
+
+  useEffect(() => {
+    if (!team?.id) {
+      setTeamResult(null);
+      setIsPublished(false);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      setIsLoadingScores(true);
+      try {
+        const journey = await teamService.getJourney(team.id);
+        const steps = Array.isArray(journey?.steps) ? journey.steps : [];
+        const prelim =
+          steps.find((s) => {
+            const name = String(s.roundName || s.round_name || '');
+            return !/chung\s*kết|final/i.test(name);
+          }) || steps[0];
+        const prelimRoundId = prelim?.roundId ?? prelim?.round_id;
+        if (!prelimRoundId) return;
+
+        const board = await studentResultsService.getRoundLeaderboard(prelimRoundId);
+        if (cancelled) return;
+        const items = board?.items || [];
+        const totalTeams = items.length;
+        let mine = items.find((item) => Number(item.teamId) === Number(team.id));
+        if (!mine && items.length) {
+          const sorted = [...items].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+          const idx = sorted.findIndex((item) => Number(item.teamId) === Number(team.id));
+          if (idx >= 0) {
+            mine = { ...sorted[idx], rank: idx + 1 };
+          }
+        }
+        if (mine) {
+          setIsPublished(true);
+          setTeamResult({
+            score: mine.score ?? mine.totalScore,
+            rank: mine.rank,
+            totalTeams,
+          });
+        } else {
+          // Leaderboard mở (published) nhưng đội chưa có dòng — vẫn đánh dấu published cho banner chờ chốt
+          setIsPublished(totalTeams > 0 || Boolean(board));
+          setTeamResult(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setIsPublished(false);
+          setTeamResult(null);
+        }
+      } finally {
+        if (!cancelled) setIsLoadingScores(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [team?.id]);
 
   if (!team) return null;
 
@@ -287,9 +351,12 @@ const TeamOverviewCard = ({ team, onConfirmFormation, actionLoading = false }) =
         </Col>
       </Row>
 
-      {/* Status Banners & Notifications (Placed at bottom for sleek visual hierarchy) */}
-      {(team.isAdvanced || team.isEliminatedFromFinal || team.isInFormationGracePeriod || team.rejectionReason) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20, paddingTop: 18, borderTop: '1px solid rgba(255, 255, 255, 0.12)' }}>
+      {(team.isAdvanced ||
+        team.isEliminatedFromFinal ||
+        isPublished ||
+        team.isInFormationGracePeriod ||
+        team.rejectionReason) && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20, paddingTop: 18, borderTop: '1px solid rgba(255, 255, 255, 0.12)' }}>
           {team.isAdvanced && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -324,7 +391,7 @@ const TeamOverviewCard = ({ team, onConfirmFormation, actionLoading = false }) =
               </div>
               <div>
                 <Text style={{ color: '#6EE7B7', fontWeight: 900, fontSize: 16, display: 'block', letterSpacing: '0.01em' }}>
-                  Chúc mừng — Đội vào Vòng Chung kết! 🏆
+                  Chúc mừng! Đội của bạn đã lọt vào vòng Chung kết.
                 </Text>
                 <Text style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: 13, marginTop: 2, display: 'block', fontWeight: 500 }}>
                   Đội của bạn đã xuất sắc vượt qua vòng Sơ loại để chính thức bước vào vòng tranh tài Chung kết.
@@ -333,7 +400,7 @@ const TeamOverviewCard = ({ team, onConfirmFormation, actionLoading = false }) =
             </motion.div>
           )}
 
-          {team.isEliminatedFromFinal && (
+          {!team.isAdvanced && team.isEliminatedFromFinal && (
             <div
               style={{
                 padding: '14px 18px',
@@ -348,12 +415,72 @@ const TeamOverviewCard = ({ team, onConfirmFormation, actionLoading = false }) =
               <div style={{ fontSize: 22 }}>🛑</div>
               <div>
                 <Text style={{ color: '#FCA5A5', fontWeight: 800, fontSize: 15, display: 'block' }}>
-                  Đội đã dừng bước tại Vòng Sơ loại
+                  Rất tiếc, đội của bạn đã dừng chân tại vòng Sơ loại.
                 </Text>
                 <Text style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: 13, marginTop: 2, display: 'block' }}>
                   Đội của bạn không được chọn vào Vòng Chung kết. Cảm ơn bạn đã tham gia giải đấu!
                 </Text>
               </div>
+            </div>
+          )}
+
+          {!team.isAdvanced && !team.isEliminatedFromFinal && isPublished && (
+            <div
+              style={{
+                padding: '14px 18px',
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.22) 0%, rgba(202, 138, 4, 0.28) 100%)',
+                border: '1px solid rgba(250, 204, 21, 0.45)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+              }}
+            >
+              <ClockCircleOutlined style={{ fontSize: 22, color: '#FDE68A' }} />
+              <div>
+                <Text style={{ color: '#FDE68A', fontWeight: 800, fontSize: 15, display: 'block' }}>
+                  Đã có điểm vòng sơ loại — Chờ BTC chốt danh sách đi tiếp.
+                </Text>
+                <Text style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: 13, marginTop: 2, display: 'block' }}>
+                  Điểm đã công bố. Danh sách đội vào Chung kết sẽ hiện sau khi Ban tổ chức chốt chuyển vòng.
+                </Text>
+              </div>
+            </div>
+          )}
+
+          {isPublished && (
+            <div
+              style={{
+                padding: '14px 18px',
+                borderRadius: 14,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+              }}
+            >
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+                Kết quả vòng sơ loại
+              </Text>
+              {isLoadingScores ? (
+                <Spin size="small" tip="Đang tải kết quả..." />
+              ) : teamResult ? (
+                <Space size={32}>
+                  <div>
+                    <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, display: 'block' }}>Điểm đội</Text>
+                    <Text style={{ color: '#93C5FD', fontWeight: 900, fontSize: 24 }}>{teamResult.score}</Text>
+                  </div>
+                  <div>
+                    <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, display: 'block' }}>Hạng</Text>
+                    <Text style={{ color: '#fff', fontWeight: 900, fontSize: 24 }}>
+                      {teamResult.rank}
+                      <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, fontWeight: 500 }}>
+                        {' '}/ {teamResult.totalTeams}
+                      </Text>
+                    </Text>
+                  </div>
+                </Space>
+              ) : (
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Đã công bố bảng xếp hạng.</Text>
+              )}
             </div>
           )}
 

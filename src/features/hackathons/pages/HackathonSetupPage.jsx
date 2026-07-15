@@ -73,13 +73,32 @@ const HackathonSetupPage = () => {
     setSearchParams(nextParams, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const refreshHackathon = useCallback(async () => {
+  const refreshSetupSnapshot = useCallback(async () => {
     try {
-      const hackData = await hackathonService.getById(hackathonId);
+      const [hackData, roundsData, tracksData, eventsData] = await Promise.all([
+        hackathonService.getById(hackathonId),
+        roundService.listByHackathon(hackathonId),
+        trackService.listByHackathon(hackathonId),
+        eventService.listByHackathon(hackathonId),
+      ]);
+
+      const fullRounds = await Promise.all(
+        (roundsData || []).map(async (r) => {
+          try {
+            const detail = await roundService.getById(r.id);
+            return mapRoundToFE(detail);
+          } catch (_e) {
+            return mapRoundToFE(r);
+          }
+        }),
+      );
+
+      // Background refresh — không setLoading(true) để tránh nháy trắng trang
       setHackathon(mapHackathonToFE(hackData));
-      
-      // TỰ ĐỘNG CẬP NHẬT 2: Khi các Component con báo "Lưu thành công", Checklist tự động cập nhật
-      refetchReadiness(); 
+      setRounds(fullRounds);
+      setTracksCount(Array.isArray(tracksData) ? tracksData.length : 0);
+      setEventsCount(Array.isArray(eventsData) ? eventsData.length : 0);
+      refetchReadiness();
     } catch {
       // no-op
     }
@@ -149,7 +168,7 @@ const HackathonSetupPage = () => {
       children: (
         <HackathonGeneralConfig
           hackathon={hackathon}
-          onUpdated={refreshHackathon}
+          onUpdated={refreshSetupSnapshot}
           onGoToLottery={() => changeTab('lottery')}
         />
       ),
@@ -161,39 +180,39 @@ const HackathonSetupPage = () => {
         <RoundManagementPage
           hackathonId={hackathon.id}
           hackathon={hackathon}
-          onHackathonSync={refreshHackathon}
+          onHackathonSync={refreshSetupSnapshot}
         />
       ),
     },
     {
       key: 'tracks',
       label: 'Bảng đấu',
-      children: <TrackManagementPage hackathonId={hackathon.id} onUpdated={refreshHackathon} />,
+      children: <TrackManagementPage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} />,
     },
     {
       key: 'lottery',
       label: 'Bốc thăm & khai mạc',
-      children: <LotteryManagementPage hackathonId={hackathon.id} />,
+      children: <LotteryManagementPage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} />,
     },
     {
       key: 'criteria',
       label: 'Tiêu chí đánh giá',
-      children: <CriteriaManagementPage hackathonId={hackathon.id} onUpdated={refreshHackathon} />, 
+      children: <CriteriaManagementPage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} />, 
     },
     {
       key: 'people',
       label: 'Nhân sự',
-      children: <PeopleManagementPage hackathonId={hackathon.id} onUpdated={refreshHackathon} />,
+      children: <PeopleManagementPage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} />,
     },
     {
       key: 'events',
       label: 'Lịch trình & Sự kiện',
-      children: <EventManagementPage hackathonId={hackathon.id} onUpdated={refreshHackathon} />,
+      children: <EventManagementPage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} />,
     },
     {
       key: 'review',
       label: 'Đánh giá & Kiểm tra',
-      children: activeTab === 'review' ? <ReviewValidatePage hackathonId={hackathon.id} onUpdated={refreshHackathon} /> : null, 
+      children: activeTab === 'review' ? <ReviewValidatePage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} /> : null, 
     },
     {
       key: 'analytics',
@@ -283,7 +302,12 @@ const HackathonSetupPage = () => {
           </Card>
           
           {/* Logic render bên ngoài Tabs của nhánh bạn */}
-          {activeTab === 'final-config' && <FinalRoundConfigPage hackathonId={hackathon.id} />}
+          {activeTab === 'final-config' && (
+            <FinalRoundConfigPage
+              hackathonId={hackathon.id}
+              onUpdated={refreshSetupSnapshot}
+            />
+          )}
         </Col>
 
       </Row>

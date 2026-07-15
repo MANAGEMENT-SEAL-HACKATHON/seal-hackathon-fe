@@ -23,7 +23,7 @@ const { Title, Paragraph } = Typography;
 const { useToken } = theme;
 
 // === PAGE: TRANG REVIEW VÀ VALIDATE ĐIỀU KIỆN KÍCH HOẠT ===
-const ReviewValidatePage = ({ hackathonId: propHackathonId }) => {
+const ReviewValidatePage = ({ hackathonId: propHackathonId, onUpdated }) => {
   const navigate = useNavigate();
   const params = useParams();
   const { token } = useToken();
@@ -43,6 +43,7 @@ const ReviewValidatePage = ({ hackathonId: propHackathonId }) => {
     try {
       await reviewService.changeStatus(hId, 'ONGOING', 'Mở đăng ký');
       message.success('Đã mở đăng ký — kỳ thi đang ở trạng thái ONGOING.');
+      if (typeof onUpdated === 'function') await onUpdated();
       navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hId)), { replace: true });
     } catch (error) {
       message.error(error.message || "Không thể kích hoạt giải đấu");

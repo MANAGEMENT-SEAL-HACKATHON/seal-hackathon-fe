@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Typography, Spin, Alert, Segmented, Card, Row, Col, Button, Tag, Space, Divider, Modal, Form, InputNumber, Checkbox } from 'antd';
+import { Typography, Spin, Alert, Segmented, Card, Row, Col, Button, Tag, Space, Divider, Modal, Form, InputNumber, Checkbox, Tooltip } from 'antd';
 import { 
   RetweetOutlined, CheckCircleFilled, 
   ClockCircleOutlined, TrophyOutlined, AppstoreOutlined, ArrowLeftOutlined,
@@ -33,6 +33,8 @@ import {
   getEligibleTeamStatusLabel,
   getFinalParticipationCounts,
 } from '../utils/presentationQueueUtils';
+import { canShuffleQueue as canShuffleQueueGate, getShuffleQueueTooltip, isSubmissionClosed } from '../../rounds/utils/roundLifecycleGates';
+import { useServerNow } from '../../../shared/hooks/useServerNow';
 
 const { Title, Text } = Typography;
 
@@ -195,6 +197,7 @@ const DurationSettingsModal = ({ visible, onClose, roundId, trackId, isFinalRoun
 // ==========================================
 const PresentationQueuePage: React.FC = () => {
   const navigate = useNavigate();
+  const { serverNow } = useServerNow();
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
   const userRole = String(userInfo.role || '').toUpperCase();
   const isCoordinator = ['COORDINATOR', 'ADMIN'].includes(userRole);
@@ -297,6 +300,8 @@ const PresentationQueuePage: React.FC = () => {
 
   // ── BÓC TÁCH DỮ LIỆU ──
   const scoringLocked = Boolean(roundDetail?.scoringLocked || roundDetail?.scoring_locked);
+  const canShuffleQueue = canShuffleQueueGate(roundDetail, serverNow);
+  const shuffleDisabledTooltip = getShuffleQueueTooltip(roundDetail, serverNow);
   const hackathonName = hackathonDetail?.name || hackathonDetail?.title || 'SEAL Hackathon'; 
   const roundName = roundDetail?.name || (isFinalRound ? 'Vòng Chung Kết' : 'Vòng Sơ Loại');
 
@@ -570,14 +575,42 @@ const PresentationQueuePage: React.FC = () => {
                     </div>
                   </div>
                 )}
-                <LotteryAnimation isRolling={isRolling} onComplete={() => { setIsRolling(false); shuffleMutation.mutate(); }} totalTeams={totalTeamsToRoll} />
+                <LotteryAnimation
+                  isRolling={isRolling}
+                  onComplete={() => {
+                    setIsRolling(false);
+                    if (canShuffleQueue) shuffleMutation.mutate();
+                  }}
+                  totalTeams={totalTeamsToRoll}
+                />
                 <div style={{ textAlign: 'center', marginTop: 32 }}>
-                  <Button type="primary" size="large" icon={<RetweetOutlined />} loading={isRolling || shuffleMutation.isPending} 
-                    onClick={() => setIsRolling(true)} 
-                    style={{ height: 64, padding: '0 40px', borderRadius: 16, fontSize: 18, fontWeight: 900, background: PRIMARY_BLUE, boxShadow: `0 12px 24px ${PRIMARY_BLUE}40` }}
-                  >
-                    {isRolling ? 'Hệ thống đang thả bóng...' : 'Khởi Động Máy Quay Số'}
-                  </Button>
+                  <Tooltip title={canShuffleQueue ? undefined : shuffleDisabledTooltip}>
+                    <span>
+                      <Button
+                        type="primary"
+                        size="large"
+                        icon={<RetweetOutlined />}
+                        loading={isRolling || shuffleMutation.isPending}
+                        disabled={!canShuffleQueue}
+                        onClick={() => {
+                          if (!canShuffleQueue) return;
+                          setIsRolling(true);
+                        }}
+                        style={{
+                          height: 64,
+                          padding: '0 40px',
+                          borderRadius: 16,
+                          fontSize: 18,
+                          fontWeight: 900,
+                          background: PRIMARY_BLUE,
+                          boxShadow: `0 12px 24px ${PRIMARY_BLUE}40`,
+                          opacity: canShuffleQueue ? 1 : 0.55,
+                        }}
+                      >
+                        {isRolling ? 'Hệ thống đang thả bóng...' : 'Khởi Động Máy Quay Số'}
+                      </Button>
+                    </span>
+                  </Tooltip>
                 </div>
               </div>
             ) : (
@@ -659,6 +692,8 @@ const PresentationQueuePage: React.FC = () => {
               roundId={roundId as any}
               isFinalRound
               canReviewLate={false}
+              latePolicy="HARD_LOCK"
+              windowClosed
               eligibleTeams={finalEligibleTeams}
               participatingCount={totalParticipatingCount}
               gradableCount={gradableTeamCount}
@@ -669,7 +704,10 @@ const PresentationQueuePage: React.FC = () => {
           {isCoordinator && roundId && !isFinalRound && (
              <PresentationReadinessPanel 
                 roundId={roundId as any} trackId={selectedTrackId as any} trackName={activeTrackData?.trackName} 
-                canReviewLate={true} onReviewSuccess={() => refetchQueue()} 
+                canReviewLate={true}
+                latePolicy={roundDetail?.lateSubmissionPolicy || roundDetail?.late_submission_policy || 'ALLOW_LATE_PENDING'}
+                windowClosed={isSubmissionClosed(roundDetail, serverNow)}
+                onReviewSuccess={() => refetchQueue()} 
              />
           )}
         </Col>

@@ -145,6 +145,8 @@ export const ENDPOINTS = {
     DURATION: '/api/v1/presentation/duration',
     TRACK_CONTROLLER: (trackId) => `/api/v1/presentation/tracks/${trackId}/controller`,
     ROUND_CONTROLLER: (roundId) => `/api/v1/presentation/rounds/${roundId}/controller`,
+    CONTROLLER_HEARTBEAT: '/api/v1/presentation/controller/heartbeat',
+    QUEUE_SKIP: '/api/v1/presentation/queue/skip',
   },
   CALIBRATION: {
     BASE: '/api/v1/calibration-sessions',

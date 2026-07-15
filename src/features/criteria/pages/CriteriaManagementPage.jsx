@@ -34,7 +34,7 @@ import { CriteriaCloneModal } from "../components/CriteriaCloneModal";
 import { CriteriaBatchModal } from "../components/CriteriaBatchModal";
 import { STANDARD_SYSTEM_CRITERIA } from "../constants/standardCriteria";
 
-const CriteriaManagementPage = ({ hackathonId }) => {
+const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isCloneVisible, setIsCloneVisible] = useState(false);
   const [isBatchVisible, setIsBatchVisible] = useState(false);
@@ -62,7 +62,7 @@ const CriteriaManagementPage = ({ hackathonId }) => {
     handleApplyStandardCriteria,
     deleteCriteria,
     updateRound,
-  } = useCriteriaManagement(hackathonId);
+  } = useCriteriaManagement(hackathonId, onUpdated);
 
   const filteredCriteria = useMemo(() => {
     return currentCriteria.filter(

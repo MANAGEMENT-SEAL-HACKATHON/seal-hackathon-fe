@@ -14,6 +14,16 @@ export const ROUND_ERROR_MESSAGES = {
   ROUND_NOT_ACTIVE: 'Vòng thi chưa được kích hoạt',
   SUBMISSION_ALREADY_CLOSED: 'Vòng thi đã khóa sổ, không thể nộp bài hay chỉnh sửa điểm.',
   INVALID_STATE: 'Trạng thái vòng thi không cho phép thao tác này',
+  INVALID_ROUND_STATE_UNRELEASED: 'Vòng thi chưa phát đề, không thể kết thúc sớm!',
+  INVALID_ROUND_STATE_BEFORE_EXAM: 'Chưa đến giờ thi (đang thời gian chờ setup).',
+  INVALID_ROUND_STATE_NOT_CLOSED:
+    'Chưa đóng vòng thi (chưa hết giờ hoặc chưa kết thúc sớm), không thể khóa chấm!',
+  INVALID_ROUND_STATE_QUEUE_NOT_SHUFFLED:
+    'Chưa xáo trộn hàng đợi thuyết trình, không thể khóa chấm!',
+  INVALID_ROUND_STATE_PRESENTATIONS_INCOMPLETE:
+    'Chưa hoàn tất thuyết trình (còn đội WAITING/PRESENTING), không thể khóa chấm!',
+  INVALID_ROUND_STATE_SCORING_INCOMPLETE:
+    'Còn bài chưa được chấm điểm, không thể khóa chấm!',
   SCORING_NOT_OPEN:
     'Chưa thể chấm điểm. Đội thi chưa lên bục trình bày (Chờ Điều phối viên khởi động).',
   ACTIVE_TEAMS_NOT_LOCKED: 'Vui lòng khóa danh sách đội thi trước khi thực hiện thao tác này.',

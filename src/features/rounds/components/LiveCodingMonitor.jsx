@@ -287,7 +287,16 @@ const LiveCodingMonitor = ({ activeRound }) => {
                 marginBottom: 6,
               }}
             >
-              MÀN HÌNH PHÁT ĐỀ BÀI (LIVE CODING)
+              {status === 'WAITING'
+                ? 'MÀN HÌNH CHỜ SETUP (WAITING)'
+                : status === 'ONGOING' &&
+                    !(activeRound?.problem_released_at || activeRound?.problemReleasedAt)
+                  ? 'MÀN HÌNH PHÁT ĐỀ BÀI (LIVE CODING)'
+                  : status === 'ONGOING'
+                    ? 'MÀN HÌNH LIVE CODING'
+                    : status === 'ENDED'
+                      ? 'MÀN HÌNH HẾT HẠN NỘP'
+                      : 'MÀN HÌNH VÒNG THI'}
             </div>
 
             <Title

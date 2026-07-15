@@ -9,8 +9,8 @@ const { TextArea } = Input;
 const WildcardPanel = ({ wildcard, error, decidingReviewId, onDecide, readOnly = false }) => {
   const [decision, setDecision] = useState(null);
   const [note, setNote] = useState("");
-  const enabled = wildcard.config.hackathonEnabled && wildcard.config.roundEnabled;
   const slots = wildcard.config.availableSlots ?? 0;
+  const enabled = Boolean(wildcard.config.roundEnabled) && slots > 0;
   const approvedCount =
     wildcard.config.approvedCount ??
     wildcard.items.filter((item) => item.coordinatorApproved === true).length;
@@ -52,14 +52,11 @@ const WildcardPanel = ({ wildcard, error, decidingReviewId, onDecide, readOnly =
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
       <Space wrap style={{ marginBottom: 4 }}>
-        <Tag color={wildcard.config.hackathonEnabled ? "success" : "default"} style={{ fontWeight: 500, padding: '2px 10px' }}>
-          Global: {wildcard.config.hackathonEnabled ? "Đã bật" : "Đang tắt"}
-        </Tag>
         <Tag color={wildcard.config.roundEnabled ? "success" : "default"} style={{ fontWeight: 500, padding: '2px 10px' }}>
           Round: {wildcard.config.roundEnabled ? "Đã bật" : "Đang tắt"}
         </Tag>
         <Tag color="blue" bordered={false} style={{ fontWeight: 600, padding: '2px 10px' }}>
-          {wildcard.config.availableSlots} suất vé vớt
+          {slots} suất vé vớt
         </Tag>
       </Space>
 
@@ -73,26 +70,26 @@ const WildcardPanel = ({ wildcard, error, decidingReviewId, onDecide, readOnly =
               : enabled
                 ? tiedAtCutoff
                   ? `Đồng điểm vé vớt — chọn ${slots} đội (đã duyệt ${approvedCount}/${slots})`
-                  : "Wild Card đang khả dụng"
-                : "Chưa thể xét Wild Card"}
+                  : "Vé vớt — chọn đội vào ghế trống"
+                : "Chưa thể xét vé vớt"}
           </Text>
         }
         description={
           <Text type="secondary">
             {poolFinalized
-              ? "Mỗi đội chỉ được quyết định một lần. Các đội còn lại đã tự động từ chối khi đủ suất."
+              ? "Mỗi đội chỉ được quyết định một lần. Đội được duyệt mang trạng thái WILDCARD_APPROVED (chưa ADVANCED) cho tới khi Chốt chuyển vòng."
               : enabled
                 ? tiedAtCutoff
                   ? "Duyệt đủ số suất — hệ thống tự từ chối các đội còn lại. Không thể đổi quyết định sau khi chốt."
                   : "Hệ thống so sánh chéo điểm các đội ngoài Top N mỗi bảng để đề xuất bù suất Chung kết."
-                : "Bật Vé vớt ở cấp Hackathon và Vòng Sơ loại để duyệt / từ chối đề xuất."}
+                : "Bật Wildcard trên Vòng Sơ loại và đảm bảo còn ghế (minTeamsFinal − topN × số bảng > 0)."}
           </Text>
         }
         style={{ borderRadius: 8 }}
       />
 
       <Card 
-        title={<Space><StarOutlined style={{ color: '#faad14' }} /><Text strong style={{ fontSize: 16 }}>Đề xuất Wild Card cross-bảng</Text></Space>}
+        title={<Space><StarOutlined style={{ color: '#faad14' }} /><Text strong style={{ fontSize: 16 }}>Đề xuất vé vớt cross-bảng</Text></Space>}
         styles={{ header: { borderBottom: '1px solid #f0f0f0', padding: '16px 24px' }, body: { padding: '16px 24px' } }}
         style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}
       >
