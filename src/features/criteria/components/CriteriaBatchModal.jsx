@@ -174,7 +174,10 @@ export const CriteriaBatchModal = ({ visible, onCancel, onFinish }) => {
                       <Input placeholder="https://..." />
                     </Form.Item>
                   </Col>
-                  <Col span={5}>`n                    <Form.Item`n                      {...restField}`n                      name={[name, "description"]}
+                  <Col span={5}>
+                    <Form.Item
+                      {...restField}
+                      name={[name, "description"]}
                       rules={[{ required: true }]}
                     >
                       <Input placeholder="Mô tả..." />
