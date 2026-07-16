@@ -89,8 +89,7 @@ export const useStudentDashboard = () => {
       const nextTeams = (await studentTeamService.getMyTeams()).filter(
         (team) =>
           team.currentMember?.isAccepted &&
-          team.status !== 'REJECTED' &&
-          team.status !== 'ELIMINATED'
+          ['PENDING', 'ACTIVE'].includes(team.status),
       );
 
       let primaryHackathonId = nextTeams[0]?.hackathonId;

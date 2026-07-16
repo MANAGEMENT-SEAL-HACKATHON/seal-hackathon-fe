@@ -74,7 +74,18 @@ export const mapTeamForCoordinator = (team) => {
           status: member.status,
           statusLabel: MEMBER_STATUS_LABELS[member.status] || member.status || 'N/A',
           statusColor: MEMBER_STATUS_COLORS[member.status] || 'default',
+          userAccountStatus: member.userAccountStatus || member.user_account_status,
+          isAccountApproved:
+            (member.userAccountStatus || member.user_account_status || 'APPROVED') === 'APPROVED',
         }))
       : [],
+    hasUnapprovedMembers: Array.isArray(team.members)
+      ? team.members.some(
+          (member) =>
+            member.status === 'ACCEPTED' &&
+            (member.userAccountStatus || member.user_account_status) &&
+            (member.userAccountStatus || member.user_account_status) !== 'APPROVED',
+        )
+      : false,
   };
 };

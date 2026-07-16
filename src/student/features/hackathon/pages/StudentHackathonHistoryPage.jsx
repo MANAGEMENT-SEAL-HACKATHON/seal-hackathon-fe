@@ -1,4 +1,4 @@
-  import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Space, Tag, Typography, Skeleton, theme, Input, Segmented, Row, Col, Modal, Avatar } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -255,7 +255,7 @@ const StudentHackathonHistoryPage = () => {
                 }}
               >
                 Cuộc Thi Đã Tham Gia
-              </Title>
+          </Title>
               <Text
                 style={{
                   color: token.colorTextSecondary,
@@ -266,7 +266,7 @@ const StudentHackathonHistoryPage = () => {
                 }}
               >
                 Tra cứu toàn bộ hành trình, đội hình đồng đội và thành tích tại các mùa giải Hackathon từ trước đến nay.
-              </Text>
+          </Text>
             </div>
           </div>
 
@@ -319,15 +319,15 @@ const StudentHackathonHistoryPage = () => {
                 gap: 16,
               }}
             >
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
+                      <div
+                        style={{
+                          width: 48,
+                          height: 48,
                   borderRadius: 16,
                   background: isDark ? 'rgba(243, 112, 33, 0.25)' : 'rgba(243, 112, 33, 0.15)',
                   color: isDark ? '#FF8C42' : FPT.orange,
-                  display: 'grid',
-                  placeItems: 'center',
+                          display: 'grid',
+                          placeItems: 'center',
                 }}
               >
                 <Award size={24} />
@@ -584,12 +584,12 @@ const StudentHackathonHistoryPage = () => {
                                   }}
                                 >
                                   {hasFinalist ? <Award size={30} /> : <Trophy size={30} />}
-                                </div>
+                      </div>
 
-                                <div>
+                      <div>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                                     <h3 style={{ margin: 0, fontWeight: 900, color: '#fff', fontSize: 24, letterSpacing: '-0.02em', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
-                                      {group.hackathonName}
+                          {group.hackathonName}
                                     </h3>
                                     <span
                                       style={{
@@ -615,7 +615,7 @@ const StudentHackathonHistoryPage = () => {
 
                               {/* Status Badges inside Top Cover */}
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                {hasFinalist && (
+                            {hasFinalist && (
                                   <span
                                     style={{
                                       background: '#ffffff',
@@ -632,8 +632,8 @@ const StudentHackathonHistoryPage = () => {
                                   >
                                     🌟 Lọt vào Chung Kết
                                   </span>
-                                )}
-                                {isEliminated && !hasFinalist && (
+                            )}
+                            {isEliminated && !hasFinalist && (
                                   <span
                                     style={{
                                       background: 'rgba(239, 68, 68, 0.9)',
@@ -647,8 +647,8 @@ const StudentHackathonHistoryPage = () => {
                                   >
                                     🛑 Dừng bước Sơ loại
                                   </span>
-                                )}
-                                {!hasFinalist && !isEliminated && primary?.participationLabel && (
+                            )}
+                            {!hasFinalist && !isEliminated && primary?.participationLabel && (
                                   <Tag style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', fontWeight: 800, borderRadius: 8, padding: '4px 12px', fontSize: 12 }}>
                                     {primary.participationLabel}
                                   </Tag>
@@ -664,8 +664,8 @@ const StudentHackathonHistoryPage = () => {
                                   </Tag>
                                 )}
                               </div>
-                            </div>
-                          </div>
+                        </div>
+                      </div>
 
                           {/* 2. CARD BODY */}
                           <div style={{ padding: '28px 32px' }}>
@@ -747,7 +747,7 @@ const StudentHackathonHistoryPage = () => {
                                     <div style={{ fontSize: 18, fontWeight: 900, color: token.colorTextHeading, marginTop: 2 }}>
                                       {group.teams.length > 0 ? group.teams.map((t) => t.trackName || 'Chưa phân bảng').join(', ') : (historyRow?.trackName || historyRow?.track_name || 'Chưa phân bảng')}
                                     </div>
-                                  </div>
+                    </div>
                                 </div>
                               </Col>
                             </Row>
@@ -797,7 +797,7 @@ const StudentHackathonHistoryPage = () => {
                                   </Text>
                                 </>
                               )}
-                            </div>
+                  </div>
 
                             {/* Bottom Action Bar */}
                             <div
@@ -811,7 +811,7 @@ const StudentHackathonHistoryPage = () => {
                                 borderTop: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : '#cbd5e1'}`,
                               }}
                             >
-                              <Button
+                    <Button
                                 size="large"
                                 onClick={() => {
                                   if (primary && primary.members && primary.members.length > 0) {
@@ -833,13 +833,13 @@ const StudentHackathonHistoryPage = () => {
                                 }}
                               >
                                 {primary && primary.members && primary.members.length > 0 ? '👥 Xem hồ sơ đội hình' : '👥 Xem chi tiết đội'}
-                              </Button>
+                    </Button>
 
-                              {group.hackathonId && (
-                                <Button
+                    {group.hackathonId && (
+                      <Button
                                   size="large"
                                   icon={<Award size={18} style={{ color: '#F37021' }} />}
-                                  onClick={() => navigate(`/student/hackathons/${group.hackathonId}/results`)}
+                        onClick={() => navigate(`/student/hackathons/${group.hackathonId}/results`)}
                                   style={{
                                     borderRadius: 14,
                                     fontWeight: 800,
@@ -850,10 +850,10 @@ const StudentHackathonHistoryPage = () => {
                                     color: isDark ? '#FF8C42' : '#c2410c',
                                     boxShadow: '0 4px 14px rgba(243, 112, 33, 0.15)',
                                   }}
-                                >
-                                  Vinh danh Chung cuộc
-                                </Button>
-                              )}
+                      >
+                        Vinh danh Chung cuộc
+                      </Button>
+                    )}
 
                               <Button
                                 type="primary"
@@ -870,15 +870,15 @@ const StudentHackathonHistoryPage = () => {
                                 }}
                               >
                                 Tra cứu điểm vòng
-                              </Button>
+                    </Button>
                             </div>
                           </div>
-                        </div>
+                </div>
                       </motion.div>
-                    );
-                  })}
-                </Space>
-              )}
+            );
+          })}
+        </Space>
+      )}
             </motion.div>
           )}
         </AnimatePresence>

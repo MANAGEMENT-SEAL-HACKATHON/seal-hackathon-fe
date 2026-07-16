@@ -42,6 +42,12 @@ export const mapRoundToFE = (beData) => {
     problem_statement_url: beData.problemStatementUrl,
     problem_statement_filename: beData.problemStatementFilename,
     problem_released_at: beData.problemReleasedAt,
+    final_problem_migration_cleared_at:
+      beData.finalProblemMigrationClearedAt ?? beData.final_problem_migration_cleared_at ?? null,
+    final_problem_migration_banner_dismissed_at:
+      beData.finalProblemMigrationBannerDismissedAt
+      ?? beData.final_problem_migration_banner_dismissed_at
+      ?? null,
     top_n_advance: beData.topNAdvance,
     wildcard_enabled: beData.wildcardEnabled,
     min_teams_final: beData.minTeamsFinal,
@@ -93,7 +99,7 @@ export const mapRoundToBE = (feData) => {
       ? parseFloat(feData.coding_duration_hours)
       : null,
     wildcardEnabled: !!feData.wildcard_enabled,
-    tiebreakRule: feData.tiebreak_rule || 'PENALTY_SCORE',
+    tiebreakRule: feData.tiebreak_rule || 'COORDINATOR_DECISION',
   };
 
   if (!isFinal) {

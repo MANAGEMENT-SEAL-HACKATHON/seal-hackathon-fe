@@ -32,7 +32,11 @@ export const CriteriaBatchModal = ({ visible, onCancel, onFinish }) => {
     try {
       const values = await form.validateFields();
       if (values.items?.length > 0) {
-        onFinish(values.items);
+        const items = values.items.map((item, index) => ({
+          ...item,
+          display_order: item.display_order || index + 1,
+        }));
+        onFinish(items);
         form.resetFields();
       }
     } catch { /* validation errors shown by form */ }
@@ -84,13 +88,12 @@ export const CriteriaBatchModal = ({ visible, onCancel, onFinish }) => {
             textTransform: "uppercase",
           }}
         >
-          <Col span={2}>Thứ tự *</Col>
-          <Col span={4}>Tên tiêu chí *</Col>
+          <Col span={5}>Tên tiêu chí *</Col>
           <Col span={3}>Phân loại *</Col>
           <Col span={3}>Trọng số *</Col>
           <Col span={3}>Điểm tối đa *</Col>
           <Col span={4}>Rubric URL</Col>
-          <Col span={4}>Mô tả *</Col>
+          <Col span={5}>Mô tả *</Col>
           <Col span={1}></Col>
         </Row>
         <Form.List name="items">
@@ -103,20 +106,7 @@ export const CriteriaBatchModal = ({ visible, onCancel, onFinish }) => {
                   style={{ marginBottom: 12 }}
                   align="top"
                 >
-                  <Col span={2}>
-                    <Form.Item
-                      {...restField}
-                      name={[name, "display_order"]}
-                      rules={[{ required: true }]}
-                    >
-                      <InputNumber
-                        style={{ width: "100%" }}
-                        min={1}
-                        onKeyDown={preventNegative}
-                      />
-                    </Form.Item>
-                  </Col>
-                  <Col span={4}>
+                  <Col span={5}>
                     <Form.Item
                       {...restField}
                       name={[name, "name"]}
@@ -134,7 +124,13 @@ export const CriteriaBatchModal = ({ visible, onCancel, onFinish }) => {
                       <Select placeholder="Phân loại">
                         {CRITERIA_TYPE_OPTIONS.map((t) => (
                           <Select.Option key={t} value={t}>
-                            {t}
+                            {t === "SOFT_SKILL"
+                              ? "Kỹ năng mềm"
+                              : t === "TECHNICAL"
+                                ? "Kỹ thuật"
+                                : t === "PENALTY"
+                                  ? "Điểm phạt"
+                                  : t}
                           </Select.Option>
                         ))}
                       </Select>
@@ -178,10 +174,7 @@ export const CriteriaBatchModal = ({ visible, onCancel, onFinish }) => {
                       <Input placeholder="https://..." />
                     </Form.Item>
                   </Col>
-                  <Col span={4}>
-                    <Form.Item
-                      {...restField}
-                      name={[name, "description"]}
+                  <Col span={5}>`n                    <Form.Item`n                      {...restField}`n                      name={[name, "description"]}
                       rules={[{ required: true }]}
                     >
                       <Input placeholder="Mô tả..." />

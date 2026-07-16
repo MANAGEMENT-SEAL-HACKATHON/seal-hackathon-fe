@@ -1,6 +1,6 @@
 // src/features/rounds/pages/RoundManagementPage.jsx
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal, Alert, Tooltip, Input, Progress, List } from 'antd';
+import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal, Alert, Tooltip, Input, Progress, List, Switch } from 'antd';
 import { InfoCircleOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { Plus, Edit, Trash2, Calendar, List as ListIcon, BarChart3, PlayCircle, Lock, Unlock, UserPlus, Trophy, FileText, History, StopCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -369,7 +369,9 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       message.success(
         isRescheduleOnly
           ? `Đã dời lịch ${round.name} — vòng vẫn Ngưng hoạt động.`
-          : `${round.name} đã được kích hoạt thành công!`,
+          : round.is_final
+            ? `${round.name} đã kích hoạt — đề theo bảng sơ loại của từng đội đã mở cho sinh viên.`
+            : `${round.name} đã được kích hoạt thành công!`,
       );
       setActivateRound(null);
       await fetchRounds();
@@ -472,6 +474,10 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   };
 
   const handleOpenRelease = async (record) => {
+    if (record?.is_final) {
+      message.info('Chung kết không cần Phát đề — đề mở theo bảng sơ loại khi kích hoạt vòng.');
+      return;
+    }
     if (!canReleaseProblem(record)) {
       message.warning(getReleaseProblemTooltip(record));
       return;
@@ -520,7 +526,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         if (!editingRound) {
           Modal.error({
             title: 'Không thể kích hoạt vòng thi mới',
-            content: 'Vòng thi mới tạo chưa có bảng đấu và tiêu chí đánh giá. Vui lòng lưu vòng thi ở trạng thái "Ngưng hoạt động" trước, sau đó cấu hình các bảng đấu và tiêu chí đánh giá bên trong rồi mới kích hoạt.',
+            content: 'Vòng thi mới tạo chưa có bảng đấu và tiêu chí đánh giá. Vui lòng lưu vòng thi ở trạng thái "Bản nháp" trước, sau đó cấu hình các bảng đấu và tiêu chí đánh giá bên trong rồi mới kích hoạt.',
           });
           setLoading(false);
           return;
@@ -635,7 +641,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         values.sequenceOrder = rounds.length + 1;
       }
 
-      const { problem_file: problemFileListValue, ...roundValues } = values;
+      const { problem_file: _problemFileListValue, ...roundValues } = values;
       const payload = mapRoundToBE(roundValues);
       let roundId = editingRound?.id;
       let createdOrUpdatedRound;
@@ -646,15 +652,6 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       } else {
         createdOrUpdatedRound = await roundService.createByHackathon(hackathonId, payload);
         roundId = createdOrUpdatedRound.id;
-      }
-
-      const problemFile = problemFileListValue?.[0]?.originFileObj ?? problemFileListValue?.[0];
-      if (problemFile && roundId && !editingRound?.problem_released_at && roundValues.is_final) {
-        try {
-          await roundService.uploadProblemStatement(roundId, problemFile);
-        } catch (uploadError) {
-          message.warning(uploadError?.message || 'Đã lưu vòng thi nhưng chưa upload được file đề bài.');
-        }
       }
 
       if (roundValues.is_active && (!editingRound || !editingRound.is_active)) {
@@ -678,7 +675,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                     fallback: 'Thiếu tiêu chí đánh giá hoặc chưa phân công giám khảo',
                   })}
                 </div>
-                <p style={{ marginTop: 8, fontSize: '13px' }}>Vòng thi đã được lưu thành công ở trạng thái "Ngưng hoạt động". Bạn hãy cấu hình đầy đủ tiêu chí trước khi bật kích hoạt nhé.</p>
+                <p style={{ marginTop: 8, fontSize: '13px' }}>Vòng thi đã được lưu thành công ở trạng thái "Bản nháp". Bạn hãy cấu hình đầy đủ tiêu chí trước khi bật kích hoạt nhé.</p>
               </div>
             )
           });
@@ -711,7 +708,11 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       render: (text, record) => (
         <div>
           <strong>{text}</strong>
-          {record.is_final && <Tag color="gold" style={{ marginLeft: 8 }}>Chung kết</Tag>}
+          {record.is_final ? (
+            <Tag color="gold" style={{ marginLeft: 8 }}>Chung kết</Tag>
+          ) : (
+            <Tag color="blue" style={{ marginLeft: 8 }}>Sơ loại</Tag>
+          )}
         </div>
       ),
     },
@@ -726,7 +727,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       ),
     },
     {
-      title: 'Thời gian thi (giờ)',
+      title: 'Thời lượng thi (giờ)',
       dataIndex: 'coding_duration_hours',
       key: 'duration',
       render: (val) => val ? `${val}h` : '-',
@@ -747,9 +748,16 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
           return <Tag color="red">{closedEarly ? 'Đã kết thúc sớm' : 'Đã kết thúc'}</Tag>;
         }
         return (
-          <Tag color={record.is_active ? 'green' : 'default'}>
-            {record.is_active ? 'Đang hoạt động' : 'Ngưng hoạt động'}
-          </Tag>
+          <Tooltip title={record.is_active ? 'Vòng đang hoạt động' : 'Bật để kích hoạt — cần đủ bảng đấu và tiêu chí'}>
+            <Switch
+              checked={record.is_active}
+              checkedChildren="Hoạt động"
+              unCheckedChildren="Bản nháp"
+              onChange={(checked) => {
+                if (checked) handleActivateRound(record);
+              }}
+            />
+          </Tooltip>
         );
       },
     },
@@ -796,7 +804,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                 />
               </Tooltip>
 
-              {!hasReleasedProblem && (
+              {!hasReleasedProblem && !record.is_final && (
                 <Tooltip title={getReleaseProblemTooltip(record)}>
                   <span style={{ display: 'inline-flex' }}>
                     <Button
@@ -1093,6 +1101,32 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
           }
         />
       )}
+      {rounds
+        .filter(
+          (r) =>
+            r.is_final &&
+            r.final_problem_migration_cleared_at &&
+            !r.final_problem_migration_banner_dismissed_at,
+        )
+        .map((r) => (
+          <Alert
+            key={`final-pdf-migration-${r.id}`}
+            type="warning"
+            showIcon
+            closable
+            style={{ marginBottom: 16 }}
+            message={`Đề PDF riêng trên vòng «${r.name}» đã được gỡ`}
+            description="Chung kết không còn đề riêng trên vòng — mỗi đội tiếp tục đề theo bảng sơ loại của mình. Hệ thống đã xóa file PDF cũ gắn trên vòng CK."
+            onClose={async () => {
+              try {
+                await roundService.dismissFinalProblemMigrationBanner(r.id);
+                await fetchRounds();
+              } catch (error) {
+                message.error(getRoundErrorMessage(error) || 'Không thể ẩn thông báo.');
+              }
+            }}
+          />
+        ))}
       {/* ========================================== */}
       {/* THÊM MỚI (BƯỚC 2): Hiển thị Banner Đếm ngược */}
       {/* ========================================== */}
@@ -1189,9 +1223,15 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                       }
                       if (isEnded) return <Tag color="blue">Đã kết thúc</Tag>;
                       return (
-                        <Tag color={round.is_active ? 'green' : 'default'}>
-                          {round.is_active ? 'Đang hoạt động' : 'Ngưng hoạt động'}
-                        </Tag>
+                        <Switch
+                          size="small"
+                          checked={round.is_active}
+                          checkedChildren="Hoạt động"
+                          unCheckedChildren="Bản nháp"
+                          onChange={(checked) => {
+                            if (checked) handleActivateRound(round);
+                          }}
+                        />
                       );
                     })()}
                   </div>

@@ -96,6 +96,7 @@ const ApprovalTable = ({ hackathonId }) => {
     canReviewTeam(team) &&
     !team.isInvalidMemberCount &&
     !team.hasPendingInvites &&
+    !team.hasUnapprovedMembers &&
     team.formationSubmitted;
   const canRejectTeam = (team) => canReviewTeam(team) && !isInFormationGrace(team);
   const canDisbandTeam = (team) =>
@@ -108,6 +109,9 @@ const ApprovalTable = ({ hackathonId }) => {
     }
     if (team.hasPendingInvites) {
       return "Đội vẫn còn lời mời PENDING, cần xử lý trước khi duyệt.";
+    }
+    if (team.hasUnapprovedMembers) {
+      return "Có thành viên chưa được duyệt tài khoản.";
     }
     if (!team.formationSubmitted) {
       if (isInFormationGrace(team)) {
@@ -324,7 +328,8 @@ const ApprovalTable = ({ hackathonId }) => {
         cancelText="Hủy"
       >
         <Text type="secondary">
-          Lý do từ chối sẽ được gửi kèm trạng thái REJECTED để đội biết cần xử lý gì.
+          Từ chối sẽ giải phóng toàn bộ thành viên để họ có thể lập đội mới hoặc tham gia đội khác.
+          Vui lòng ghi rõ lý do để sinh viên hiểu.
         </Text>
         <Input.TextArea
           rows={4}

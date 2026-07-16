@@ -12,6 +12,7 @@ import {
   findPersonById,
   resolveFinalAssignmentType,
   resolvePrelimAssignmentType,
+  formatJudgeRoleLabel,
   isEligibleForFinalJudge,
   isEligibleForPrelimJudge,
 } from '../utils/peoplePersonnelRules';
@@ -217,8 +218,18 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
   const createTempJudge = async (values, onSuccess) => {
     setIsLoading(true);
     try {
-      await peopleService.createTempJudge({ ...values, hackathonId });
-      message.success('Đã gửi lời mời giám khảo khách mời.');
+      const result = await peopleService.createTempJudge({ ...values, hackathonId });
+      const tokenSent =
+        result?.invitation?.tokenSent ??
+        result?.data?.invitation?.tokenSent ??
+        true;
+      if (tokenSent === false) {
+        message.warning(
+          'Đã tạo tài khoản giám khảo nhưng email chưa gửi được. Vui lòng liên hệ giám khảo thủ công.',
+        );
+      } else {
+        message.success('Đã gửi lời mời giám khảo khách mời.');
+      }
       await fetchBaseData();
       await notifyHub();
       if (onSuccess) onSuccess();
@@ -284,7 +295,7 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
 
       if (isFinalFlow && finalRoundId) {
         if (!isEligibleForFinalJudge(person)) {
-          message.error('Chung kết chỉ gán giám khảo EXTERNAL hoặc trưởng ban (HEAD).');
+          message.error('Chung kết chỉ gán giám khảo khách hoặc trưởng ban.');
           return;
         }
         await peopleService.assignFinalRoundJudge({
@@ -292,10 +303,10 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
           judgeId: values.person_id,
           assignmentType,
         });
-        message.success(`Đã gán giám khảo Chung kết (${assignmentType}).`);
+        message.success(`Đã gán giám khảo Chung kết (${formatJudgeRoleLabel(assignmentType)}).`);
       } else {
         if (!isEligibleForPrelimJudge(person)) {
-          message.error('Sơ loại chỉ gán giám khảo/mentor INTERNAL hoặc trưởng ban (HEAD).');
+          message.error('Sơ loại chỉ gán giám khảo/mentor nội bộ hoặc trưởng ban.');
           return;
         }
         await peopleService.assignJudge({
@@ -303,7 +314,7 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
           trackId: trackId || undefined,
           assignmentType,
         });
-        message.success(`Đã gán giám khảo Sơ loại (${assignmentType}).`);
+        message.success(`Đã gán giám khảo Sơ loại (${formatJudgeRoleLabel(assignmentType)}).`);
       }
       await fetchBaseData();
       await notifyHub();
@@ -332,7 +343,30 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
   const patchUserDeptHead = async (userId, isDeptHead) => {
     setIsLoading(true);
     try {
+      if (isDeptHead) {
+        const uniquePeople = [...judges, ...mentors].filter(
+          (p, idx, arr) => arr.findIndex((x) => x.id === p.id) === idx,
+        );
+        const otherHeads = uniquePeople.filter(
+          (p) => p.id !== userId && Boolean(p.isDeptHead ?? p.is_dept_head),
+        );
+        for (const head of otherHeads) {
+          await peopleService.patchUserDeptHead(head.id, false);
+        }
+      }
       await peopleService.patchUserDeptHead(userId, isDeptHead);
+      const clearOthers = (list) =>
+        list.map((p) => {
+          if (p.id === userId) {
+            return { ...p, isDeptHead, is_dept_head: isDeptHead };
+          }
+          if (isDeptHead && Boolean(p.isDeptHead ?? p.is_dept_head)) {
+            return { ...p, isDeptHead: false, is_dept_head: false };
+          }
+          return p;
+        });
+      setJudges((prev) => clearOthers(prev));
+      setMentors((prev) => clearOthers(prev));
       message.success(isDeptHead ? 'Đã đặt Trưởng ban' : 'Đã gỡ Trưởng ban');
       await fetchBaseData();
       await notifyHub();

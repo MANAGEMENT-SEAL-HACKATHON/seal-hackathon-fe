@@ -22,6 +22,22 @@ export const roundResultsService = {
     return mapWildcardCandidates(response);
   },
 
+  confirmWildcardProposal: (roundId) =>
+    axiosClient.post(`/api/v1/rounds/${roundId}/wildcard-proposal/confirm`),
+
+  getWildcardOverrides: async (roundId) => {
+    const response = await axiosClient.get(`/api/v1/rounds/${roundId}/wildcard-overrides`);
+    const raw = response?.data !== undefined ? response.data : response;
+    return Array.isArray(raw) ? raw : [];
+  },
+
+  overrideWildcardReview: (reviewId, { approved, category, note }) =>
+    axiosClient.post(`/api/v1/wildcard-reviews/${reviewId}/override`, {
+      approved,
+      category,
+      note: note || undefined,
+    }),
+
   decideWildcardReview: (reviewId, { approved, note }) =>
     axiosClient.patch(`/api/v1/wildcard-reviews/${reviewId}`, {
       approved,

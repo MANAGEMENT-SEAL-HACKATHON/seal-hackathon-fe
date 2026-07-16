@@ -38,7 +38,7 @@ export const ValidationItem = ({ status, code, details, message, index }) => {
           : "0.00";
         return (
           <span>
-            Tổng trọng số (Weight) của các tiêu chí tại{" "}
+            Tổng trọng số của các tiêu chí tại{" "}
             <strong>{targetName}</strong> đang là{" "}
             <strong style={{ color: token.colorError }}>{totalWeight}</strong>.
             <br />
@@ -91,7 +91,7 @@ export const ValidationItem = ({ status, code, details, message, index }) => {
       case "EVENT_KICKOFF_MISSING":
         return (
           <span>
-            Giải đấu đang thiếu sự kiện <strong>Khai mạc (KICKOFF)</strong>.
+            Giải đấu đang thiếu sự kiện <strong>Khai mạc</strong>.
             <br />
             <Text type="secondary">
               Đây là sự kiện bắt buộc phải có để chính thức bắt đầu Hackathon.
@@ -105,7 +105,7 @@ export const ValidationItem = ({ status, code, details, message, index }) => {
             Thứ tự sự kiện không hợp lệ.
             <br />
             <Text type="secondary">
-              Tạo <strong>KICKOFF</strong> trước <strong>WORKSHOP</strong> (POST order). Trên lịch, Workshop phải diễn ra trước Khai mạc và khác ngày.
+              Tạo sự kiện <strong>Khai mạc</strong> trước <strong>Buổi tập huấn</strong>. Trên lịch, buổi tập huấn phải diễn ra trước khai mạc và khác ngày.
             </Text>
           </span>
         );
@@ -114,7 +114,7 @@ export const ValidationItem = ({ status, code, details, message, index }) => {
         return (
           <span>
             Đã có Vòng Chung kết thì bắt buộc phải tạo thêm sự kiện{" "}
-            <strong>Lễ trao giải (AWARDS)</strong>.
+            <strong>Lễ trao giải</strong>.
           </span>
         );
 
@@ -201,20 +201,6 @@ export const ValidationItem = ({ status, code, details, message, index }) => {
       </div>
 
       <div style={{ flex: 1 }}>
-        <Text
-          style={{
-            fontSize: 11,
-            fontFamily: "monospace",
-            color: token.colorTextTertiary,
-            textTransform: "uppercase",
-            letterSpacing: "0.5px",
-            marginBottom: 6,
-            display: "block",
-          }}
-        >
-          {code}
-        </Text>
-
         <div
           style={{
             color: token.colorText,

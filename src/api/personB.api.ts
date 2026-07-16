@@ -223,7 +223,9 @@ export interface LateSubmission {
   team_id: string;
   team_name: string;
   repo_url: string;
-  slide_url: string;
+  slide_url?: string;
+  slide_download_path?: string;
+  has_slide?: boolean;
   demo_url?: string;
   late_reason?: string;
   submitted_at: string;
@@ -667,18 +669,33 @@ export const personBApi = {
 
     return list
       .filter((sub) => sub.status === 'LATE_PENDING')
-      .map((sub) => ({
-        submission_id: String(sub.id),
-        team_id: String(sub.teamId ?? sub.team_id),
-        team_name: sub.teamName ?? sub.team_name ?? `Đội ${sub.teamId}`,
-        repo_url: sub.repoUrl ?? sub.repo_url,
-        slide_url: sub.slideUrl ?? sub.slide_url,
-        demo_url: sub.demoUrl ?? sub.demo_url,
-        late_reason: sub.lateReason ?? sub.late_reason,
-        submitted_at: sub.submittedAt ?? sub.submitted_at,
-        status: 'LATE_PENDING' as const,
-      }));
+      .map((sub) => {
+        const slideDownloadPath =
+          sub.slideDownloadPath ?? sub.slide_download_path ?? undefined;
+        const hasSlide = Boolean(
+          slideDownloadPath || sub.slideFile || sub.slide_file || sub.hasSlide || sub.has_slide,
+        );
+        return {
+          submission_id: String(sub.id),
+          team_id: String(sub.teamId ?? sub.team_id),
+          team_name: sub.teamName ?? sub.team_name ?? `Đội ${sub.teamId}`,
+          repo_url: sub.repoUrl ?? sub.repo_url,
+          slide_url: sub.slideUrl ?? sub.slide_url,
+          slide_download_path: slideDownloadPath,
+          has_slide: hasSlide,
+          demo_url: sub.demoUrl ?? sub.demo_url,
+          late_reason: sub.lateReason ?? sub.late_reason,
+          submitted_at: sub.submittedAt ?? sub.submitted_at,
+          status: 'LATE_PENDING' as const,
+        };
+      });
   },
+
+  /** GET /api/v1/submissions/{id}/slide — authenticated PDF blob */
+  getSubmissionSlide: async (submissionId: string | number) =>
+    axiosClient.get(`/api/v1/submissions/${submissionId}/slide`, {
+      responseType: 'blob',
+    }),
 
   approveLateSubmission: async (submissionId: string | number) =>
     axiosClient.patch(`/api/v1/submissions/${submissionId}/approve`, {}),

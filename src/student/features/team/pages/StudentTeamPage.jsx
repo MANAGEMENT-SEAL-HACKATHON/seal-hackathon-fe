@@ -6,17 +6,16 @@
  * - Khôi phục và kết nối hoàn hảo với StudentTeamDashboard để giữ nguyên toàn bộ tính năng nộp bài, chọn track và lịch sử mentor.
  * - Tích hợp chuẩn xác 100% với useStudentTeam, useTeamActions và useStudentInvitations!
  */
-import { useState } from 'react';
-import { Button, Empty, Skeleton, Typography, theme, Row, Col, Badge, Space } from 'antd';
+import { Skeleton, Typography, theme } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, ShieldAlert, Trophy, Users, Sparkles, Zap } from 'lucide-react';
+import { Trophy, Sparkles } from 'lucide-react';
 import { useStudentTeam } from '../hooks/useStudentTeam';
 import { useTeamActions } from '../hooks/useTeamActions';
 import { useStudentInvitations } from '../../invitations/hooks/useStudentInvitations';
 import StudentTeamOnboarding from '../components/StudentTeamOnboarding';
 import StudentTeamDashboard from '../components/StudentTeamDashboard';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 /* OFFICIAL FPT LOGO COLORS & CYBER PALETTE */
 const FPT = {
@@ -52,10 +51,9 @@ const StudentTeamPage = () => {
 
   const {
     invitations: invites = [],
-    pendingCount: pendingInvitesCount,
-    isLoading: invitesLoading,
     fetchInvitations,
     respondInvitation,
+    actionKey,
   } = useStudentInvitations();
 
   const { token } = theme.useToken();
@@ -67,8 +65,10 @@ const StudentTeamPage = () => {
       if (success) {
         await fetchTeams();
       }
+      return success;
     } catch (error) {
       console.error('Failed to accept invite:', error);
+      return false;
     }
   };
 
@@ -176,7 +176,17 @@ const StudentTeamPage = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4 }}
             >
-              <StudentTeamOnboarding />
+              <StudentTeamOnboarding
+                hackathonId={hackathonId || team?.hackathonId || 1}
+                team={team}
+                teamLoading={teamLoading}
+                isActionLoading={isActionLoading}
+                createTeam={createTeam}
+                invites={invites}
+                onAcceptInvite={handleAcceptInvite}
+                onRejectInvite={handleRejectInvite}
+                actionKey={actionKey}
+              />
             </motion.div>
           ) : (
             <motion.div

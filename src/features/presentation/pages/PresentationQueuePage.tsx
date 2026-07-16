@@ -1,5 +1,5 @@
 // src/features/presentation/pages/PresentationQueuePage.tsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Typography, Spin, Alert, Segmented, Card, Row, Col, Button, Tag, Space, Divider, Modal, Form, InputNumber, Checkbox, Tooltip } from 'antd';
@@ -42,41 +42,57 @@ const { Title, Text } = Typography;
 const PRIMARY_BLUE = '#2563eb';
 const PRIMARY_BLUE_LIGHT = '#eff6ff';
 
+const LOTTERY_ANIMATION_MS = 4000;
+const LOTTERY_BALL_CAP = 12;
+
 const extractErrorMessage = (err: any) =>
   resolveUserError(err, {
     domainMap: { ...TEAM_ERROR_MESSAGES, ...PRELIMINARY_SUBMISSION_ERROR_MESSAGES },
     fallback: 'Lỗi hệ thống không xác định.',
   });
 
+const isAlreadyShuffledConflict = (err: any) => {
+  const status = err?.response?.status ?? err?.status;
+  const code = String(
+    err?.response?.data?.error?.code
+      || err?.response?.data?.code
+      || err?.code
+      || '',
+  ).toUpperCase();
+  return (
+    status === 409
+    || code === 'PRESENTATION_ALREADY_SHUFFLED'
+    || code === 'PRESENTATION_ALREADY_STARTED'
+  );
+};
+
 // ==========================================
-// COMPONENT: GAME QUAY SỐ
+// COMPONENT: GAME QUAY SỐ (cosmetic — parent owns API)
 // ==========================================
-const LotteryAnimation = ({ isRolling, onComplete, totalTeams }: { isRolling: boolean, onComplete: () => void, totalTeams: number }) => {
+const LotteryAnimation = ({ isRolling, totalTeams }: { isRolling: boolean; totalTeams: number }) => {
   const [balls, setBalls] = useState<any[]>([]);
 
   useEffect(() => {
-    if (isRolling && totalTeams > 0) {
-      const slotCount = 5; 
-      const newBalls = Array.from({ length: totalTeams }).map((_, i) => {
-        const startX = 20 + Math.random() * 60; 
-        const targetSlot = i % slotCount; 
-        const slotWidth = 100 / slotCount;
-        const targetX = (targetSlot * slotWidth) + (slotWidth / 2); 
-
-        return { id: i, startX: `${startX}%`, targetX: `${targetX}%`, delay: Math.random() * 2 };
-      });
-      setBalls(newBalls);
-
-      const timer = setTimeout(() => { onComplete(); }, 4500);
-      return () => clearTimeout(timer);
+    if (!isRolling) {
+      setBalls([]);
+      return;
     }
-    if (isRolling && totalTeams <= 0) {
-      // Avoid stuck loading when queue has no gradable teams yet
-      const timer = setTimeout(() => { onComplete(); }, 100);
-      return () => clearTimeout(timer);
-    }
-    setBalls([]);
-  }, [isRolling, totalTeams, onComplete]);
+    const count = Math.min(Math.max(totalTeams, 1), LOTTERY_BALL_CAP);
+    const slotCount = 5;
+    const newBalls = Array.from({ length: count }).map((_, i) => {
+      const startX = 20 + Math.random() * 60;
+      const targetSlot = i % slotCount;
+      const slotWidth = 100 / slotCount;
+      const targetX = targetSlot * slotWidth + slotWidth / 2;
+      return {
+        id: i,
+        startX: `${startX}%`,
+        targetX: `${targetX}%`,
+        delay: Math.random() * Math.min(2, LOTTERY_ANIMATION_MS / 2000),
+      };
+    });
+    setBalls(newBalls);
+  }, [isRolling, totalTeams]);
 
   return (
     <div style={{ height: 280, background: '#0f172a', borderRadius: 24, position: 'relative', overflow: 'hidden', border: '4px solid #1e293b', boxShadow: 'inset 0 10px 30px rgba(0,0,0,0.5)' }}>
@@ -209,7 +225,11 @@ const PresentationQueuePage: React.FC = () => {
   const [roundId, setRoundId] = useState<number | null>(roundIdFromUrl ? Number(roundIdFromUrl) : null);
   const [selectedTrackId, setSelectedTrackId] = useState<number | null>(trackIdFromUrl ? Number(trackIdFromUrl) : null);
   const [isRolling, setIsRolling] = useState(false);
+  const [shuffleError, setShuffleError] = useState<string | null>(null);
   const [isDurationModalOpen, setIsDurationModalOpen] = useState(false);
+  const shuffleApiDoneRef = useRef(false);
+  const animationDoneRef = useRef(false);
+  const shuffleFailedRef = useRef(false);
 
   const queryClient = useQueryClient();
 
@@ -359,14 +379,56 @@ const PresentationQueuePage: React.FC = () => {
   const totalTeamsToRoll = gradableTeamCount > 0 ? gradableTeamCount : (totalParticipatingCount > 0 ? totalParticipatingCount : 6);
 
   // ── MUTATIONS ──
+  const tryFinishShuffleRoll = useCallback(() => {
+    if (shuffleFailedRef.current) return;
+    if (shuffleApiDoneRef.current && animationDoneRef.current) {
+      setIsRolling(false);
+      setShuffleError(null);
+      toast.success('Hệ thống đã phân bổ thứ tự thành công!');
+      refetchQueue();
+    }
+  }, [refetchQueue]);
+
   const shuffleMutation = useMutation({
     mutationFn: () => {
       const trackIdsArg = isFinalRound || !selectedTrackId ? undefined : [selectedTrackId];
       return personBApi.shufflePresentationQueue(roundId as number, trackIdsArg);
     },
-    onSuccess: () => { toast.success('Hệ thống đã phân bổ thứ tự thành công!'); refetchQueue(); },
-    onError: (err: any) => toast.error(extractErrorMessage(err))
+    onSuccess: () => {
+      shuffleApiDoneRef.current = true;
+      tryFinishShuffleRoll();
+    },
+    onError: async (err: any) => {
+      if (isAlreadyShuffledConflict(err)) {
+        shuffleApiDoneRef.current = true;
+        await refetchQueue();
+        tryFinishShuffleRoll();
+        return;
+      }
+      shuffleFailedRef.current = true;
+      setIsRolling(false);
+      animationDoneRef.current = false;
+      shuffleApiDoneRef.current = false;
+      const msg = extractErrorMessage(err);
+      setShuffleError(msg);
+      toast.error(msg);
+    },
   });
+
+  const startShuffleRoll = useCallback(() => {
+    if (!canShuffleQueue || isRolling || shuffleMutation.isPending) return;
+    shuffleApiDoneRef.current = false;
+    animationDoneRef.current = false;
+    shuffleFailedRef.current = false;
+    setShuffleError(null);
+    setIsRolling(true);
+    shuffleMutation.mutate();
+    window.setTimeout(() => {
+      if (shuffleFailedRef.current) return;
+      animationDoneRef.current = true;
+      tryFinishShuffleRoll();
+    }, LOTTERY_ANIMATION_MS);
+  }, [canShuffleQueue, isRolling, shuffleMutation, tryFinishShuffleRoll]);
 
   const handleTrackChange = (val: number | string) => {
     const numVal = Number(val);
@@ -577,12 +639,21 @@ const PresentationQueuePage: React.FC = () => {
                 )}
                 <LotteryAnimation
                   isRolling={isRolling}
-                  onComplete={() => {
-                    setIsRolling(false);
-                    if (canShuffleQueue) shuffleMutation.mutate();
-                  }}
                   totalTeams={totalTeamsToRoll}
                 />
+                {shuffleError && (
+                  <Alert
+                    type="error"
+                    showIcon
+                    style={{ marginTop: 16 }}
+                    message={shuffleError}
+                    action={
+                      <Button size="small" type="primary" onClick={startShuffleRoll} disabled={!canShuffleQueue}>
+                        Thử lại
+                      </Button>
+                    }
+                  />
+                )}
                 <div style={{ textAlign: 'center', marginTop: 32 }}>
                   <Tooltip title={canShuffleQueue ? undefined : shuffleDisabledTooltip}>
                     <span>
@@ -592,10 +663,7 @@ const PresentationQueuePage: React.FC = () => {
                         icon={<RetweetOutlined />}
                         loading={isRolling || shuffleMutation.isPending}
                         disabled={!canShuffleQueue}
-                        onClick={() => {
-                          if (!canShuffleQueue) return;
-                          setIsRolling(true);
-                        }}
+                        onClick={startShuffleRoll}
                         style={{
                           height: 64,
                           padding: '0 40px',

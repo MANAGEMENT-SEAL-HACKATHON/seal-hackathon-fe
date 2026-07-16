@@ -35,7 +35,8 @@ export const approvalService = {
 
   bulkApproveTeams: async (hackathonId, teamIds) => {
     const payload = { hackathonId, teamIds };
-    return axiosClient.post(ENDPOINTS.TEAMS.BULK_APPROVE, payload);
+    const res = await axiosClient.post(ENDPOINTS.TEAMS.BULK_APPROVE, payload);
+    return unwrapItem(res);
   },
 
   disbandTeam: async (teamId) => {

@@ -231,16 +231,6 @@ const HackathonSetupPage = () => {
       <PageHeader
         title={hackathon.name}
         onBack={() => navigate(ROUTES.HACKATHONS)}
-        extra={
-          <Button
-            type="default"
-            icon={<DoubleLeftOutlined />}
-            onClick={() => setDrawerOpen(true)}
-            style={{ borderRadius: 8, display: 'flex', alignItems: 'center' }}
-          >
-            Tiến độ chuẩn bị
-          </Button>
-        }
       />
 
       <Row gutter={24}>

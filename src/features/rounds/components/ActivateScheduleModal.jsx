@@ -6,7 +6,7 @@ import { calculateStartTime, formatExamPreview } from '../utils/ceilToNextMinute
 const { Text } = Typography;
 
 /**
- * Modal: START_NOW (buffer) | RESCHEDULE (chỉ dời lịch, vòng vẫn Ngưng hoạt động).
+ * Modal: START_NOW (buffer) | RESCHEDULE (chỉ dời lịch, vòng vẫn Bản nháp).
  */
 const ActivateScheduleModal = ({
   open,
@@ -107,7 +107,7 @@ const ActivateScheduleModal = ({
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Text type="secondary">
           {isReschedule
-            ? 'Chỉ đổi giờ thi — vòng vẫn Ngưng hoạt động. Sau này bấm Play để kích hoạt hoặc bắt đầu thi sớm.'
+            ? 'Chỉ đổi giờ thi — vòng vẫn Bản nháp. Sau này bấm Play để kích hoạt hoặc bắt đầu thi sớm.'
             : 'Kích hoạt mở môi trường vận hành (chia bảng, giám khảo, đề). Chọn rõ bên dưới nếu muốn bắt đầu thi sớm hoặc chỉ dời lịch.'}
         </Text>
 
@@ -134,7 +134,7 @@ const ActivateScheduleModal = ({
               </Radio>
               <Radio value="RESCHEDULE">
                 Chỉ dời lịch thi{' '}
-                <Text type="secondary">(Vòng thi vẫn giữ trạng thái Ngưng hoạt động)</Text>
+                <Text type="secondary">(Vòng thi vẫn giữ trạng thái Bản nháp)</Text>
               </Radio>
             </Radio.Group>
 
@@ -180,7 +180,7 @@ const ActivateScheduleModal = ({
                   placeholder="Chọn giờ thi mới (phải sau hiện tại)"
                 />
                 <Text type="secondary">
-                  Vòng vẫn Ngưng hoạt động. Nút Play vẫn còn để sau này kích hoạt / bắt đầu thi sớm.
+                  Vòng vẫn Bản nháp. Nút Play vẫn còn để sau này kích hoạt / bắt đầu thi sớm.
                 </Text>
               </Space>
             )}

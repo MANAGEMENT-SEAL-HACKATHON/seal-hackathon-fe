@@ -13,6 +13,8 @@ const StatusBadge = ({ status }) => {
         return { color: 'error', text: 'Đang diễn ra', live: true, bold: true };
       case 'FINISHED':
         return { color: 'orange', text: 'Đã hoàn thành' };
+      case 'PENDING_CONFIRM':
+        return { color: 'gold', text: 'Chờ chốt sổ' };
       case 'OPEN':
         return { color: 'green', text: 'Mở' };
       case 'CLOSED':

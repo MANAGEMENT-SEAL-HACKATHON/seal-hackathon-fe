@@ -61,7 +61,7 @@ export const SHARED_ERROR_MESSAGES = {
   TRACK_CLOSED: 'Bảng đấu đã đóng — không thể chuyển đội vào bảng này.',
   TEAM_NOT_ACTIVE: 'Đội thi chưa được duyệt / chưa ở trạng thái sẵn sàng.',
   LATE_PENDING: 'Nộp muộn (Đang chờ duyệt)',
-  PENDING_CONFIRM: 'Đang chờ chốt sổ điểm',
+  PENDING_CONFIRM: 'Chờ chốt sổ',
   FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
   INVALID_STATE: 'Thao tác không hợp lệ ở trạng thái hiện tại.',
 };
@@ -69,7 +69,7 @@ export const SHARED_ERROR_MESSAGES = {
 /** Human labels for status enums shown in UI (not always errors). */
 export const STATUS_LABELS = {
   LATE_PENDING: 'Nộp muộn (Đang chờ duyệt)',
-  PENDING_CONFIRM: 'Đang chờ chốt sổ điểm',
+  PENDING_CONFIRM: 'Chờ chốt sổ',
   REJECTED: 'Bài nộp bị từ chối',
   HARD_LOCK: 'Đã khóa cứng nộp bài',
   PRESENTING: 'Đang thuyết trình',

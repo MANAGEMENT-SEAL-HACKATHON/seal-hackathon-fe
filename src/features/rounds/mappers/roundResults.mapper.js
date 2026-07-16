@@ -174,6 +174,11 @@ export const mapWildcardConfig = (response) => ({
   decisionsFinalized: Boolean(
     firstDefined(response?.decisionsFinalized, response?.decisions_finalized, false),
   ),
+  proposalConfirmedAt: firstDefined(
+    response?.proposalConfirmedAt,
+    response?.proposal_confirmed_at,
+    null,
+  ),
 });
 
 export const mapWildcardCandidates = (response) => {
@@ -184,6 +189,11 @@ export const mapWildcardCandidates = (response) => {
     config: mapWildcardConfig(payload ?? {}),
     decisionsFinalized: Boolean(
       firstDefined(payload?.decisionsFinalized, payload?.decisions_finalized, false),
+    ),
+    proposalConfirmedAt: firstDefined(
+      payload?.proposalConfirmedAt,
+      payload?.proposal_confirmed_at,
+      null,
     ),
     items: asArray(itemsSource, ["candidates", "items", "wildcardCandidates", "wildcard_candidates"]).map(
       (item, index) => ({
@@ -200,6 +210,26 @@ export const mapWildcardCandidates = (response) => {
         ),
         coordinatorNote: firstDefined(item?.coordinatorNote, item?.coordinator_note, item?.note, ""),
         reason: firstDefined(item?.reason, ""),
+        systemProposed: Boolean(
+          firstDefined(item?.systemProposed, item?.system_proposed, true),
+        ),
+        isOverride: Boolean(firstDefined(item?.isOverride, item?.is_override, false)),
+        overrideReasonCategory: firstDefined(
+          item?.overrideReasonCategory,
+          item?.override_reason_category,
+          null,
+        ),
+        submittedAt: firstDefined(item?.submittedAt, item?.submitted_at, null),
+        avgScore: Number(
+          firstDefined(
+            item?.avgScore,
+            item?.avg_score,
+            item?.totalScore,
+            item?.total_score,
+            item?.weightedAvgScore,
+            0,
+          ),
+        ),
       }),
     ),
   };
@@ -233,6 +263,8 @@ export const enrichWildcardFromRound = (wildcard, round, ranking) => {
 
   return {
     ...wildcard,
+    proposalConfirmedAt:
+      wildcard?.proposalConfirmedAt ?? wildcard?.config?.proposalConfirmedAt ?? null,
     config: {
       hackathonEnabled: wildcard?.config?.hackathonEnabled ?? Boolean(round.wildcard_enabled ?? round.wildcardEnabled),
       roundEnabled: wildcard?.config?.roundEnabled ?? Boolean(round.wildcard_enabled ?? round.wildcardEnabled),
@@ -242,6 +274,8 @@ export const enrichWildcardFromRound = (wildcard, round, ranking) => {
       decisionsFinalized: Boolean(
         wildcard?.decisionsFinalized ?? wildcard?.config?.decisionsFinalized,
       ),
+      proposalConfirmedAt:
+        wildcard?.proposalConfirmedAt ?? wildcard?.config?.proposalConfirmedAt ?? null,
     },
   };
 };

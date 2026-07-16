@@ -39,7 +39,7 @@ describe('resolveUserError', () => {
   });
 
   it('4) resolveStatusLabel(PENDING_CONFIRM)', () => {
-    assert.equal(resolveStatusLabel('PENDING_CONFIRM'), 'Đang chờ chốt sổ điểm');
+    assert.equal(resolveStatusLabel('PENDING_CONFIRM'), 'Chờ chốt sổ');
   });
 
   it('5) clean Vietnamese message preserved', () => {

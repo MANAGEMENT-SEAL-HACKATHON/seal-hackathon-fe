@@ -55,8 +55,8 @@ export const useStudentTeam = () => {
       const rawData = await studentTeamService.getMyTeams();
       const data = rawData.filter(
         (team) =>
-          (!team.currentMember || team.currentMember.isAccepted) &&
-          team.status !== 'REJECTED',
+          ['PENDING', 'ACTIVE'].includes(team.status) &&
+          (!team.currentMember || team.currentMember.isAccepted),
       );
       if (!currentHackathonId && data[0]?.hackathonId) {
         currentHackathonId = data[0].hackathonId;

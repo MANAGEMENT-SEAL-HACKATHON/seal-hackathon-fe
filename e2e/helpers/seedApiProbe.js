@@ -94,6 +94,13 @@ async function probeBaseExpectations(ctx) {
 
   const status = ctx.hackathon.status || ctx.hackathon.hackathonStatus;
   if (exp.status && status !== exp.status) {
+    if (status === 'FINISHED' && exp.status === 'PENDING_CONFIRM') {
+      return {
+        pass: false,
+        reason:
+          'Lỗi State: Slug đã bị mutate thành FINISHED. Restart BE (Gd6PendingConfirmDataSeeder.repairForFullChainRetest) để reset GĐ6 seed trước khi chạy lại probe.',
+      };
+    }
     return { pass: false, reason: `status expected ${exp.status}, got ${status}` };
   }
 

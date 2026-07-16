@@ -103,9 +103,20 @@ export const useApproval = (hackathonId) => {
   const handleBulkApprove = async (teamIds) => {
     setIsActionLoading(true);
     try {
-      await approvalService.bulkApproveTeams(hackathonId, teamIds);
+      const res = await approvalService.bulkApproveTeams(hackathonId, teamIds);
+      const payload = res?.data ?? res ?? {};
+      const approvedCount = payload.approvedCount ?? payload.approved_count ?? 0;
+      const errors = payload.errors ?? [];
       await fetchTeams('PENDING');
-      message.success(`Đã duyệt ${teamIds.length} đội.`);
+      if (errors.length > 0) {
+        notification.warning({
+          message: `Đã duyệt ${approvedCount}/${teamIds.length} đội`,
+          description: errors.slice(0, 5).join(' · '),
+          duration: 8,
+        });
+        return approvedCount > 0;
+      }
+      message.success(`Đã duyệt ${approvedCount}/${teamIds.length} đội.`);
       return true;
     } catch (error) {
       message.error(getTeamErrorMessage(error, 'Có lỗi xảy ra khi duyệt hàng loạt.'));

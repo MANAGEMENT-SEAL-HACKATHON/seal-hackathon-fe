@@ -59,6 +59,10 @@ export const roundService = {
     return axiosClient.post(ENDPOINTS.ROUNDS.PROBLEM_STATEMENT(id), formData);
   },
 
+  dismissFinalProblemMigrationBanner: async (id) => {
+    return axiosClient.post(`/api/v1/rounds/${id}/dismiss-final-problem-migration-banner`);
+  },
+
   getProblemStatement: async (id) => {
     return axiosClient.get(ENDPOINTS.ROUNDS.PROBLEM_STATEMENT(id), {
       responseType: 'blob',

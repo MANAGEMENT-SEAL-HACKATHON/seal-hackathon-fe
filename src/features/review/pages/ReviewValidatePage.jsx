@@ -42,7 +42,7 @@ const ReviewValidatePage = ({ hackathonId: propHackathonId, onUpdated }) => {
   const handleActivate = async () => {
     try {
       await reviewService.changeStatus(hId, 'ONGOING', 'Mở đăng ký');
-      message.success('Đã mở đăng ký — kỳ thi đang ở trạng thái ONGOING.');
+      message.success('Đã mở đăng ký — sự kiện đang diễn ra.');
       if (typeof onUpdated === 'function') await onUpdated();
       navigate(ROUTES.HACKATHON_SETUP.replace(':hackathonId', String(hId)), { replace: true });
     } catch (error) {

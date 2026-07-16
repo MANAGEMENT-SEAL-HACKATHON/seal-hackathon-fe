@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Row, Col, Select, Alert, Button, message } from 'antd';
+import { Modal, Form, Input, Row, Col, Switch, Button, message } from 'antd';
 import RoundProblemPdfUpload from '../../rounds/components/RoundProblemPdfUpload';
 import { trackService } from '../services/trackService';
 
@@ -11,8 +11,6 @@ const TrackFormModal = ({
   onFinish,
   initialValues,
   title,
-  rounds,
-  isEditing,
   problemReleased = false,
 }) => {
   const [form] = Form.useForm();
@@ -21,7 +19,10 @@ const TrackFormModal = ({
   useEffect(() => {
     if (visible) {
       if (initialValues) {
-        form.setFieldsValue(initialValues);
+        form.setFieldsValue({
+          ...initialValues,
+          is_open: (initialValues.status || 'OPEN') === 'OPEN',
+        });
       } else {
         form.resetFields();
       }
@@ -53,11 +54,15 @@ const TrackFormModal = ({
 
   const handleSubmit = () => {
     form.validateFields()
-      .then(values => {
-        onFinish(values);
+      .then((values) => {
+        const { is_open: isOpen, ...rest } = values;
+        onFinish({
+          ...rest,
+          status: isOpen ? 'OPEN' : 'CLOSED',
+        });
         form.resetFields();
       })
-      .catch(info => {
+      .catch((info) => {
         console.log('Validate Failed:', info);
       });
   };
@@ -76,9 +81,7 @@ const TrackFormModal = ({
         form={form}
         layout="vertical"
         initialValues={{
-          min_team_size: 3,
-          max_team_size: 5,
-          status: 'OPEN',
+          is_open: true,
         }}
       >
         <Form.Item
@@ -94,103 +97,20 @@ const TrackFormModal = ({
           <TextArea rows={3} placeholder="Mô tả ngắn (tuỳ chọn)" />
         </Form.Item>
 
-        <Row gutter={24}>
-          <Col span={12}>
-            <Form.Item
-              name="min_team_size"
-              label="Thành viên tối thiểu / đội"
-              rules={[{ required: true, message: 'Bắt buộc' }]}
-              dependencies={['max_team_size']}
-            >
-              <InputNumber min={1} style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="max_team_size"
-              label="Thành viên tối đa / đội"
-              dependencies={['min_team_size']}
-              validateTrigger={['onChange', 'onBlur']}
-              rules={[
-                { required: true, message: 'Bắt buộc' },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    const minSize = getFieldValue('min_team_size');
-                    if (!value || !minSize || value >= minSize) {
-                      return Promise.resolve();
-                    }
-                    return Promise.reject(new Error('Phải ≥ thành viên tối thiểu'));
-                  },
-                }),
-              ]}
-            >
-              <InputNumber min={1} style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-        </Row>
-
-        <Row gutter={24}>
-          <Col span={12}>
-            <Form.Item
-              name="presentation_minutes"
-              label="Thuyết trình (phút)"
-              extra="Để trống = mặc định 10 phút"
-              validateTrigger={['onChange', 'onBlur']}
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (value == null || value === '' || (value >= 1 && value <= 60)) {
-                      return Promise.resolve();
-                    }
-                    return Promise.reject(new Error('Nhập từ 1 đến 60 phút'));
-                  },
-                },
-              ]}
-            >
-              <InputNumber min={1} max={60} style={{ width: '100%' }} placeholder="10" />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="qa_minutes"
-              label="Q&A (phút)"
-              extra="Để trống = mặc định 5 phút"
-              validateTrigger={['onChange', 'onBlur']}
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (value == null || value === '' || (value >= 1 && value <= 60)) {
-                      return Promise.resolve();
-                    }
-                    return Promise.reject(new Error('Nhập từ 1 đến 60 phút'));
-                  },
-                },
-              ]}
-            >
-              <InputNumber min={1} max={60} style={{ width: '100%' }} placeholder="5" />
-            </Form.Item>
-          </Col>
-        </Row>
-
         {initialValues?.problem_statement_filename && (
-          <Alert
-            type="info"
-            showIcon
-            style={{ marginBottom: 12 }}
-            message={`Đề bài hiện tại: ${initialValues.problem_statement_filename}`}
-            description={
-              hasProblemFile ? (
-                <Button
-                  type="link"
-                  style={{ padding: 0, height: 'auto' }}
-                  loading={viewingProblem}
-                  onClick={handleViewProblemPdf}
-                >
-                  Xem PDF
-                </Button>
-              ) : null
-            }
-          />
+          <div style={{ marginBottom: 12, fontSize: 13 }}>
+            <span>Đề bài hiện tại: {initialValues.problem_statement_filename}</span>
+            {hasProblemFile ? (
+              <Button
+                type="link"
+                style={{ padding: '0 0 0 8px', height: 'auto' }}
+                loading={viewingProblem}
+                onClick={handleViewProblemPdf}
+              >
+                Xem PDF
+              </Button>
+            ) : null}
+          </div>
         )}
 
         <Form.Item
@@ -203,11 +123,13 @@ const TrackFormModal = ({
           <RoundProblemPdfUpload disabled={problemReleased} />
         </Form.Item>
 
-        <Form.Item name="status" label="Trạng thái">
-          <Select>
-            <Select.Option value="OPEN">Mở</Select.Option>
-            <Select.Option value="CLOSED">Đóng</Select.Option>
-          </Select>
+        <Form.Item
+          name="is_open"
+          label="Mở bảng đấu"
+          valuePropName="checked"
+          extra="Tắt khi tạm khóa bảng đấu khỏi phân bổ mới."
+        >
+          <Switch checkedChildren="Mở" unCheckedChildren="Đóng" />
         </Form.Item>
       </Form>
     </Modal>

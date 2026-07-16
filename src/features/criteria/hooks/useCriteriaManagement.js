@@ -177,16 +177,38 @@ export const useCriteriaManagement = (hackathonId, onUpdated) => {
     async (values, editingId) => {
       setIsLoading(true);
       try {
+        const payload = { ...values };
+        if (!editingId && payload.display_order == null) {
+          const maxOrder = currentCriteria.reduce(
+            (max, c) => Math.max(max, c.display_order || 0),
+            0,
+          );
+          payload.display_order = maxOrder + 1;
+        }
+
+        if (payload.type !== CRITERIA_TYPES.PENALTY) {
+          const otherWeight = currentCriteria
+            .filter((c) => c.type !== CRITERIA_TYPES.PENALTY && c.id !== editingId)
+            .reduce((sum, c) => sum + (Number(c.weight) || 0), 0);
+          const newTotal = otherWeight + (Number(payload.weight) || 0);
+          if (Math.abs(newTotal - MAX_WEIGHT_TOTAL) > 0.001) {
+            message.error(
+              `Tổng trọng số sau lưu sẽ là ${(newTotal * 100).toFixed(1)}% — cần đúng 100%. Chỉnh lại hoặc dùng Cân bằng.`,
+            );
+            return;
+          }
+        }
+
         if (editingId) {
-          await criteriaService.update(editingId, values);
+          await criteriaService.update(editingId, payload);
           message.success("Cập nhật tiêu chí thành công");
         } else {
           if (currentRound?.is_final)
-            await criteriaService.createForFinalRound(selectedRoundId, values);
-          else await criteriaService.createForTrack(selectedTrackId, values);
+            await criteriaService.createForFinalRound(selectedRoundId, payload);
+          else await criteriaService.createForTrack(selectedTrackId, payload);
           message.success("Thêm tiêu chí thành công");
         }
-        fetchCriteria();
+        await fetchCriteria();
         await notifyHub();
       } catch (error) {
         message.error("Có lỗi xảy ra");
@@ -194,7 +216,14 @@ export const useCriteriaManagement = (hackathonId, onUpdated) => {
         setIsLoading(false);
       }
     },
-    [currentRound, selectedRoundId, selectedTrackId, fetchCriteria, notifyHub],
+    [
+      currentRound,
+      selectedRoundId,
+      selectedTrackId,
+      currentCriteria,
+      fetchCriteria,
+      notifyHub,
+    ],
   );
 
   const handleBatchSaveCriteria = useCallback(

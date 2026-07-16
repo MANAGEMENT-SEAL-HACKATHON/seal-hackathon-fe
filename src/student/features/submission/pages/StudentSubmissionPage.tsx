@@ -22,6 +22,7 @@ import { useStudentDashboard } from '../../../dashboard/hooks/useStudentDashboar
 import RoundProblemPanel from '../../round/components/RoundProblemPanel';
 import FinalRoundProblemPanel from '../../round/components/FinalRoundProblemPanel';
 import FinalSubmissionPanel from '../components/FinalSubmissionPanel';
+import PresentationSlotPanel from '../components/PresentationSlotPanel';
 import { useFinalSubmission } from '../hooks/useFinalSubmission';
 import {
   resolvePreliminarySubmissionError,
@@ -50,6 +51,7 @@ const submissionSchema = z.object({
   repo_url: z.string().min(1, 'Đường dẫn Repository là bắt buộc').url('Định dạng URL không hợp lệ'),
   demo_url: z.string().url('Định dạng URL không hợp lệ').or(z.literal('')),
   slide_file: z.any().optional(),
+  late_reason: z.string().optional(),
 });
 type SubmissionFormValues = z.infer<typeof submissionSchema>;
 
@@ -107,17 +109,43 @@ const CountdownTimer: React.FC<{ deadline: string; isOverdue: boolean; isDark?: 
   );
 };
 
-const SuccessView: React.FC<{ submissionData: any; submittedSlideName: string; onViewPdf: () => void; onEdit: () => void; isDark?: boolean; token?: any; readOnly?: boolean }> = ({ submissionData, submittedSlideName, onViewPdf, onEdit, isDark, token, readOnly }) => (
-  <Card style={{ borderRadius: 24, border: isDark ? '1px solid rgba(70, 183, 73, 0.3)' : '1px solid #b7eb8f', background: isDark ? 'linear-gradient(135deg, rgba(20, 35, 25, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%)' : '#f6ffed', boxShadow: isDark ? '0 12px 32px rgba(0, 0, 0, 0.3)' : '0 12px 32px rgba(82, 196, 26, 0.1)', height: '100%', display: 'flex', flexDirection: 'column' }} styles={{ body: { padding: 40, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' } }}>
+const SuccessView: React.FC<{ submissionData: any; submittedSlideName: string; onViewPdf: () => void; onEdit: () => void; isDark?: boolean; token?: any; readOnly?: boolean }> = ({ submissionData, submittedSlideName, onViewPdf, onEdit, isDark, token, readOnly }) => {
+  const status = String(submissionData?.status || '').toUpperCase();
+  const isLatePending = status === 'LATE_PENDING';
+  const isRejected = status === 'REJECTED';
+  const title = isRejected
+    ? 'Bài nộp bị từ chối'
+    : isLatePending
+      ? 'Đã ghi nhận bài nộp muộn'
+      : 'Nộp bài thành công!';
+  const subtitle = isRejected
+    ? 'Bài nộp đã bị từ chối theo chính sách vòng thi — không thể nộp lại.'
+    : isLatePending
+      ? 'Bài của đội đã được lưu ở trạng thái chờ Ban tổ chức duyệt nộp muộn.'
+      : 'Sản phẩm của đội bạn đã được lưu trữ an toàn và đóng dấu thời gian trên hệ thống.';
+  const accent = isRejected ? '#cf1322' : isLatePending ? '#d48806' : (isDark ? '#46B749' : '#237804');
+  const borderColor = isRejected
+    ? (isDark ? 'rgba(239, 68, 68, 0.35)' : '#ffa39e')
+    : isLatePending
+      ? (isDark ? 'rgba(250, 173, 20, 0.35)' : '#ffe58f')
+      : (isDark ? 'rgba(70, 183, 73, 0.3)' : '#b7eb8f');
+  const bg = isRejected
+    ? (isDark ? 'linear-gradient(135deg, rgba(60, 20, 20, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%)' : '#fff2f0')
+    : isLatePending
+      ? (isDark ? 'linear-gradient(135deg, rgba(60, 45, 10, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%)' : '#fffbe6')
+      : (isDark ? 'linear-gradient(135deg, rgba(20, 35, 25, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%)' : '#f6ffed');
+
+  return (
+  <Card style={{ borderRadius: 24, border: `1px solid ${borderColor}`, background: bg, boxShadow: isDark ? '0 12px 32px rgba(0, 0, 0, 0.3)' : '0 12px 32px rgba(82, 196, 26, 0.1)', height: '100%', display: 'flex', flexDirection: 'column' }} styles={{ body: { padding: 40, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' } }}>
     <div style={{ textAlign: 'center', marginBottom: 40 }}>
       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", bounce: 0.5 }}>
-        <CheckCircleFilled style={{ fontSize: 72, color: '#52c41a', marginBottom: 16 }} />
+        <CheckCircleFilled style={{ fontSize: 72, color: isRejected ? '#ff4d4f' : isLatePending ? '#faad14' : '#52c41a', marginBottom: 16 }} />
       </motion.div>
-      <Title level={2} style={{ color: isDark ? '#46B749' : '#237804', margin: 0, fontWeight: 800 }}>Nộp bài thành công!</Title>
-      <Text style={{ color: isDark ? '#86efac' : '#389e0d', fontSize: 16 }}>Sản phẩm của đội bạn đã được lưu trữ an toàn và đóng dấu thời gian trên hệ thống.</Text>
+      <Title level={2} style={{ color: accent, margin: 0, fontWeight: 800 }}>{title}</Title>
+      <Text style={{ color: isDark ? '#cbd5e1' : '#595959', fontSize: 16 }}>{subtitle}</Text>
     </div>
 
-    <div style={{ background: isDark ? 'rgba(30, 41, 59, 0.8)' : '#fff', borderRadius: 16, padding: 28, border: isDark ? '1px solid rgba(70, 183, 73, 0.25)' : '1px solid #d9f7be', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+    <div style={{ background: isDark ? 'rgba(30, 41, 59, 0.8)' : '#fff', borderRadius: 16, padding: 28, border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid #f0f0f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
       <Row gutter={[24, 32]}>
         <Col span={24}>
           <Text type="secondary" style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1, color: token?.colorTextSecondary }}>File Thuyết Trình (PDF)</Text>
@@ -156,7 +184,7 @@ const SuccessView: React.FC<{ submissionData: any; submittedSlideName: string; o
       </Row>
     </div>
 
-    {!readOnly && (
+    {!readOnly && !isRejected && (
       <div style={{ textAlign: 'center', marginTop: 32 }}>
         <Button type="dashed" size="large" icon={<EditOutlined />} onClick={onEdit} style={{ borderRadius: 12, fontWeight: 700, padding: '0 32px', height: 48, borderColor: '#16a34a', color: isDark ? '#46B749' : '#16a34a', background: isDark ? 'rgba(70, 183, 73, 0.1)' : '#f0fdf4' }}>
           Cập Nhật / Thay Đổi Bài Nộp
@@ -164,7 +192,8 @@ const SuccessView: React.FC<{ submissionData: any; submittedSlideName: string; o
       </div>
     )}
   </Card>
-);
+  );
+};
 
 // ==========================================
 // 3. COMPONENT CHÍNH (MAIN PAGE)
@@ -239,7 +268,10 @@ const StudentSubmissionPage: React.FC = () => {
   }, [effectiveTeam]);
 
   const hasSavedSlide = Boolean(submissionData?.slide_file || submissionData?.slide_url || submissionData?.slideFile || submissionData?.slideUrl || submissionData?.has_slide);
-  const isSubmitted = Boolean(submissionData && submissionData.status !== 'INCOMPLETE' && hasSavedSlide);
+  const submissionStatus = String(submissionData?.status || '').toUpperCase();
+  const isRejectedPrelim = submissionStatus === 'REJECTED';
+  const isSubmitted = Boolean(submissionData && submissionData.status !== 'INCOMPLETE' && (hasSavedSlide || isRejectedPrelim));
+  const prelimFormLocked = prelimReadOnly || isRejectedPrelim;
   const submittedSlideName = submissionData?.slide_file || submissionData?.slideFile || 'slide.pdf';
   const submissionId = resolveSubmissionId(submissionData);
 
@@ -253,7 +285,7 @@ const StudentSubmissionPage: React.FC = () => {
 
   const { control, handleSubmit, reset, formState: { errors } } = useForm<SubmissionFormValues>({
     resolver: zodResolver(submissionSchema),
-    defaultValues: { repo_url: '', demo_url: '', slide_file: null },
+    defaultValues: { repo_url: '', demo_url: '', slide_file: null, late_reason: '' },
   });
 
   useEffect(() => {
@@ -293,12 +325,20 @@ const StudentSubmissionPage: React.FC = () => {
   });
 
   const onSubmit = (values: SubmissionFormValues) => {
-    if (prelimReadOnly) {
-      message.warning('Đội đã vào Chung kết hoặc bị loại — chỉ xem bài nộp Sơ loại.');
+    if (prelimFormLocked) {
+      message.warning(
+        isRejectedPrelim
+          ? 'Bài nộp đã bị từ chối — không thể nộp lại.'
+          : 'Đội đã vào Chung kết hoặc bị loại — chỉ xem bài nộp Sơ loại.',
+      );
       return;
     }
     if (!values.slide_file && !hasSavedSlide) {
       message.error('Vui lòng tải lên file slide PDF.');
+      return;
+    }
+    if (isOverdue && !String(values.late_reason || '').trim()) {
+      message.error('Vui lòng nhập lý do nộp muộn.');
       return;
     }
 
@@ -306,18 +346,17 @@ const StudentSubmissionPage: React.FC = () => {
     const currentTrackId = submissionData?.trackId || submissionData?.track_id;
     const fileToUpload = values.slide_file?.file?.originFileObj || values.slide_file?.file || values.slide_file?.originFileObj || values.slide_file;
 
-    // 🚀 FIX: Ép cứng dữ liệu truyền đi, lót sẵn mọi định dạng tên biến cho Backend
     const payload = {
       teamId: currentTeamId,
       trackId: currentTrackId,
       repoUrl: values.repo_url,
       repo_url: values.repo_url,
-      demoUrl: values.demo_url,  // <- Backend lấy trường này (từ API Doc)
+      demoUrl: values.demo_url,
       demo_url: values.demo_url,
       demoLink: values.demo_url,
       slideFile: fileToUpload,
       slide_file: fileToUpload,
-      late_reason: isOverdue ? 'Nộp muộn do hệ thống ghi nhận' : undefined,
+      late_reason: isOverdue ? String(values.late_reason || '').trim() : undefined,
     };
 
     mutation.mutate(payload as any);
@@ -538,6 +577,17 @@ const StudentSubmissionPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Live STT — poll presentation-slot for active tab's round */}
+              <PresentationSlotPanel
+                roundId={
+                  activeRoundTab === 'FINAL'
+                    ? (finalSubmissionState.finalRound?.id
+                        ?? finalSubmissionState.finalRound?.roundId
+                        ?? null)
+                    : (deadlineData?.roundId ?? null)
+                }
+              />
+
               {/* 3. MAIN CONTAINER 1: KHO ĐỀ THI CHÍNH THỨC */}
               <Collapse
                 defaultActiveKey={['problem']}
@@ -757,20 +807,29 @@ const StudentSubmissionPage: React.FC = () => {
                                         }
                                       />
                                     )}
+                                    {isRejectedPrelim && (
+                                      <Alert
+                                        showIcon
+                                        type="error"
+                                        style={{ marginBottom: 16, borderRadius: 12 }}
+                                        message="Bài nộp bị từ chối (REJECTED)"
+                                        description="Chính sách vòng thi không cho phép nộp lại sau khi bị từ chối."
+                                      />
+                                    )}
                                     <AnimatePresence mode="wait">
-                                      {isSubmitted && (!isEditing || prelimReadOnly) ? (
+                                      {isSubmitted && (!isEditing || prelimFormLocked) ? (
                                         <motion.div key="success" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }} style={{ height: '100%' }}>
                                           <SuccessView
                                             submissionData={submissionData}
                                             submittedSlideName={submittedSlideName}
                                             onViewPdf={handleViewPdf}
-                                            onEdit={() => { if (!prelimReadOnly) setIsEditing(true); }}
+                                            onEdit={() => { if (!prelimFormLocked) setIsEditing(true); }}
                                             isDark={isDark}
                                             token={token}
-                                            readOnly={prelimReadOnly}
+                                            readOnly={prelimFormLocked}
                                           />
                                         </motion.div>
-                                      ) : prelimReadOnly ? (
+                                      ) : prelimFormLocked ? (
                                         <motion.div key="readonly-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                           <Card style={{ borderRadius: 24, textAlign: 'center', padding: 40 }}>
                                             <LockOutlined style={{ fontSize: 40, color: token.colorTextSecondary, marginBottom: 12 }} />
@@ -855,7 +914,32 @@ const StudentSubmissionPage: React.FC = () => {
                                               </Form.Item>
 
                                               {isOverdue && (
-                                                <Alert type="warning" showIcon message="Bạn đang cập nhật bài muộn!" description="Hệ thống sẽ đánh dấu bài nộp là «Nộp muộn (Đang chờ duyệt)». Quyền phê duyệt thuộc về Ban tổ chức." style={{ marginBottom: 24, borderRadius: 10 }} />
+                                                <>
+                                                  <Alert type="warning" showIcon message="Bạn đang cập nhật bài muộn!" description="Hệ thống sẽ đánh dấu bài nộp là «Nộp muộn (Đang chờ duyệt)». Quyền phê duyệt thuộc về Ban tổ chức. Bắt buộc nhập lý do nộp muộn." style={{ marginBottom: 16, borderRadius: 10 }} />
+                                                  <Form.Item
+                                                    label={<Text strong style={{ fontSize: 14, color: token.colorTextHeading }}>Lý do nộp muộn <span style={{ color: '#ff4d4f' }}>*</span></Text>}
+                                                    validateStatus={errors.late_reason ? 'error' : ''}
+                                                    help={errors.late_reason?.message as string}
+                                                    style={{ marginBottom: 24 }}
+                                                  >
+                                                    <Controller
+                                                      name="late_reason"
+                                                      control={control}
+                                                      rules={{ required: isOverdue ? 'Bắt buộc nhập lý do nộp muộn' : false }}
+                                                      render={({ field }) => (
+                                                        <Input.TextArea
+                                                          {...field}
+                                                          value={field.value || ''}
+                                                          rows={3}
+                                                          maxLength={500}
+                                                          showCount
+                                                          placeholder="Mô tả lý do nộp/sửa bài sau hạn chót…"
+                                                          style={{ borderRadius: 10 }}
+                                                        />
+                                                      )}
+                                                    />
+                                                  </Form.Item>
+                                                </>
                                               )}
 
                                               <Button type="primary" htmlType="submit" size="large" block loading={mutation.isPending} style={{ height: 52, borderRadius: 12, fontSize: 16, fontWeight: 700, background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', border: 'none', boxShadow: '0 6px 16px -4px rgba(37, 99, 235, 0.4)', marginTop: 'auto' }}>

@@ -34,11 +34,11 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
     }
   }, [activeTab, results.showWildcardTab]);
 
-  const pendingWildcardCount = useMemo(
-    () =>
-      (results.wildcard?.items || []).filter((item) => item.coordinatorApproved == null).length,
-    [results.wildcard?.items],
-  );
+  const pendingWildcardCount = useMemo(() => {
+    if (!results.showWildcardTab) return 0;
+    if (results.wildcardDecisionsReady) return 0;
+    return 1; // Plan C: chưa xác nhận đề xuất = còn việc WC
+  }, [results.showWildcardTab, results.wildcardDecisionsReady]);
 
   const advanceN = results.advancePreview?.advancedTeamIds?.length ?? 0;
   const advanceConfirmEnabled =
@@ -76,6 +76,7 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
             wildcardData={results.wildcard}
             topN={results.ranking.topNAdvance || results.round?.top_n_advance || 0}
             roundId={roundId}
+            hasUnresolvedTiebreak={results.tiebreaks.length > 0}
           />
         ),
       },
@@ -117,9 +118,13 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
           <WildcardPanel
             wildcard={results.wildcard}
             error={results.errors.wildcard}
-            decidingReviewId={results.decidingReviewId}
-            onDecide={results.decideWildcard}
-            readOnly={results.hasAdvanced || results.wildcardDecisionsReady}
+            overrideHistory={results.overrideHistory}
+            confirmingProposal={results.confirmingProposal}
+            overridingReviewId={results.overridingReviewId}
+            onConfirmProposal={results.confirmWildcardProposal}
+            onOverride={results.overrideWildcard}
+            onLoadHistory={results.loadOverrideHistory}
+            readOnly={results.hasAdvanced}
           />
         ),
       });
@@ -139,8 +144,7 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
   }
 
   const wildcardPending =
-    results.showWildcardTab &&
-    (results.wildcard?.items || []).some((item) => item.coordinatorApproved == null);
+    results.showWildcardTab && !results.wildcardDecisionsReady;
 
   return (
     <Space direction="vertical" size={18} style={{ width: "100%" }}>
@@ -256,8 +260,8 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
       {results.tiebreaks.length > 0 && (
         <Alert
           showIcon
-          type="error"
-          message="Có các đội đồng điểm tại ranh giới đi tiếp. Vui lòng giải quyết Tiebreak."
+          type="warning"
+          message="Thứ hạng tạm thời — đang chờ xử lý đồng điểm"
           description={`Tổng cộng ${results.tiebreaks.reduce((sum, item) => sum + (item.teams?.length || 0), 0)} đội đang tranh chấp thứ hạng. Nút Chốt chuyển vòng bị khóa cho đến khi phân xử xong.`}
           action={
             <Button size="small" type="primary" danger onClick={() => setActiveTab("tiebreak")}>

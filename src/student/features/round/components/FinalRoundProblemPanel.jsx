@@ -36,12 +36,14 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
   const [waitingRelease, setWaitingRelease] = useState(false);
   const [notEligible, setNotEligible] = useState(false);
   const [notActive, setNotActive] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
   const loadProblem = useCallback(async () => {
     if (!teamId || !hackathonId) {
       setLoading(false);
       setNotEligible(false);
+      setUnavailable(false);
       setProblem(null);
       return;
     }
@@ -50,6 +52,7 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
     setWaitingRelease(false);
     setNotEligible(false);
     setNotActive(false);
+    setUnavailable(false);
     setProblem(null);
 
     try {
@@ -73,10 +76,17 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
       }
 
       const data = await studentRoundService.getProblem(finalRound.roundId);
+      if (data && data.available === false) {
+        setUnavailable(true);
+        setProblem(data);
+        return;
+      }
       setProblem(data);
     } catch (error) {
-      if (error?.status === 403 || error?.status === 404 || error?.status === 422) {
+      if (error?.status === 403) {
         setNotEligible(true);
+      } else if (error?.status === 404 || error?.status === 422) {
+        setUnavailable(true);
       }
     } finally {
       setLoading(false);
@@ -94,11 +104,13 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
       const blob = await studentRoundService.downloadProblemStatement(roundId);
       openPdfBlob(blob, problem?.problemFilename || 'de-bai-chung-ket.pdf');
     } catch (error) {
-      message.error(error?.message || 'Không tải được đề bài.');
+      message.error(error?.message || 'Không tìm thấy đề — liên hệ Coordinator.');
     } finally {
       setDownloading(false);
     }
   };
+
+  const trackLabel = problem?.trackName || problem?.track_name;
 
   if (loading) {
     return (
@@ -118,6 +130,31 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
 
   if (notEligible) {
     return null;
+  }
+
+  if (unavailable) {
+    return (
+      <Card
+        style={{
+          borderRadius: 20,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(220, 38, 38, 0.12) 0%, rgba(30, 41, 59, 0.9) 100%)'
+            : 'linear-gradient(135deg, #FFF1F0 0%, #FFFFFF 100%)',
+          border: `2px solid ${isDark ? 'rgba(248, 113, 113, 0.4)' : '#FFA39E'}`,
+          boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.3)' : '0 8px 24px rgba(220, 38, 38, 0.06)',
+          overflow: 'hidden',
+        }}
+        styles={{ body: { padding: '24px 28px' } }}
+      >
+        <Title level={4} style={{ margin: 0, color: token.colorTextHeading, fontWeight: 800 }}>
+          Đề thi Vòng Chung kết
+        </Title>
+        <Text style={{ color: token.colorTextSecondary, fontSize: 14, lineHeight: 1.5, display: 'block', marginTop: 8 }}>
+          Không tìm thấy đề — liên hệ Coordinator
+          {trackLabel ? ` (bảng sơ loại: ${trackLabel})` : ''}.
+        </Text>
+      </Card>
+    );
   }
 
   if (notActive) {
@@ -160,7 +197,7 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
               </Tag>
             </div>
             <Text style={{ color: token.colorTextSecondary, fontSize: 14, lineHeight: 1.5, display: 'block' }}>
-              Vòng Chung kết chưa được kích hoạt bởi Ban Tổ Chức — đề thi chung sẽ được công bố ngay sau khi vòng thi bắt đầu!
+              Vòng Chung kết chưa được kích hoạt — khi mở vòng, đội bạn tiếp tục đề theo bảng sơ loại của mình.
             </Text>
           </div>
         </div>
@@ -204,11 +241,11 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
                 Đề thi Vòng Chung kết
               </Title>
               <Tag color="orange" style={{ borderRadius: 6, fontWeight: 700, fontSize: 11, border: 0, margin: 0 }}>
-                ⏳ CHỜ PHÁT ĐỀ
+                ⏳ CHỜ MỞ ĐỀ
               </Tag>
             </div>
             <Text style={{ color: token.colorTextSecondary, fontSize: 14, lineHeight: 1.5, display: 'block' }}>
-              Vòng Chung kết đã mở. Ban tổ chức sẽ mở đề theo bảng đấu sơ loại của đội bạn — vui lòng chờ thông báo!
+              Đề sẽ mở theo bảng sơ loại của đội bạn sau khi Ban tổ chức kích hoạt vòng Chung kết.
             </Text>
           </div>
         </div>
@@ -253,8 +290,8 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
               <Title level={4} style={{ margin: 0, color: token.colorTextHeading, fontWeight: 800 }}>
-                {problem?.trackName || problem?.track_name
-                  ? `Đề thi Chung kết (Kế thừa từ Track: ${problem.trackName || problem.track_name})`
+                {trackLabel
+                  ? `Đề thi Chung kết (Kế thừa từ Track: ${trackLabel})`
                   : 'Đề thi Chung kết'}
               </Title>
               <Tag color="orange" style={{ borderRadius: 6, fontWeight: 700, fontSize: 11, border: 0, margin: 0 }}>
@@ -291,7 +328,11 @@ const FinalRoundProblemPanel = ({ teamId, hackathonId }) => {
         showIcon
         style={{ marginTop: 18, borderRadius: 12, border: isDark ? '1px solid rgba(255,255,255,0.1)' : undefined }}
         message="Lưu ý về Đề bài Chung kết"
-        description="Tất cả các đội tuyển lọt vào Vòng Chung kết (Final Round) sẽ nhận cùng một đề bài chuyên sâu từ Ban Tổ Chức."
+        description={
+          trackLabel
+            ? `Đội bạn tiếp tục đề bài bảng «${trackLabel}» từ vòng sơ loại — phát triển dự án, không có đề PDF mới chung cho cả vòng.`
+            : 'Mỗi đội Chung kết tiếp tục đề theo bảng sơ loại của mình — không có đề PDF mới chung cho cả vòng.'
+        }
       />
     </Card>
   );

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "AUTH",
+    "status": "PASS",
+    "detail": "Coordinator login OK"
+  },
+  {
+    "id": "TB-01-PROBE",
+    "status": "PASS",
+    "detail": "hackathons listed=5"
+  },
+  {
+    "id": "DIS-01",
+    "status": "PASS",
+    "detail": "hasMentor present on TeamDetail"
+  },
+  {
+    "id": "LATE-03",
+    "status": "PASS",
+    "detail": "LATE_PENDING list OK; slideDownloadPath=n/a-or-empty"
+  },
+  {
+    "id": "INV-HL-01",
+    "status": "PASS",
+    "detail": "Unit HardLockLateInvariantTest covers forbidden LATE_* on HARD_LOCK"
+  },
+  {
+    "id": "LATE-02",
+    "status": "PASS",
+    "detail": "Unit SubmissionStatusOnSubmitTest: SUBMITTED+afterDeadline -> LATE_PENDING/REJECTED"
+  },
+  {
+    "id": "TB-02",
+    "status": "PASS",
+    "detail": "resolveTiebreak audits; ranking no longer subtracts micro-penalty when not FINISHED"
+  },
+  {
+    "id": "TB-03",
+    "status": "PASS",
+    "detail": "resolveTiebreak returns 409 TIEBREAK_ALREADY_RESOLVED on casting-vote race"
+  },
+  {
+    "id": "TB-04",
+    "status": "PASS",
+    "detail": "Confirm/awards gated by round-scoped unresolved tiebreak"
+  },
+  {
+    "id": "TB-05",
+    "status": "PASS",
+    "detail": "Coord+student ranking banners wired for unresolved DEEP_TIE"
+  },
+  {
+    "id": "MEM-01",
+    "status": "PASS",
+    "detail": "adminCreateTeam re-check + unique partial SQL migration present"
+  }
+]

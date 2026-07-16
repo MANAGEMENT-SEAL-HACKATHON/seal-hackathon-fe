@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Card, Empty, Segmented, Skeleton, Space, Table, Tag, Typography, theme, Row, Col } from "antd";
+import { Card, Empty, Segmented, Skeleton, Space, Table, Tag, Typography, theme, Row, Col, Alert } from "antd";
 import { TrophyOutlined } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
@@ -69,6 +69,14 @@ const PublicScoreboard = ({ scoreboard, isLoading }) => {
 
   return (
     <Space direction="vertical" size={24} style={{ width: "100%" }}>
+      {(scoreboard?.items || []).some((item) => item.tiebreakRequired) && (
+        <Alert
+          showIcon
+          type="warning"
+          message="Kết quả đang chờ xử lý đồng điểm"
+          description="Thứ hạng tạm thời — Ban tổ chức đang phân xử các đội đồng điểm."
+        />
+      )}
       <Segmented
         block
         size="large"

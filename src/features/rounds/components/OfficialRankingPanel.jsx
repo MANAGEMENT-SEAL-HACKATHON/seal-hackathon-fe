@@ -20,6 +20,7 @@ const OfficialRankingPanel = ({
   wildcardData,
   topN,
   roundId,
+  hasUnresolvedTiebreak = false,
 }) => {
   const [selectedGroup, setSelectedGroup] = useState("all");
   const [breakdownTarget, setBreakdownTarget] = useState(null);
@@ -172,6 +173,14 @@ const OfficialRankingPanel = ({
 
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
+      {hasUnresolvedTiebreak && (
+        <Alert
+          showIcon
+          type="warning"
+          message="Thứ hạng tạm thời — đang chờ xử lý đồng điểm"
+          description="Bảng xếp hạng có thể thay đổi sau khi Ban tổ chức resolve tiebreak."
+        />
+      )}
       <Alert
         showIcon
         type="info"

@@ -1,230 +1,426 @@
 // src/features/rounds/results/components/WildcardPanel.jsx
-import { useState } from "react";
-import { Alert, Button, Card, Empty, Input, Modal, Space, Table, Tag, Typography } from "antd";
-import { CheckOutlined, CloseOutlined, StarOutlined } from "@ant-design/icons";
+import { useEffect, useState } from "react";
+import {
+  Alert,
+  Button,
+  Card,
+  Empty,
+  Input,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from "antd";
+import { CheckOutlined, EditOutlined, StarOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
 
 const { Text } = Typography;
 const { TextArea } = Input;
 
-const WildcardPanel = ({ wildcard, error, decidingReviewId, onDecide, readOnly = false }) => {
-  const [decision, setDecision] = useState(null);
+const OVERRIDE_CATEGORIES = [
+  { value: "PROPOSED_TEAM_VIOLATION", label: "Đội đề xuất vi phạm quy chế" },
+  { value: "TRACK_QUOTA_ADJUST", label: "Điều chỉnh quota bảng" },
+  { value: "SCORE_CORRECTED", label: "Sửa điểm sau khi khóa đề xuất" },
+  { value: "OTHER", label: "Khác (bắt buộc ghi chú)" },
+];
+
+const formatSubmittedAt = (value) => {
+  if (!value) return "—";
+  const d = dayjs(value);
+  return d.isValid() ? d.format("DD/MM HH:mm") : String(value);
+};
+
+const formatConfirmedAt = (value) => {
+  if (!value) return "";
+  const d = dayjs(value);
+  return d.isValid() ? d.format("HH:mm") : String(value);
+};
+
+const WildcardPanel = ({
+  wildcard,
+  error,
+  overrideHistory = [],
+  confirmingProposal = false,
+  overridingReviewId = null,
+  onConfirmProposal,
+  onOverride,
+  onLoadHistory,
+  readOnly = false,
+}) => {
+  const [overrideTarget, setOverrideTarget] = useState(null);
+  const [category, setCategory] = useState(null);
   const [note, setNote] = useState("");
+
   const slots = wildcard.config.availableSlots ?? 0;
   const enabled = Boolean(wildcard.config.roundEnabled) && slots > 0;
+  const proposalConfirmedAt =
+    wildcard.proposalConfirmedAt ?? wildcard.config?.proposalConfirmedAt ?? null;
+  const locked = Boolean(proposalConfirmedAt);
   const approvedCount =
     wildcard.config.approvedCount ??
     wildcard.items.filter((item) => item.coordinatorApproved === true).length;
-  const poolFinalized =
-    wildcard.decisionsFinalized ??
-    wildcard.config?.decisionsFinalized ??
-    (wildcard.items.length > 0 &&
-      wildcard.items.every(
-        (item) => item.coordinatorApproved === true || item.coordinatorApproved === false,
-      ));
-  const tiedAtCutoff = enabled && slots > 0 && wildcard.items.length > slots;
-  const isDecided = (candidate) =>
-    candidate.coordinatorApproved === true || candidate.coordinatorApproved === false;
 
-  const canApprove = (candidate) =>
-    enabled &&
-    candidate.reviewId &&
-    !poolFinalized &&
-    !isDecided(candidate) &&
-    approvedCount < slots;
+  useEffect(() => {
+    if (locked && onLoadHistory) onLoadHistory();
+  }, [locked, onLoadHistory]);
 
-  const canReject = (candidate) =>
-    enabled && candidate.reviewId && !poolFinalized && !isDecided(candidate);
-
-  const showActions = enabled && !readOnly && !poolFinalized;
-
-  const closeModal = () => {
-    setDecision(null);
+  const closeOverride = () => {
+    setOverrideTarget(null);
+    setCategory(null);
     setNote("");
   };
 
-  const confirmDecision = async () => {
-    const success = await onDecide(decision.candidate, decision.approved, note.trim());
-    if (success) closeModal();
+  const confirmOverride = async () => {
+    if (!overrideTarget || !category) return;
+    if (category === "OTHER" && !note.trim()) return;
+    const success = await onOverride(overrideTarget, {
+      approved: !overrideTarget.coordinatorApproved,
+      category,
+      note: note.trim(),
+    });
+    if (success) closeOverride();
   };
 
-  if (error) return <Alert showIcon type="error" message="Không tải được danh sách Wild Card" description={error.message} />;
+  const otherNeedsNote = category === "OTHER" && !note.trim();
+  const canSubmitOverride = Boolean(category) && !otherNeedsNote;
+
+  if (error) {
+    return (
+      <Alert
+        showIcon
+        type="error"
+        message="Không tải được danh sách Wild Card"
+        description={error.message}
+      />
+    );
+  }
 
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
       <Space wrap style={{ marginBottom: 4 }}>
-        <Tag color={wildcard.config.roundEnabled ? "success" : "default"} style={{ fontWeight: 500, padding: '2px 10px' }}>
+        <Tag
+          color={wildcard.config.roundEnabled ? "success" : "default"}
+          style={{ fontWeight: 500, padding: "2px 10px" }}
+        >
           Round: {wildcard.config.roundEnabled ? "Đã bật" : "Đang tắt"}
         </Tag>
-        <Tag color="blue" bordered={false} style={{ fontWeight: 600, padding: '2px 10px' }}>
+        <Tag color="blue" bordered={false} style={{ fontWeight: 600, padding: "2px 10px" }}>
           {slots} suất vé vớt
         </Tag>
+        {locked && (
+          <Tag color="purple" style={{ fontWeight: 600, padding: "2px 10px" }}>
+            Đã xác nhận lúc {formatConfirmedAt(proposalConfirmedAt)} — sửa qua Override
+          </Tag>
+        )}
       </Space>
 
       <Alert
         showIcon
-        type={enabled ? (poolFinalized ? "success" : tiedAtCutoff ? "warning" : "info") : "warning"}
+        type={enabled ? (locked ? "success" : "info") : "warning"}
         message={
           <Text strong>
-            {poolFinalized
-              ? "Đã chốt quyết định vé vớt"
+            {locked
+              ? "Đề xuất vé vớt đã khóa"
               : enabled
-                ? tiedAtCutoff
-                  ? `Đồng điểm vé vớt — chọn ${slots} đội (đã duyệt ${approvedCount}/${slots})`
-                  : "Vé vớt — chọn đội vào ghế trống"
+                ? "Hệ thống đề xuất Top N đội vé vớt"
                 : "Chưa thể xét vé vớt"}
           </Text>
         }
         description={
           <Text type="secondary">
-            {poolFinalized
-              ? "Mỗi đội chỉ được quyết định một lần. Đội được duyệt mang trạng thái WILDCARD_APPROVED (chưa ADVANCED) cho tới khi Chốt chuyển vòng."
+            {locked
+              ? "Thứ tự đề xuất không tự đổi khi điểm thay đổi. Muốn sửa đội → Override với category bắt buộc."
               : enabled
-                ? tiedAtCutoff
-                  ? "Duyệt đủ số suất — hệ thống tự từ chối các đội còn lại. Không thể đổi quyết định sau khi chốt."
-                  : "Hệ thống so sánh chéo điểm các đội ngoài Top N mỗi bảng để đề xuất bù suất Chung kết."
+                ? `Sắp xếp: điểm ↓, nộp sớm ↑, teamId. Bấm «Xác nhận đề xuất» để duyệt ${slots} đội và khóa danh sách.`
                 : "Bật Wildcard trên Vòng Sơ loại và đảm bảo còn ghế (minTeamsFinal − topN × số bảng > 0)."}
           </Text>
         }
         style={{ borderRadius: 8 }}
+        action={
+          enabled && !locked && !readOnly ? (
+            <Button
+              type="primary"
+              icon={<CheckOutlined />}
+              loading={confirmingProposal}
+              onClick={onConfirmProposal}
+            >
+              Xác nhận đề xuất
+            </Button>
+          ) : null
+        }
       />
 
-      <Card 
-        title={<Space><StarOutlined style={{ color: '#faad14' }} /><Text strong style={{ fontSize: 16 }}>Đề xuất vé vớt cross-bảng</Text></Space>}
-        styles={{ header: { borderBottom: '1px solid #f0f0f0', padding: '16px 24px' }, body: { padding: '16px 24px' } }}
-        style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}
+      <Card
+        title={
+          <Space>
+            <StarOutlined style={{ color: "#faad14" }} />
+            <Text strong style={{ fontSize: 16 }}>
+              Đề xuất vé vớt cross-bảng
+            </Text>
+          </Space>
+        }
+        styles={{
+          header: { borderBottom: "1px solid #f0f0f0", padding: "16px 24px" },
+          body: { padding: "16px 24px" },
+        }}
+        style={{ borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}
       >
         <Table
           rowKey="key"
           pagination={false}
           dataSource={wildcard.items}
-          locale={{ 
+          locale={{
             emptyText: (
-              <Empty 
+              <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
                   <div>
                     <span style={{ fontWeight: 500 }}>Chưa có danh sách đề xuất vé vớt</span>
                     <br />
-                    <span style={{ fontSize: 13 }}>Tính năng này có thể chưa được bật, hoặc hiện tại không có đội thi nào đáp ứng đủ điều kiện nhận vé vớt.</span>
+                    <span style={{ fontSize: 13 }}>
+                      Tính năng này có thể chưa được bật, hoặc hiện tại không có đội thi nào đáp
+                      ứng đủ điều kiện nhận vé vớt.
+                    </span>
                   </div>
-                } 
+                }
               />
-            )
+            ),
           }}
-          scroll={{ x: 760 }}
+          scroll={{ x: 800 }}
           size="middle"
           columns={[
-            { 
-              title: "Ưu tiên", 
-              dataIndex: "candidateRank", 
-              width: 100, 
+            {
+              title: "Hạng",
+              dataIndex: "candidateRank",
+              width: 80,
               align: "center",
-              render: (value) => <span style={{ fontWeight: 'bold', fontSize: 16, color: '#d48806' }}>#{value}</span> 
+              render: (value) => (
+                <span style={{ fontWeight: "bold", fontSize: 16, color: "#d48806" }}>#{value}</span>
+              ),
             },
-            { 
-              title: "Đội thi", 
-              dataIndex: "teamName", 
+            {
+              title: "Đội thi",
+              dataIndex: "teamName",
               render: (value, item) => (
                 <Space direction="vertical" size={4}>
-                  <Text strong style={{ fontSize: 15 }}>{value}</Text>
-                  <Tag bordered={false} style={{ margin: 0, fontSize: 12 }}>
-                    {item.groupLabel}
-                  </Tag>
+                  <Text strong style={{ fontSize: 15 }}>
+                    {value}
+                  </Text>
+                  {item.groupLabel && (
+                    <Tag bordered={false} style={{ margin: 0, fontSize: 12 }}>
+                      {item.groupLabel}
+                    </Tag>
+                  )}
                 </Space>
-              ) 
+              ),
             },
-            { 
-              title: "Điểm chéo", 
-              dataIndex: "weightedAvgScore", 
-              align: "right", 
-              render: (value) => <span style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: '#2563eb' }}>{value.toFixed(2)}</span> 
+            {
+              title: "Điểm TB",
+              dataIndex: "avgScore",
+              align: "right",
+              width: 110,
+              render: (value, item) => {
+                const score = value ?? item.weightedAvgScore ?? 0;
+                return (
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: 18,
+                      fontWeight: 700,
+                      color: "#2563eb",
+                    }}
+                  >
+                    {Number(score).toFixed(2)}
+                  </span>
+                );
+              },
+            },
+            {
+              title: "Nộp bài",
+              dataIndex: "submittedAt",
+              width: 120,
+              render: (value) => (
+                <Text type="secondary" style={{ fontFamily: "monospace" }}>
+                  {formatSubmittedAt(value)}
+                </Text>
+              ),
             },
             {
               title: "Trạng thái",
               dataIndex: "coordinatorApproved",
-              width: 130,
-              render: (approved) =>
-                approved === true ? (
-                  <Tag color="success" style={{ fontWeight: 600, padding: "4px 10px" }}>Đã duyệt</Tag>
-                ) : approved === false ? (
-                  <Tag color="error" style={{ fontWeight: 600, padding: "4px 10px" }}>Đã từ chối</Tag>
-                ) : (
-                  <Tag color="processing" style={{ fontWeight: 600, padding: "4px 10px" }}>Chờ duyệt</Tag>
-                ),
+              width: 140,
+              render: (approved, item) => {
+                if (approved === true) {
+                  return (
+                    <Tag color="success" style={{ fontWeight: 600, padding: "4px 10px" }}>
+                      {item.isOverride ? "Duyệt (override)" : "Đã duyệt"}
+                    </Tag>
+                  );
+                }
+                if (approved === false) {
+                  return (
+                    <Tag color="error" style={{ fontWeight: 600, padding: "4px 10px" }}>
+                      {item.isOverride ? "Từ chối (override)" : "Từ chối"}
+                    </Tag>
+                  );
+                }
+                return (
+                  <Tag color="processing" style={{ fontWeight: 600, padding: "4px 10px" }}>
+                    Đề xuất
+                  </Tag>
+                );
+              },
             },
-            {
-              title: "Ghi chú",
-              dataIndex: "reason",
-              ellipsis: true,
-              render: (value) => <Text type="secondary">{value || "—"}</Text>,
-            },
-            ...(showActions
+            ...(locked && !readOnly
               ? [
                   {
                     title: "Thao tác",
                     key: "actions",
-                    width: 210,
+                    width: 130,
                     render: (_, candidate) => (
-                      <Space>
-                        <Button
-                          type="primary"
-                          ghost
-                          icon={<CheckOutlined />}
-                          disabled={!canApprove(candidate)}
-                          loading={decidingReviewId === candidate.reviewId}
-                          onClick={() => setDecision({ candidate, approved: true })}
-                        >
-                          Duyệt
-                        </Button>
-                        <Button
-                          danger
-                          icon={<CloseOutlined />}
-                          disabled={!canReject(candidate)}
-                          loading={decidingReviewId === candidate.reviewId}
-                          onClick={() => setDecision({ candidate, approved: false })}
-                        >
-                          Từ chối
-                        </Button>
-                      </Space>
+                      <Button
+                        icon={<EditOutlined />}
+                        loading={overridingReviewId === candidate.reviewId}
+                        onClick={() => {
+                          setOverrideTarget(candidate);
+                          setCategory(null);
+                          setNote("");
+                        }}
+                      >
+                        Override
+                      </Button>
                     ),
                   },
                 ]
               : []),
           ]}
         />
+
+        {!locked && enabled && !readOnly && (
+          <div style={{ marginTop: 16, textAlign: "right" }}>
+            <Text type="secondary" style={{ marginRight: 12 }}>
+              Đã duyệt dự kiến: {approvedCount}/{slots} (sau xác nhận)
+            </Text>
+            <Button
+              type="primary"
+              size="large"
+              icon={<CheckOutlined />}
+              loading={confirmingProposal}
+              onClick={onConfirmProposal}
+            >
+              Xác nhận đề xuất
+            </Button>
+          </div>
+        )}
       </Card>
 
+      {locked && (
+        <Card
+          title={<Text strong>Lịch sử override vé vớt</Text>}
+          styles={{
+            header: { borderBottom: "1px solid #f0f0f0", padding: "16px 24px" },
+            body: { padding: "16px 24px" },
+          }}
+          style={{ borderRadius: 12 }}
+        >
+          <Table
+            rowKey="id"
+            pagination={false}
+            size="small"
+            dataSource={overrideHistory}
+            locale={{ emptyText: "Chưa có override nào" }}
+            columns={[
+              {
+                title: "Thời điểm",
+                dataIndex: "overriddenAt",
+                width: 140,
+                render: (v) => formatSubmittedAt(v),
+              },
+              { title: "Đội", dataIndex: "teamName" },
+              {
+                title: "Category",
+                dataIndex: "category",
+                width: 180,
+                render: (v) => <Tag>{v}</Tag>,
+              },
+              {
+                title: "Trước → Sau",
+                key: "change",
+                width: 140,
+                render: (_, row) => (
+                  <Text>
+                    {row.beforeApproved === true ? "Duyệt" : row.beforeApproved === false ? "Từ chối" : "—"}
+                    {" → "}
+                    {row.afterApproved ? "Duyệt" : "Từ chối"}
+                  </Text>
+                ),
+              },
+              {
+                title: "Ghi chú",
+                dataIndex: "note",
+                ellipsis: true,
+                render: (v) => v || "—",
+              },
+              {
+                title: "Người sửa",
+                dataIndex: "byUserName",
+                width: 140,
+                render: (v) => v || "—",
+              },
+            ]}
+          />
+        </Card>
+      )}
+
       <Modal
-        open={Boolean(decision)}
-        title={decision?.approved ? "Xác nhận duyệt Wild Card" : "Xác nhận từ chối Wild Card"}
-        okText={decision?.approved ? "Duyệt vé vớt" : "Từ chối"}
-        okButtonProps={{ danger: decision?.approved === false }}
-        confirmLoading={decidingReviewId === decision?.candidate?.reviewId}
-        onCancel={closeModal}
-        onOk={confirmDecision}
+        open={Boolean(overrideTarget)}
+        title={`Override — ${overrideTarget?.teamName || ""}`}
+        okText="Lưu override"
+        okButtonProps={{ disabled: !canSubmitOverride }}
+        confirmLoading={overridingReviewId === overrideTarget?.reviewId}
+        onCancel={closeOverride}
+        onOk={confirmOverride}
       >
         <Space direction="vertical" size={14} style={{ width: "100%" }}>
           <Alert
-            type={decision?.approved ? "info" : "warning"}
+            type="warning"
             showIcon
-            message={decision?.candidate?.teamName}
-            description={
-              decision?.approved
-                ? approvedCount + 1 >= slots
-                  ? "Sau khi duyệt, các đội còn lại sẽ tự động bị từ chối. Quyết định không thể hoàn tác."
-                  : "Quyết định duyệt không thể thay đổi sau khi xác nhận."
-                : "Quyết định từ chối không thể thay đổi sau khi xác nhận."
+            message={
+              overrideTarget?.coordinatorApproved
+                ? "Đổi thành Từ chối vé vớt"
+                : "Đổi thành Duyệt vé vớt"
             }
+            description="Đề xuất đã khóa — mọi thay đổi phải có category. Điểm đổi sau lock không tự re-sort."
           />
-          <Text strong>Ghi chú của Coordinator</Text>
+          <Text strong>Category</Text>
+          <Select
+            style={{ width: "100%" }}
+            placeholder="Chọn lý do override"
+            options={OVERRIDE_CATEGORIES}
+            value={category}
+            onChange={setCategory}
+          />
+          <Text strong>
+            Ghi chú {category === "OTHER" ? "(bắt buộc)" : "(tuỳ chọn)"}
+          </Text>
           <TextArea
             value={note}
-            onChange={(event) => setNote(event.target.value)}
+            onChange={(e) => setNote(e.target.value)}
             maxLength={500}
             showCount
-            rows={4}
-            placeholder="Nêu ngắn gọn căn cứ cho quyết định..."
+            rows={3}
+            status={otherNeedsNote ? "error" : undefined}
+            placeholder={
+              category === "OTHER"
+                ? "Bắt buộc nêu lý do khi chọn OTHER..."
+                : "Ghi chú bổ sung..."
+            }
           />
+          {otherNeedsNote && (
+            <Text type="danger">Category OTHER bắt buộc có ghi chú (WC-05).</Text>
+          )}
         </Space>
       </Modal>
     </Space>
@@ -232,4 +428,3 @@ const WildcardPanel = ({ wildcard, error, decidingReviewId, onDecide, readOnly =
 };
 
 export default WildcardPanel;
-

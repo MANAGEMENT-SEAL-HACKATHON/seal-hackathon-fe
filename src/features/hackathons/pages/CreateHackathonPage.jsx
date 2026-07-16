@@ -14,7 +14,7 @@ function buildCloneInitialValues(source) {
     description: source.description,
     rules: source.rules,
     season: source.season,
-    individual_ranking_enabled: source.individual_ranking_enabled,
+    individual_ranking_enabled: false,
     max_participants: source.max_participants,
     year: new Date().getFullYear(),
   };
@@ -63,7 +63,12 @@ const CreateHackathonPage = () => {
     try {
       setLoading(true);
       const { banner_file: bannerFileList, ...formValues } = values;
-      const payload = mapHackathonToBE(formValues);
+      const payload = mapHackathonToBE({
+        ...formValues,
+        individual_ranking_enabled: false,
+        event_start: null,
+        event_end: null,
+      });
       const created = await hackathonService.create(payload);
       const bannerFile = bannerFileList?.[0]?.originFileObj ?? bannerFileList?.[0];
       if (bannerFile && created?.id) {

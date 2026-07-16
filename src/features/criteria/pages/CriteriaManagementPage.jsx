@@ -27,6 +27,7 @@ import {
   CRITERIA_TYPES,
   CRITERIA_TYPE_OPTIONS,
   CRITERIA_COLORS,
+  formatCriteriaTypeLabel,
 } from "../constants/criteria.constants";
 import { CriteriaHeader } from "../components/CriteriaHeader";
 import { CriteriaFormModal } from "../components/CriteriaFormModal";
@@ -95,7 +96,14 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
       dataIndex: "type",
       key: "type",
       width: 140,
-      render: (t) => <Tag color={CRITERIA_COLORS[t]}>{t}</Tag>,
+      render: (t) => <Tag color={CRITERIA_COLORS[t]}>{formatCriteriaTypeLabel(t)}</Tag>,
+    },
+    {
+      title: "Mô tả",
+      dataIndex: "description",
+      key: "description",
+      ellipsis: true,
+      render: (text) => text || <Typography.Text type="secondary">—</Typography.Text>,
     },
     {
       title: "Trọng số",
@@ -210,7 +218,7 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
             >
               {CRITERIA_TYPE_OPTIONS.map((t) => (
                 <Select.Option key={t} value={t}>
-                  {t}
+                  {formatCriteriaTypeLabel(t)}
                 </Select.Option>
               ))}
             </Select>

@@ -55,6 +55,7 @@ export const mapStudentScoreboard = (response) => ({
         participationStatus: participationStatus,
         isAdvanced: isAdvanced,
         resultLabel: resultLabel,
+        tiebreakRequired: Boolean(firstDefined(item.tiebreakRequired, item.tiebreak_required, false)),
       };
     })
     .sort(
@@ -82,6 +83,7 @@ export const mapStudentLeaderboard = (response) => {
           score: score,
           isAdvanced: false,
           resultLabel: "Hoàn thành",
+          tiebreakRequired: Boolean(firstDefined(item.tiebreakRequired, item.tiebreak_required, false)),
         };
       })
       .sort((left, right) => left.rank - right.rank || right.score - left.score),

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Row, Col, Select, DatePicker, Switch, Tooltip, Alert, Button, message, Card, Typography } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
+import { useEffect, useMemo } from 'react';
+import { Modal, Form, Input, InputNumber, Row, Col, Select, DatePicker, Switch, Tooltip, Card, Typography } from 'antd';
 import dayjs from 'dayjs';
+import FormLabelWithInfo from '../../../shared/components/ui/FormLabelWithInfo';
 import { ROUND_TIEBREAK_RULE } from '../../../shared/constants/status';
 import {
   buildRoundScheduleContext,
@@ -22,16 +22,26 @@ import {
   getAdvancementFieldMode,
   validateAdvancementConfig,
 } from '../utils/roundAdvancementRules';
-import RoundProblemPdfUpload from './RoundProblemPdfUpload';
-import { roundService } from '../services/roundService';
 
 const { Option } = Select;
 const { Text } = Typography;
 
 const TIEBREAK_OPTIONS = [
-  { value: ROUND_TIEBREAK_RULE.PENALTY_SCORE, label: 'Điểm phạt (Penalty)' },
-  { value: ROUND_TIEBREAK_RULE.SUBMISSION_TIME, label: 'Nộp sớm / Submission Time' },
-  { value: ROUND_TIEBREAK_RULE.COORDINATOR_DECISION, label: 'Quyết định Ban tổ chức (Manual)' },
+  {
+    value: ROUND_TIEBREAK_RULE.COORDINATOR_DECISION,
+    label: 'Quyết định Ban tổ chức (mặc định)',
+    title: 'Đồng điểm Top-N cần BTC xét từng case — công bằng trước hội đồng.',
+  },
+  {
+    value: ROUND_TIEBREAK_RULE.SUBMISSION_TIME,
+    label: 'Nộp sớm / Submission Time',
+    title: 'Tự động tách khi timestamp nộp khác nhau; nếu vẫn hòa → escalate BTC.',
+  },
+  {
+    value: ROUND_TIEBREAK_RULE.PENALTY_SCORE,
+    label: 'Điểm phạt (Penalty)',
+    title: 'Chỉ dùng vote/resolve BTC — không phải tiêu chí Điểm phạt trên form chấm.',
+  },
 ];
 
 const RoundFormModal = ({
@@ -46,14 +56,19 @@ const RoundFormModal = ({
   advancementTracks = [],
 }) => {
   const [form] = Form.useForm();
-  const isFinal = Form.useWatch('is_final', form);
+  const roundTypeWatch = Form.useWatch('round_type', form);
+  const isFinal = roundTypeWatch === 'FINAL';
   const examAtWatch = Form.useWatch('exam_at', form);
   const codingDurationWatch = Form.useWatch('coding_duration_hours', form);
   const submissionOpenWatch = Form.useWatch('submission_open', form);
   const topNWatch = Form.useWatch('top_n_advance', form);
   const minFinalWatch = Form.useWatch('min_teams_final', form);
-  const [viewingProblem, setViewingProblem] = useState(false);
-  const hasPrelimRound = existingRounds.some((r) => !r.is_final);
+  const hasPrelimRound = existingRounds.some(
+    (r) =>
+      r.id !== initialValues?.id &&
+      !(r.is_final || r.isFinal) &&
+      String(r.round_type || r.roundType || 'PRELIMINARY').toUpperCase() !== 'FINAL',
+  );
   const advancementMode = getAdvancementFieldMode(hackathon, existingRounds);
 
   const partitions = useMemo(
@@ -95,12 +110,14 @@ const RoundFormModal = ({
     }
   }, [visible, isFinal, wildcardSlotsNonPositive, form]);
 
-  // Tập hợp round_type đã dùng (loại trừ round đang edit)
   const usedRoundTypes = new Set(
     existingRounds
       .filter((r) => r.id !== initialValues?.id)
-      .map((r) => r.round_type)
-      .filter(Boolean)
+      .map((r) => {
+        if (r.is_final || r.isFinal) return 'FINAL';
+        return String(r.round_type || r.roundType || 'PRELIMINARY').toUpperCase();
+      })
+      .filter(Boolean),
   );
 
   useEffect(() => {
@@ -108,6 +125,10 @@ const RoundFormModal = ({
       if (initialValues) {
         form.setFieldsValue({
           ...initialValues,
+          round_type:
+            initialValues.round_type ||
+            initialValues.roundType ||
+            (initialValues.is_final ? 'FINAL' : 'PRELIMINARY'),
           exam_at: initialValues.exam_at ? dayjs(initialValues.exam_at) : null,
           submission_open: initialValues.submission_open ? dayjs(initialValues.submission_open) : null,
           submission_deadline: initialValues.submission_deadline ? dayjs(initialValues.submission_deadline) : null,
@@ -158,34 +179,12 @@ const RoundFormModal = ({
 
   const scheduleHint = getRoundScheduleHint(scheduleCtx);
 
-  const handleViewProblemPdf = async () => {
-    if (!initialValues?.id) return;
-    setViewingProblem(true);
-    try {
-      const blob = await roundService.getProblemStatement(initialValues.id);
-      const file = new Blob([blob], { type: 'application/pdf' });
-      const fileUrl = URL.createObjectURL(file);
-      const opened = window.open(fileUrl, '_blank', 'noopener,noreferrer');
-      if (!opened) {
-        URL.revokeObjectURL(fileUrl);
-        message.warning('Trình duyệt chặn cửa sổ mới. Vui lòng cho phép popup để xem PDF.');
-      }
-    } catch {
-      message.error('Không thể mở file đề bài. Vui lòng thử lại.');
-    } finally {
-      setViewingProblem(false);
-    }
-  };
-
-  const hasProblemFile = Boolean(
-    initialValues?.problem_statement_filename || initialValues?.problem_statement_url,
-  );
-
   const handleSubmit = () => {
     form.validateFields()
       .then(values => {
         const formattedValues = {
           ...values,
+          is_final: values.round_type === 'FINAL',
           exam_at: values.exam_at?.format('YYYY-MM-DD HH:mm:ss'),
           submission_open: values.submission_open?.format('YYYY-MM-DD HH:mm:ss'),
           submission_deadline: values.submission_deadline?.format('YYYY-MM-DD HH:mm:ss'),
@@ -212,16 +211,15 @@ const RoundFormModal = ({
         form={form}
         layout="vertical"
         initialValues={{
-          tiebreak_rule: 'PENALTY_SCORE',
+          tiebreak_rule: 'COORDINATOR_DECISION',
           late_submission_policy: 'ALLOW_LATE_PENDING',
           is_active: false,
           wildcard_enabled: false,
-          is_final: false,
           round_type: 'PRELIMINARY',
         }}
         onValuesChange={(changedValues, allValues) => {
-          if (changedValues.round_type !== undefined || changedValues.is_final !== undefined) {
-            const finalRound = allValues.is_final || allValues.round_type === 'FINAL';
+          if (changedValues.round_type !== undefined) {
+            const finalRound = allValues.round_type === 'FINAL';
             form.setFieldsValue({
               late_submission_policy: finalRound ? 'HARD_LOCK' : 'ALLOW_LATE_PENDING',
             });
@@ -259,75 +257,28 @@ const RoundFormModal = ({
               label="Loại vòng thi"
               rules={[{ required: true, message: 'Vui lòng chọn loại' }]}
             >
-              <Select
-                onChange={(value) => {
-                  const finalRound = value === 'FINAL';
-                  form.setFieldsValue({
-                    is_final: finalRound,
-                    late_submission_policy: finalRound ? 'HARD_LOCK' : 'ALLOW_LATE_PENDING',
-                  });
-                }}
-              >
-                <Option value="PRELIMINARY" disabled={usedRoundTypes.has('PRELIMINARY')}>
-                  Sơ loại (Preliminary){usedRoundTypes.has('PRELIMINARY') ? ' — đã tạo' : ''}
-                </Option>
-                <Option value="SEMIFINAL" disabled={usedRoundTypes.has('SEMIFINAL')}>
-                  Bán kết (Semifinal){usedRoundTypes.has('SEMIFINAL') ? ' — đã tạo' : ''}
+              <Select>
+                <Option value="PRELIMINARY" disabled={hasPrelimRound}>
+                  Sơ loại{hasPrelimRound ? ' — đã tạo' : ''}
                 </Option>
                 <Option value="FINAL" disabled={usedRoundTypes.has('FINAL')}>
-                  Chung kết (Final){usedRoundTypes.has('FINAL') ? ' — đã tạo' : ''}
+                  Vòng Chung kết{usedRoundTypes.has('FINAL') ? ' — đã tạo' : ''}
                 </Option>
               </Select>
             </Form.Item>
           </Col>
-          <Col span={12}>
-            <Form.Item
-              name="is_final"
-              label="Là vòng chung kết"
-              valuePropName="checked"
-              tooltip={!hasPrelimRound && !initialValues ? 'Tạo vòng Sơ loại trước khi tạo Chung kết' : undefined}
-            >
-              <Switch
-                onChange={(checked) => {
-                  if (checked) {
-                    form.setFieldsValue({
-                      round_type: 'FINAL',
-                      is_final: true,
-                      late_submission_policy: 'HARD_LOCK',
-                    });
-                  } else {
-                    const currentType = form.getFieldValue('round_type');
-                    form.setFieldsValue({
-                      is_final: false,
-                      round_type: currentType === 'FINAL' ? 'PRELIMINARY' : currentType,
-                      late_submission_policy: 'ALLOW_LATE_PENDING',
-                    });
-                  }
-                }}
-              />
-            </Form.Item>
-          </Col>
         </Row>
-
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message={isFinal ? 'Lịch vòng Chung kết' : 'Lịch vòng Sơ loại'}
-          description={<span style={{ fontSize: 12 }}>{scheduleHint}</span>}
-        />
 
         <Row gutter={24}>
           <Col span={12}>
             <Form.Item
               name="exam_at"
               label={
-                <span>
-                  Ngày giờ thi{' '}
-                  <Tooltip title="Thời điểm thi đấu / trình bày — khác với hạn chót nộp bài">
-                    <InfoCircleOutlined style={{ color: 'var(--ant-color-text-secondary)' }} />
-                  </Tooltip>
-                </span>
+                <FormLabelWithInfo
+                  label="Ngày giờ thi"
+                  info={`${isFinal ? 'Lịch vòng Chung kết' : 'Lịch vòng Sơ loại'}: ${scheduleHint}`}
+                  required
+                />
               }
               dependencies={['submission_open']}
               validateTrigger={['onChange', 'onBlur']}
@@ -386,7 +337,7 @@ const RoundFormModal = ({
           <Col span={12}>
             <Form.Item
               name="coding_duration_hours"
-              label="Thời gian thi (Giờ)"
+              label="Thời lượng thi (Giờ)"
               validateTrigger={['onChange', 'onBlur']}
               rules={[
                 ({ getFieldValue }) => ({
@@ -408,7 +359,12 @@ const RoundFormModal = ({
           <Col span={12}>
             <Form.Item
               name="submission_open"
-              label="Mở nộp bài"
+              label={
+                <FormLabelWithInfo
+                  label="Mở nộp bài"
+                  info="Hệ thống tự tính theo quy tắc ⅔ thời lượng thi sau ngày giờ thi."
+                />
+              }
               dependencies={['exam_at', 'submission_deadline']}
               validateTrigger={['onChange', 'onBlur']}
               rules={[
@@ -428,6 +384,7 @@ const RoundFormModal = ({
               <DatePicker
                 showTime
                 style={{ width: '100%' }}
+                disabled
                 disabledDate={(current) => isRoundDateDisabled(current, scheduleCtx)}
                 disabledTime={(current) => getRoundSubmissionOpenDisabledTime(current, scheduleCtx)}
               />
@@ -436,7 +393,12 @@ const RoundFormModal = ({
           <Col span={12}>
             <Form.Item
               name="submission_deadline"
-              label="Hạn chót nộp bài"
+              label={
+                <FormLabelWithInfo
+                  label="Hạn chót nộp bài"
+                  info="Hệ thống tự tính = ngày giờ thi + thời lượng thi."
+                />
+              }
               dependencies={['submission_open']}
               validateTrigger={['onChange', 'onBlur']}
               rules={[
@@ -455,62 +417,13 @@ const RoundFormModal = ({
               <DatePicker
                 showTime
                 style={{ width: '100%' }}
+                disabled
                 disabledDate={(current) => isRoundDateDisabled(current, scheduleCtx)}
                 disabledTime={(current) => getRoundSubmissionDeadlineDisabledTime(current, scheduleCtx)}
               />
             </Form.Item>
           </Col>
         </Row>
-
-        <Row gutter={24}>
-          {isFinal && (
-          <Col span={24}>
-            {initialValues?.problem_statement_filename && (
-              <Alert
-                type="info"
-                showIcon
-                style={{ marginBottom: 12 }}
-                message={`Đề bài hiện tại: ${initialValues.problem_statement_filename}`}
-                description={
-                  hasProblemFile ? (
-                    <Button
-                      type="link"
-                      style={{ padding: 0, height: 'auto' }}
-                      loading={viewingProblem}
-                      onClick={handleViewProblemPdf}
-                    >
-                      Xem PDF
-                    </Button>
-                  ) : null
-                }
-              />
-            )}
-            <Form.Item
-              label="File đề bài (PDF)"
-              extra="Upload PDF đề bài Chung kết (tối đa 25MB). Có thể upload trước khi phát đề."
-              name="problem_file"
-              valuePropName="fileList"
-              getValueFromEvent={(event) => (Array.isArray(event) ? event : event?.fileList)}
-            >
-              <RoundProblemPdfUpload disabled={Boolean(initialValues?.problem_released_at)} />
-            </Form.Item>
-          </Col>
-          )}
-        </Row>
-
-        {!isFinal && (
-          <Alert
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-            message="Đề bài Sơ loại"
-            description={
-              <span style={{ fontSize: 12 }}>
-                Mỗi bảng đấu có đề riêng — upload PDF tại mục Quản lý bảng đấu, không upload tại vòng Sơ loại.
-              </span>
-            }
-          />
-        )}
 
         <Form.Item name="late_submission_policy" hidden>
           <Input />
@@ -522,29 +435,22 @@ const RoundFormModal = ({
             title="Cấu hình đi tiếp vào Chung kết"
             style={{ marginBottom: 16 }}
           >
-            <Alert
-              type={advancementMode === 'confirm' && !advancementValidation.valid ? 'warning' : 'info'}
-              showIcon
-              style={{ marginBottom: 16 }}
-              message="Số đội đi tiếp"
-              description={
-                <span style={{ fontSize: 12 }}>
-                  {getAdvancementFieldHint(advancementMode, advancementValidation, {
-                    partitions,
-                    topNAdvance: topNWatch,
-                  })}
-                </span>
-              }
-            />
-
             <Row gutter={24}>
               <Col span={12}>
                 <Form.Item
                   name="top_n_advance"
                   label={
-                    advancementMode === 'estimate'
-                      ? 'Vào chung kết mỗi bảng (dự tính)'
-                      : 'Vào chung kết mỗi bảng'
+                    <FormLabelWithInfo
+                      label={
+                        advancementMode === 'estimate'
+                          ? 'Vào CK mỗi bảng (dự tính)'
+                          : 'Vào CK mỗi bảng'
+                      }
+                      info={getAdvancementFieldHint(advancementMode, advancementValidation, {
+                        partitions,
+                        topNAdvance: topNWatch,
+                      })}
+                    />
                   }
                   dependencies={['min_teams_final']}
                   validateTrigger={['onChange', 'onBlur']}
@@ -646,16 +552,22 @@ const RoundFormModal = ({
 
             <Form.Item
               name="tiebreak_rule"
-              label="Luật Tiebreak"
-              extra={
-                <span style={{ fontSize: 12 }}>
-                  Khi đồng điểm tại biên Top-N mỗi bảng trước khi chốt chuyển vòng.
-                </span>
+              label={
+                <FormLabelWithInfo
+                  label="Luật xử lý đồng điểm"
+                  info={
+                    (initialValues?.tiebreak_rule === 'PENALTY_SCORE' ||
+                    initialValues?.tiebreakRule === 'PENALTY_SCORE'
+                      ? 'Round đang dùng PENALTY_SCORE — khuyến nghị đổi sang Quyết định Ban tổ chức. '
+                      : '') +
+                    'Khi đồng điểm tại biên Top-N mỗi bảng trước khi chốt chuyển vòng.'
+                  }
+                />
               }
             >
               <Select>
                 {TIEBREAK_OPTIONS.map((opt) => (
-                  <Option key={opt.value} value={opt.value}>
+                  <Option key={opt.value} value={opt.value} title={opt.title}>
                     {opt.label}
                   </Option>
                 ))}
@@ -663,72 +575,58 @@ const RoundFormModal = ({
             </Form.Item>
 
             {advancementMode !== 'estimate' && partitions.length > 0 && (
-              <Alert
-                type="info"
-                showIcon
-                style={{ marginBottom: 0 }}
-                message="Phân bổ đội"
-                description={
-                  <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13 }}>
-                    {buildTrackTeamSummary(partitions).map((summary, index) => (
-                      <li key={summary.trackId} style={{ marginBottom: 2 }}>
-                        {formatTrackSummaryLabel(summary, index)}
-                      </li>
-                    ))}
-                  </ul>
-                }
-              />
+              <div style={{ marginTop: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                  Phân bổ đội theo bảng:
+                </Text>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+                  {buildTrackTeamSummary(partitions).map((summary, index) => (
+                    <li key={summary.trackId} style={{ marginBottom: 2 }}>
+                      {formatTrackSummaryLabel(summary, index)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </Card>
         )}
 
         {isFinal && (
-          <Alert
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-            message="Vòng Chung kết"
-            description={<span style={{ fontSize: 12 }}>Không có bảng đấu con, không cấu hình số đội đi tiếp / vé vớt.</span>}
-          />
+          <Form.Item
+            name="tiebreak_rule"
+            label={
+              <FormLabelWithInfo
+                label="Luật xử lý đồng điểm"
+                info={
+                  (initialValues?.tiebreak_rule === 'PENALTY_SCORE' ||
+                  initialValues?.tiebreakRule === 'PENALTY_SCORE'
+                    ? 'Round đang dùng PENALTY_SCORE — khuyến nghị đổi sang Quyết định Ban tổ chức. '
+                    : '') +
+                  'Giải quyết đồng điểm khi xếp hạng Nhất/Nhì/Ba ở Chung kết.'
+                }
+              />
+            }
+          >
+            <Select>
+              {TIEBREAK_OPTIONS.map((opt) => (
+                <Option key={opt.value} value={opt.value} title={opt.title}>
+                  {opt.label}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
         )}
 
-        {isFinal && (
-          <Row gutter={24}>
-            <Col span={24}>
-              <Form.Item
-                name="tiebreak_rule"
-                label="Luật giải quyết đồng điểm Xếp hạng Nhất/Nhì/Ba"
-              >
-                <Select>
-                  {TIEBREAK_OPTIONS.map((opt) => (
-                    <Option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-        )}
-
-        {isFinal && (
-          <>
-            <Alert
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-              message="Thời lượng thuyết trình (tùy chọn)"
-              description={
-                <span style={{ fontSize: 12 }}>
-                  Timer cho toàn bộ vòng Chung kết (không theo bảng đấu). Để trống = mặc định 10 phút thuyết trình / 5 phút Q&A.
-                </span>
-              }
-            />
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item
-                  name="default_presentation_minutes"
+        <Row gutter={24}>
+          <Col span={12}>
+            <Form.Item
+              name="default_presentation_minutes"
+              label={
+                <FormLabelWithInfo
                   label="Thuyết trình (phút)"
+                  info="Timer cho toàn bộ vòng. Để trống = mặc định 10 phút thuyết trình."
+                />
+              }
                   validateTrigger={['onChange', 'onBlur']}
                   rules={[
                     {
@@ -744,10 +642,15 @@ const RoundFormModal = ({
                   <InputNumber min={1} max={60} style={{ width: '100%' }} placeholder="10" />
                 </Form.Item>
               </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="default_qa_minutes"
+          <Col span={12}>
+            <Form.Item
+              name="default_qa_minutes"
+              label={
+                <FormLabelWithInfo
                   label="Q&A (phút)"
+                  info="Để trống = mặc định 5 phút Q&A."
+                />
+              }
                   validateTrigger={['onChange', 'onBlur']}
                   rules={[
                     {
@@ -761,23 +664,23 @@ const RoundFormModal = ({
                   ]}
                 >
                   <InputNumber min={1} max={60} style={{ width: '100%' }} placeholder="5" />
-                </Form.Item>
-              </Col>
-            </Row>
-          </>
-        )}
-
-        <Row gutter={24}>
-          <Col span={24}>
-            <Form.Item
-              name="is_active"
-              label="Đang hoạt động"
-              valuePropName="checked"
-            >
-              <Switch disabled={!!initialValues?.is_active} />
             </Form.Item>
           </Col>
         </Row>
+
+        {initialValues?.id != null && (
+          <Row gutter={24}>
+            <Col span={24}>
+              <Form.Item
+                name="is_active"
+                label="Đang hoạt động"
+                valuePropName="checked"
+              >
+                <Switch disabled={!!initialValues?.is_active} />
+              </Form.Item>
+            </Col>
+          </Row>
+        )}
       </Form>
     </Modal>
   );

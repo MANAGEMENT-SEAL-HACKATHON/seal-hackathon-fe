@@ -11,6 +11,7 @@ const emptyRanking = { items: [], topNAdvance: 0, isPublished: false, roundName:
 const emptyWildcard = {
   config: { hackathonEnabled: false, roundEnabled: false, availableSlots: 0 },
   items: [],
+  proposalConfirmedAt: null,
 };
 
 export const useRoundResults = (roundId) => {
@@ -24,6 +25,9 @@ export const useRoundResults = (roundId) => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [decidingReviewId, setDecidingReviewId] = useState(null);
+  const [confirmingProposal, setConfirmingProposal] = useState(false);
+  const [overridingReviewId, setOverridingReviewId] = useState(null);
+  const [overrideHistory, setOverrideHistory] = useState([]);
   const [isResolvingTiebreak, setIsResolvingTiebreak] = useState(false);
 
   const fetchResults = useCallback(
@@ -86,6 +90,55 @@ export const useRoundResults = (roundId) => {
       return false;
     } finally {
       setDecidingReviewId(null);
+    }
+  };
+
+  const confirmWildcardProposal = async () => {
+    if (!roundId) return false;
+    setConfirmingProposal(true);
+    try {
+      await roundResultsService.confirmWildcardProposal(roundId);
+      message.success("Đã xác nhận đề xuất vé vớt — danh sách đã khóa.");
+      await fetchResults({ silent: true });
+      await loadOverrideHistory();
+      return true;
+    } catch (error) {
+      const { message: msg } = resolveProgressionError(error, "Không thể xác nhận đề xuất vé vớt.");
+      message.error(msg);
+      return false;
+    } finally {
+      setConfirmingProposal(false);
+    }
+  };
+
+  const loadOverrideHistory = useCallback(async () => {
+    if (!roundId) return;
+    try {
+      const rows = await roundResultsService.getWildcardOverrides(roundId);
+      setOverrideHistory(rows);
+    } catch {
+      setOverrideHistory([]);
+    }
+  }, [roundId]);
+
+  const overrideWildcard = async (candidate, { approved, category, note }) => {
+    setOverridingReviewId(candidate.reviewId);
+    try {
+      await roundResultsService.overrideWildcardReview(candidate.reviewId, {
+        approved,
+        category,
+        note,
+      });
+      message.success("Đã lưu override vé vớt.");
+      await fetchResults({ silent: true });
+      await loadOverrideHistory();
+      return true;
+    } catch (error) {
+      const { message: msg } = resolveProgressionError(error, "Không thể override vé vớt.");
+      message.error(msg);
+      return false;
+    } finally {
+      setOverridingReviewId(null);
     }
   };
 
@@ -170,12 +223,12 @@ export const useRoundResults = (roundId) => {
     const pool = wildcard.items;
     // Runtime hết ghế (kể cả DB wildcardEnabled=true) → không bắt duyệt WC
     if (slots <= 0 || pool.length === 0 || !wildcard.config.roundEnabled) return true;
+    // Plan C: cần xác nhận đề xuất (LOCK)
     return Boolean(
-      wildcard.decisionsFinalized ??
-        wildcard.config?.decisionsFinalized ??
-        pool.every(
-          (item) => item.coordinatorApproved === true || item.coordinatorApproved === false,
-        ),
+      wildcard.proposalConfirmedAt ??
+        wildcard.config?.proposalConfirmedAt ??
+        wildcard.decisionsFinalized ??
+        wildcard.config?.decisionsFinalized,
     );
   }, [wildcard]);
 
@@ -256,7 +309,7 @@ export const useRoundResults = (roundId) => {
     if (!scoringLocked) return "Cần khóa chấm điểm trước.";
     if (!isPublished) return "Cần công bố kết quả trước khi chốt chuyển vòng.";
     if (hasAdvanced) return "Danh sách chuyển vòng đã được chốt.";
-    if (!wildcardDecisionsReady) return "Cần duyệt xong Wild Card trước khi chốt chuyển vòng.";
+    if (!wildcardDecisionsReady) return "Cần xác nhận đề xuất Wild Card trước khi chốt chuyển vòng.";
     if (hasUnresolvedTiebreak) {
       return "Có các đội đồng điểm tại ranh giới đi tiếp. Vui lòng giải quyết Tiebreak.";
     }
@@ -323,6 +376,9 @@ export const useRoundResults = (roundId) => {
     isPublishing,
     isAdvancing,
     decidingReviewId,
+    confirmingProposal,
+    overridingReviewId,
+    overrideHistory,
     scoringLocked,
     isPublished,
     hasAdvanced,
@@ -339,6 +395,9 @@ export const useRoundResults = (roundId) => {
     buildAdvancePayload,
     fetchResults,
     decideWildcard,
+    confirmWildcardProposal,
+    overrideWildcard,
+    loadOverrideHistory,
     publishRound,
     advanceTeams,
     resolveTiebreak,

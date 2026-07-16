@@ -27,6 +27,15 @@ const MatchmakingBoardPage = () => {
         setHackathonId(null);
         return;
       }
+      const myTeams = await studentTeamService.getMyTeams();
+      const hasActiveTeam = myTeams.some((t) => ['PENDING', 'ACTIVE'].includes(t.status));
+      if (hasActiveTeam) {
+        setHackathonId(active.id);
+        setHackathonName(active.name || active.hackathonName || `Hackathon #${active.id}`);
+        setTeams([]);
+        setError('Bạn đang trong một đội. Rời đội hiện tại trước khi tìm đội khác trên bảng ghép.');
+        return;
+      }
       setHackathonId(active.id);
       setHackathonName(active.name || active.hackathonName || `Hackathon #${active.id}`);
       const items = await matchmakingService.getTeams(active.id);

@@ -3,15 +3,18 @@
  * Chức năng: Trang/Ngăn kéo hiển thị toàn bộ danh sách Hộp thư Lời mời. Cung cấp header thống kê và danh sách các thẻ InvitationCard.
  */
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Col, Empty, Row, Skeleton, Typography, theme, Button, Space, Statistic } from 'antd';
 import { MailOutlined, SyncOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import InvitationCard from '../components/InvitationCard';
 import { useStudentInvitations } from '../hooks/useStudentInvitations';
+import { ROUTES } from '../../../../shared/constants/routes';
 
 const { Text } = Typography;
 
 const StudentInvitationsPage = ({ onActionSuccess, hasTeams }) => {
+  const navigate = useNavigate();
   const { token } = theme.useToken();
   const {
     invitations,
@@ -24,8 +27,12 @@ const StudentInvitationsPage = ({ onActionSuccess, hasTeams }) => {
 
   const handleRespond = async (invitation, action) => {
     const success = await respondInvitation(invitation, action);
-    if (success && onActionSuccess) {
-      onActionSuccess();
+    if (!success) return;
+    if (onActionSuccess) {
+      await onActionSuccess(action);
+    }
+    if (action === 'ACCEPT') {
+      navigate(ROUTES.STUDENT_TEAM || '/student/team');
     }
   };
 

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "BOOT-IMPORT",
+    "status": "PASS",
+    "detail": "No AppContext resolve overlay on /login"
+  },
+  {
+    "id": "GD1UX-01",
+    "status": "PASS",
+    "detail": "event_start=False event_end=False individual=False"
+  },
+  {
+    "id": "GD1UX-02",
+    "status": "PASS",
+    "detail": "label=True raw=False filter_ok=True"
+  },
+  {
+    "id": "GD1UX-03",
+    "status": "PASS",
+    "detail": "opened=True semi=False is_final_toggle=False"
+  },
+  {
+    "id": "GD1UX-04",
+    "status": "PASS",
+    "detail": "create_shows_active=False ban_nhap=True ngung=False so_loai=True"
+  },
+  {
+    "id": "GD1UX-05",
+    "status": "PASS",
+    "detail": "clicked draft switch; guard_seen=True"
+  },
+  {
+    "id": "GD1UX-06",
+    "status": "PASS",
+    "detail": "opened=True bad_fields=False switchish=True"
+  },
+  {
+    "id": "GD1UX-07",
+    "status": "PASS",
+    "detail": "mota_col=True raw_soft_only=False"
+  },
+  {
+    "id": "GD1UX-08",
+    "status": "PASS",
+    "detail": "alert_banner=False toggled=True heads_before=1 after=1"
+  },
+  {
+    "id": "GD1UX-09",
+    "status": "PASS",
+    "detail": "toggled=True; has_truong_ban=True"
+  },
+  {
+    "id": "REG-GD1UX-01",
+    "status": "PASS",
+    "detail": "team_tab=True individual_visible=False"
+  }
+]

@@ -31,4 +31,18 @@ export const studentRoundService = {
 
   getFinalRound: async (hackathonId) =>
     axiosClient.get(`/api/v1/me/hackathons/${hackathonId}/final-round`),
+
+  /** GET /api/v1/me/rounds/{roundId}/presentation-slot — poll-friendly STT */
+  getPresentationSlot: async (roundId) => {
+    if (!roundId) return { available: false, message: 'Chưa quay số' };
+    try {
+      return await axiosClient.get(`/api/v1/me/rounds/${roundId}/presentation-slot`);
+    } catch (err) {
+      const status = err?.status ?? err?.response?.status;
+      if (status === 404) {
+        return { available: false, message: 'Chưa quay số' };
+      }
+      throw err;
+    }
+  },
 };

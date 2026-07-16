@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Tabs, Card, Alert, Button, Modal, Tooltip, Input, List, Breadcrumb, Space, Tag, Typography } from 'antd';
+import { resolveStatusLabel } from '../../../shared/errors/resolveUserError';
 import { useHackathonResults } from '../hooks/useHackathonResults';
 import TeamRankingTable from '../components/TeamRankingTable';
 import ChapterRankingTable from '../components/ChapterRankingTable';
@@ -153,7 +154,11 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
           <Space direction="vertical" size={8}>
             <Space wrap>
               <Tag color="blue">Kết quả hackathon</Tag>
-              {status && <Tag color={status === 'FINISHED' ? 'success' : status === 'PENDING_CONFIRM' ? 'warning' : 'default'}>{status}</Tag>}
+              {status && (
+                <Tag color={status === 'FINISHED' ? 'success' : status === 'PENDING_CONFIRM' ? 'warning' : 'default'}>
+                  {resolveStatusLabel(status)}
+                </Tag>
+              )}
               <Tag color="purple">Giải thưởng: {prizes.length}</Tag>
             </Space>
             <Title level={2} style={{ margin: 0 }}>

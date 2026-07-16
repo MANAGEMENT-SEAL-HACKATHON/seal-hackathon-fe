@@ -60,6 +60,34 @@ export const buildMentorPool = (mentors = [], judges = []) =>
 export const buildFinalJudgePool = (judges = [], tempJudges = []) =>
   dedupePersonnelById([...judges, ...tempJudges]).filter(isEligibleForFinalJudge);
 
+export const formatJudgeRoleLabel = (role) => {
+  switch (norm(role)) {
+    case 'HEAD':
+      return 'Trưởng ban';
+    case 'FINAL_EXTERNAL':
+      return 'Giám khảo khách CK';
+    case 'NORMAL':
+      return 'Giám khảo';
+    case 'CALIBRATION':
+      return 'Chấm chéo';
+    default:
+      return 'Giám khảo';
+  }
+};
+
+export const formatPersonRoleLabel = (role) => {
+  switch (norm(role)) {
+    case 'JUDGE':
+      return 'Giám khảo';
+    case 'MENTOR':
+      return 'Mentor';
+    case 'COORDINATOR':
+      return 'Điều phối';
+    default:
+      return role || 'Nhân sự';
+  }
+};
+
 export const findPersonById = (personId, pools = []) => {
   for (const pool of pools) {
     const found = pool.find((p) => p.id === personId);

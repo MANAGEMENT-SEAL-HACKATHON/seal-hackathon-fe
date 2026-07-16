@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { Modal, Form, Input, InputNumber, Select, theme } from "antd";
-import { CRITERIA_TYPE_OPTIONS } from "../constants/criteria.constants";
+import { Modal, Form, Input, InputNumber, Select, Tag } from "antd";
+import { CRITERIA_TYPE_OPTIONS, CRITERIA_TYPES, formatCriteriaTypeLabel } from "../constants/criteria.constants";
 
 const { TextArea } = Input;
 
@@ -12,7 +12,7 @@ export const CriteriaFormModal = ({
   onFinish,
 }) => {
   const [form] = Form.useForm();
-  const { token } = theme.useToken();
+  const selectedType = Form.useWatch("type", form);
 
   useEffect(() => {
     if (visible) {
@@ -51,7 +51,6 @@ export const CriteriaFormModal = ({
           type: "TECHNICAL",
           weight: 0.1,
           max_score: 10,
-          display_order: 1,
           ...initialValues,
         }}
       >
@@ -66,20 +65,31 @@ export const CriteriaFormModal = ({
           <Select size="large">
             {CRITERIA_TYPE_OPTIONS.map((t) => (
               <Select.Option key={t} value={t}>
-                {t}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  {formatCriteriaTypeLabel(t)}
+                  {t === CRITERIA_TYPES.PENALTY && (
+                    <Tag color="orange" style={{ marginInlineEnd: 0 }}>
+                      Chưa áp dụng vào xếp hạng
+                    </Tag>
+                  )}
+                </span>
               </Select.Option>
             ))}
           </Select>
         </Form.Item>
+        {selectedType === CRITERIA_TYPES.PENALTY && (
+          <Tag color="orange" style={{ marginBottom: 16 }}>
+            Chưa áp dụng vào xếp hạng
+          </Tag>
+        )}
 
-        {/* Hàng chứa các thông số số */}
         <div style={{ display: "flex", gap: 24 }}>
           <Form.Item
             name="weight"
             label="Trọng số"
             rules={[{ required: true }]}
             style={{ flex: 1 }}
-            help="PENALTY không tính vào tổng"
+            help="Điểm phạt không tính vào tổng"
           >
             <InputNumber
               size="large"
@@ -100,19 +110,6 @@ export const CriteriaFormModal = ({
               size="large"
               min={1}
               max={100}
-              style={{ width: "100%" }}
-              onKeyDown={preventNegative}
-            />
-          </Form.Item>
-          <Form.Item
-            name="display_order"
-            label="Thứ tự"
-            rules={[{ required: true }]}
-            style={{ flex: 1 }}
-          >
-            <InputNumber
-              size="large"
-              min={1}
               style={{ width: "100%" }}
               onKeyDown={preventNegative}
             />
