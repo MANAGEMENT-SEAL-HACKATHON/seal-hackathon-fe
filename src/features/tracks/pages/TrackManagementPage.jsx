@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Space, Popconfirm, message, Card, Spin, Alert } from 'antd';
+import { Table, Button, Space, Popconfirm, message, Card, Spin } from 'antd';
 import { Plus, Edit, Trash2, Send } from 'lucide-react'; // Đã import thêm icon Send
 import TrackFormModal from '../components/TrackFormModal';
 import StatusBadge from '../../../shared/components/ui/StatusBadge';
@@ -8,6 +8,17 @@ import { roundService } from '../../rounds/services/roundService';
 import { mapRoundToFE } from '../../rounds/mappers/roundMapper';
 import { mapTrackToFE, mapTrackToBE, mapTrackDurationToBE, formatTrackDurationLabel, hasTrackDurationInput, isTrackDurationCleared, trackHasDurationOverride } from '../mappers/trackMapper';
 import { presentationService } from '../../judging/services/presentationService';
+import SectionHeader, { HintList } from '../../../shared/components/ui/SectionHeader';
+
+const TRACKS_TAB_HINT = (
+  <HintList
+    items={[
+      'Chỉ thêm trong vòng Sơ loại',
+      'Mỗi bảng đấu cần bộ tiêu chí riêng và file PDF đề bài riêng',
+      'Bấm «Phát đề» để mở quyền truy cập tài liệu cho sinh viên',
+    ]}
+  />
+);
 
 const TrackManagementPage = ({ hackathonId, onUpdated }) => {
   const [tracks, setTracks] = useState([]);
@@ -162,16 +173,6 @@ const TrackManagementPage = ({ hackathonId, onUpdated }) => {
       render: (val) => rounds.find(r => r.id === val)?.name || '-',
     },
     {
-      title: 'Đội / nhóm',
-      key: 'max_per_group',
-      render: (_, record) => record.max_teams_per_group || '—',
-    },
-    {
-      title: 'Tổng đội',
-      key: 'teams',
-      render: (_, record) => `${record.max_teams || 'Không giới hạn'}`,
-    },
-    {
       title: 'Thành viên / đội',
       key: 'team_size',
       render: (_, record) => `${record.min_team_size || '-'} - ${record.max_team_size || '-'} người`,
@@ -190,7 +191,7 @@ const TrackManagementPage = ({ hackathonId, onUpdated }) => {
         record.problem_statement_filename ? (
           <span style={{ fontSize: 12 }}>{record.problem_statement_filename}</span>
         ) : (
-          <span style={{ color: '#999' }}>Chưa upload</span>
+          <span style={{ color: 'var(--ant-color-text-tertiary)' }}>Chưa upload</span>
         ),
     },
     {
@@ -214,7 +215,7 @@ const TrackManagementPage = ({ hackathonId, onUpdated }) => {
 
         if (isReleased) {
           return (
-            <span style={{ color: '#64748b', fontWeight: 600, fontSize: 13 }}>
+            <span style={{ color: '#16a34a', fontWeight: 600, fontSize: 13 }}>
               ✓ Đã phát đề
             </span>
           );
@@ -236,11 +237,10 @@ const TrackManagementPage = ({ hackathonId, onUpdated }) => {
               disabled={!hasProblem}
               loading={releasingTrackId === record.id}
               style={{ 
-                background: hasProblem ? '#2563eb' : undefined, 
                 fontSize: 13, 
                 display: 'inline-flex', 
                 alignItems: 'center',
-                borderRadius: 6 
+                borderRadius: 8 
               }}
             >
               Phát đề
@@ -280,24 +280,21 @@ const TrackManagementPage = ({ hackathonId, onUpdated }) => {
   const prelimRounds = rounds.filter(r => !r.is_final && r.round_type !== 'FINAL');
 
   return (
-    <div>
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-        message="Bảng đấu (chủ đề thi)"
-        description={<span style={{ fontSize: 12 }}>Chỉ thêm trong vòng Sơ loại. Mỗi bảng đấu cần bộ tiêu chí riêng và file PDF đề bài riêng. Bấm "Phát đề" để mở quyền truy cập tài liệu cho sinh viên.</span>}
+    <div style={{ padding: '24px 0', animation: 'fadeInUp 0.4s ease-out both' }}>
+      <SectionHeader
+        title="Bảng đấu (chủ đề thi)"
+        info={TRACKS_TAB_HINT}
+        extra={
+          <Button
+            type="primary"
+            icon={<Plus size={16} />}
+            onClick={handleAdd}
+            disabled={prelimRounds.length === 0}
+          >
+            Thêm bảng đấu
+          </Button>
+        }
       />
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
-        <Button 
-          type="primary" 
-          icon={<Plus size={16} />} 
-          onClick={handleAdd}
-          disabled={prelimRounds.length === 0}
-        >
-          Thêm bảng đấu
-        </Button>
-      </div>
       
       {prelimRounds.length === 0 && (
         <Card style={{ marginBottom: 16 }}>Tạo vòng Sơ loại trước khi thêm bảng đấu.</Card>

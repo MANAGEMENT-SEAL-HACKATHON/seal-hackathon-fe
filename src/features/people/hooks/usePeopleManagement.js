@@ -27,6 +27,9 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
   const [judgeAssignments, setJudgeAssignments] = useState([]);
   const [finalJudgeAssignments, setFinalJudgeAssignments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [assigningMentor, setAssigningMentor] = useState(false);
+  const [assigningJudge, setAssigningJudge] = useState(false);
+  const [removingAssignmentId, setRemovingAssignmentId] = useState(null);
   const notifyHub = async () => {
     if (typeof onUpdated === 'function') await onUpdated();
   };
@@ -35,27 +38,44 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
     String(round?.roundType || round?.round_type || '').toUpperCase() === 'FINAL' ||
     /chung\s*kết|final/i.test(String(round?.name || ''));
 
-  const fetchBaseData = useCallback(async () => {
-    setIsLoading(true);
+  const fetchBaseData = useCallback(async (opts = {}) => {
+    const silent = Boolean(opts.silent);
+    if (!silent) setIsLoading(true);
     try {
-      const [rRes, tRes] = await Promise.all([
+      const [rRes, tRes, mRes, jRes, tempRes] = await Promise.all([
         roundService.listByHackathon(hackathonId),
         trackService.listByHackathon(hackathonId),
+        peopleService.getUsersByRole('MENTOR').catch(() => []),
+        peopleService.getUsersByRole('JUDGE').catch(() => []),
+        peopleService.getTempJudges().catch(() => []),
       ]);
       const roundList = Array.isArray(rRes) ? rRes : rRes?.items || [];
       const trackList = Array.isArray(tRes) ? tRes : tRes?.items || [];
 
       setRounds(roundList);
       setTracks(trackList);
-
-      const [mRes, jRes, tempRes] = await Promise.all([
-        peopleService.getUsersByRole('MENTOR').catch(() => []),
-        peopleService.getUsersByRole('JUDGE').catch(() => []),
-        peopleService.getTempJudges().catch(() => []),
-      ]);
       setMentors(Array.isArray(mRes) ? mRes : mRes?.items || []);
       setJudges(Array.isArray(jRes) ? jRes : jRes?.items || []);
-      setTempJudges(Array.isArray(tempRes) ? tempRes : tempRes?.items || []);
+      const rawTemp = Array.isArray(tempRes) ? tempRes : tempRes?.items || [];
+      setTempJudges(
+        rawTemp.map((row) => ({
+          ...row,
+          mustChangePassword:
+            row.mustChangePassword ?? row.must_change_password ?? false,
+          tokenSent:
+            row.tokenSent ??
+            row.token_sent ??
+            row.invitation?.tokenSent ??
+            row.invitation?.token_sent,
+          invitation: row.invitation ?? null,
+          invitationId: row.invitation?.id ?? row.invitationId ?? row.invitation_id,
+          expiresAt: row.invitation?.expiresAt ?? row.invitation?.expires_at ?? row.expiresAt,
+        })),
+      );
+
+      const finalRoundIds = new Set(
+        roundList.filter((r) => isFinalRound(r)).map((r) => r.id),
+      );
 
       const mentorPromises = trackList.map((track) =>
         peopleService
@@ -64,9 +84,39 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
             track,
             data: Array.isArray(res) ? res : res?.items || res?.content || [],
           }))
-          .catch(() => ({ track, data: [] }))
+          .catch(() => ({ track, data: [] })),
       );
-      const mentorResults = await Promise.all(mentorPromises);
+
+      const trackJudgePromises = trackList
+        .filter((track) => !finalRoundIds.has(track.roundId || track.round_id))
+        .map((track) =>
+          peopleService
+            .getTrackJudges(track.id)
+            .then((res) => ({
+              track,
+              judges: Array.isArray(res) ? res : res?.items || res?.content || [],
+            }))
+            .catch(() => ({ track, judges: [] })),
+        );
+
+      const finalRoundJudgePromises = roundList
+        .filter((round) => isFinalRound(round))
+        .map((round) =>
+          peopleService
+            .getRoundJudges(round.id)
+            .then((res) => ({
+              round,
+              judges: Array.isArray(res) ? res : res?.items || res?.content || [],
+            }))
+            .catch(() => ({ round, judges: [] })),
+        );
+
+      const [mentorResults, trackJResults, finalJudgeResults] = await Promise.all([
+        Promise.all(mentorPromises),
+        Promise.all(trackJudgePromises),
+        Promise.all(finalRoundJudgePromises),
+      ]);
+
       const allTrackMentors = [];
       mentorResults.forEach(({ track, data }) => {
         data.forEach((m) => {
@@ -89,25 +139,6 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
       });
       setTrackMentors(allTrackMentors);
 
-      const finalRoundIds = new Set(
-        roundList
-          .filter((r) => isFinalRound(r))
-          .map((r) => r.id)
-      );
-
-      const trackJudgePromises = trackList
-        .filter((track) => !finalRoundIds.has(track.roundId || track.round_id))
-        .map((track) =>
-          peopleService
-            .getTrackJudges(track.id)
-            .then((res) => ({
-              track,
-              judges: Array.isArray(res) ? res : res?.items || res?.content || [],
-            }))
-            .catch(() => ({ track, judges: [] }))
-        );
-
-      const trackJResults = await Promise.all(trackJudgePromises);
       const allJudges = [];
       trackJResults.forEach(({ track, judges: trackJudges }) => {
         trackJudges.forEach((j) => {
@@ -133,19 +164,6 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
       });
       setJudgeAssignments(allJudges);
 
-      const finalRoundJudgePromises = roundList
-        .filter((round) => isFinalRound(round))
-        .map((round) =>
-          peopleService
-            .getRoundJudges(round.id)
-            .then((res) => ({
-              round,
-              judges: Array.isArray(res) ? res : res?.items || res?.content || [],
-            }))
-            .catch(() => ({ round, judges: [] }))
-        );
-
-      const finalJudgeResults = await Promise.all(finalRoundJudgePromises);
       const allFinalJudges = [];
       finalJudgeResults.forEach(({ round, judges: roundJudges }) => {
         roundJudges.forEach((j) => {
@@ -173,9 +191,14 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
     } catch {
       message.error('Không tải được danh sách nhân sự. Thử tải lại trang.');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [hackathonId]);
+
+  /** Chỉ refetch assignment tables — không gọi refreshSetupSnapshot (tránh chậm). */
+  const refreshAssignmentsOnly = useCallback(async () => {
+    await fetchBaseData({ silent: true });
+  }, [fetchBaseData]);
 
   useEffect(() => {
     fetchBaseData();
@@ -199,8 +222,11 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
   const mentorIdsByTrack = useMemo(() => {
     const map = new Map();
     trackMentors.forEach((row) => {
-      if (!map.has(row.track_id)) map.set(row.track_id, new Set());
-      map.get(row.track_id).add(row.mentor_id);
+      const tid = Number(row.track_id);
+      const mid = Number(row.mentor_id);
+      if (!Number.isFinite(tid) || !Number.isFinite(mid)) return;
+      if (!map.has(tid)) map.set(tid, new Set());
+      map.get(tid).add(mid);
     });
     return map;
   }, [trackMentors]);
@@ -208,9 +234,12 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
   const judgeIdsByTrack = useMemo(() => {
     const map = new Map();
     judgeAssignments.forEach((row) => {
-      if (!row.track_id) return;
-      if (!map.has(row.track_id)) map.set(row.track_id, new Set());
-      map.get(row.track_id).add(row.person_id);
+      if (row.track_id == null) return;
+      const tid = Number(row.track_id);
+      const jid = Number(row.person_id);
+      if (!Number.isFinite(tid) || !Number.isFinite(jid)) return;
+      if (!map.has(tid)) map.set(tid, new Set());
+      map.get(tid).add(jid);
     });
     return map;
   }, [judgeAssignments]);
@@ -230,8 +259,7 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
       } else {
         message.success('Đã gửi lời mời giám khảo khách mời.');
       }
-      await fetchBaseData();
-      await notifyHub();
+      await fetchBaseData({ silent: true });
       if (onSuccess) onSuccess();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
@@ -241,39 +269,42 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
   };
 
   const assignMentor = async (values, onSuccess) => {
-    setIsLoading(true);
+    const blockReason = getMentorAssignBlockReason(values.mentor_id, values.track_id);
+    if (blockReason) {
+      message.warning(`Không thể gán: người này ${blockReason}.`);
+      return;
+    }
+    setAssigningMentor(true);
     try {
       await peopleService.assignMentorToTrack({
         mentorId: values.mentor_id,
         trackId: values.track_id,
       });
       message.success('Đã gán mentor cho bảng đấu.');
-      await fetchBaseData();
-      await notifyHub();
+      await refreshAssignmentsOnly();
       if (onSuccess) onSuccess();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
     } finally {
-      setIsLoading(false);
+      setAssigningMentor(false);
     }
   };
 
   const removeMentor = async (assignmentId) => {
-    setIsLoading(true);
+    setRemovingAssignmentId(assignmentId);
     try {
       await peopleService.removeMentorAssignment(assignmentId);
       message.success('Đã gỡ mentor khỏi bảng đấu.');
-      await fetchBaseData();
-      await notifyHub();
+      await refreshAssignmentsOnly();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
     } finally {
-      setIsLoading(false);
+      setRemovingAssignmentId(null);
     }
   };
 
   const assignJudge = async (values, onSuccess) => {
-    setIsLoading(true);
+    setAssigningJudge(true);
     try {
       const trackId = values.track_id ? parseInt(values.track_id, 10) : null;
       const selectedTrack = trackId ? tracks.find((item) => item.id === trackId) : null;
@@ -282,6 +313,14 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
       const finalRoundId = finalRoundIdFromTrack || finalRoundIdFromForm;
       const isFinalTrack = Boolean(selectedTrack?.isFinal ?? selectedTrack?.is_final);
       const isFinalFlow = Boolean(values.is_final_assignment) || isFinalTrack || Boolean(finalRoundIdFromForm);
+
+      const blockReason = isFinalFlow
+        ? getFinalJudgeAssignBlockReason(values.person_id, { trackId, roundId: finalRoundId })
+        : getPrelimJudgeAssignBlockReason(values.person_id, trackId);
+      if (blockReason) {
+        message.warning(`Không thể gán: người này ${blockReason}.`);
+        return;
+      }
 
       const person = findPersonById(values.person_id, [prelimJudgePool, finalJudgePool, mentors, judges, tempJudges]);
       if (!person) {
@@ -316,27 +355,25 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
         });
         message.success(`Đã gán giám khảo Sơ loại (${formatJudgeRoleLabel(assignmentType)}).`);
       }
-      await fetchBaseData();
-      await notifyHub();
+      await refreshAssignmentsOnly();
       if (onSuccess) onSuccess();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
     } finally {
-      setIsLoading(false);
+      setAssigningJudge(false);
     }
   };
 
   const removeJudge = async (assignmentId) => {
-    setIsLoading(true);
+    setRemovingAssignmentId(assignmentId);
     try {
       await peopleService.removeJudgeAssignment(assignmentId);
       message.success('Đã gỡ giám khảo.');
-      await fetchBaseData();
-      await notifyHub();
+      await refreshAssignmentsOnly();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
     } finally {
-      setIsLoading(false);
+      setRemovingAssignmentId(null);
     }
   };
 
@@ -354,22 +391,33 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
           await peopleService.patchUserDeptHead(head.id, false);
         }
       }
-      await peopleService.patchUserDeptHead(userId, isDeptHead);
+      const result = await peopleService.patchUserDeptHead(userId, isDeptHead);
+      const updatedAssignments = result?.assignments ?? result?.data?.assignments;
+      const applyAssignmentPatch = (person) => {
+        if (!updatedAssignments?.length) return person;
+        const hit = updatedAssignments.find(
+          (a) => (a.judgeId ?? a.judge_id ?? a.personId) === person.id,
+        );
+        if (!hit) return person;
+        return {
+          ...person,
+          assignment_type: hit.assignmentType ?? hit.assignment_type ?? person.assignment_type,
+        };
+      };
       const clearOthers = (list) =>
         list.map((p) => {
-          if (p.id === userId) {
-            return { ...p, isDeptHead, is_dept_head: isDeptHead };
+          let next = applyAssignmentPatch(p);
+          if (next.id === userId) {
+            next = { ...next, isDeptHead, is_dept_head: isDeptHead };
+          } else if (isDeptHead && Boolean(next.isDeptHead ?? next.is_dept_head)) {
+            next = { ...next, isDeptHead: false, is_dept_head: false };
           }
-          if (isDeptHead && Boolean(p.isDeptHead ?? p.is_dept_head)) {
-            return { ...p, isDeptHead: false, is_dept_head: false };
-          }
-          return p;
+          return next;
         });
       setJudges((prev) => clearOthers(prev));
       setMentors((prev) => clearOthers(prev));
       message.success(isDeptHead ? 'Đã đặt Trưởng ban' : 'Đã gỡ Trưởng ban');
-      await fetchBaseData();
-      await notifyHub();
+      await refreshAssignmentsOnly();
     } catch (error) {
       message.error(getTeamErrorMessage(error));
     } finally {
@@ -377,11 +425,67 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
     }
   };
 
+  const resendInvitation = async (invitationId) => {
+    if (!invitationId) {
+      message.warning('Không có mã lời mời để gửi lại');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await peopleService.resendInvitation(invitationId);
+      message.success('Đã gửi lại email mời giám khảo');
+      await fetchBaseData({ silent: true });
+    } catch (error) {
+      message.error(getTeamErrorMessage(error) || 'Không thể gửi lại email');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const isMentorBlockedForTrack = (mentorId, trackId) =>
-    judgeIdsByTrack.get(trackId)?.has(mentorId);
+    Boolean(judgeIdsByTrack.get(Number(trackId))?.has(Number(mentorId)));
 
   const isJudgeBlockedForTrack = (judgeId, trackId) =>
-    mentorIdsByTrack.get(trackId)?.has(judgeId);
+    Boolean(mentorIdsByTrack.get(Number(trackId))?.has(Number(judgeId)));
+
+  const isAlreadyMentorOnTrack = (mentorId, trackId) =>
+    Boolean(mentorIdsByTrack.get(Number(trackId))?.has(Number(mentorId)));
+
+  const isAlreadyJudgeOnTrack = (judgeId, trackId) =>
+    Boolean(judgeIdsByTrack.get(Number(trackId))?.has(Number(judgeId)));
+
+  const isAlreadyJudgeOnFinalRound = (judgeId, roundId) =>
+    finalJudgeAssignments.some(
+      (row) => Number(row.round_id) === Number(roundId) && Number(row.person_id) === Number(judgeId),
+    );
+
+  /** Lý do không cho chọn khi gán mentor vào bảng */
+  const getMentorAssignBlockReason = (personId, trackId) => {
+    if (!trackId || !personId) return null;
+    if (isAlreadyMentorOnTrack(personId, trackId)) return 'đã là mentor cùng bảng';
+    if (isMentorBlockedForTrack(personId, trackId)) return 'đang là giám khảo cùng bảng';
+    return null;
+  };
+
+  /** Lý do không cho chọn khi gán giám khảo Sơ loại */
+  const getPrelimJudgeAssignBlockReason = (personId, trackId) => {
+    if (!trackId || !personId) return null;
+    if (isAlreadyJudgeOnTrack(personId, trackId)) return 'đã là giám khảo cùng bảng';
+    if (isJudgeBlockedForTrack(personId, trackId)) return 'đang là mentor cùng bảng';
+    return null;
+  };
+
+  /** Lý do không cho chọn khi gán giám khảo CK */
+  const getFinalJudgeAssignBlockReason = (personId, { trackId, roundId } = {}) => {
+    if (!personId) return null;
+    if (roundId && isAlreadyJudgeOnFinalRound(personId, roundId)) {
+      return 'đã gán giám khảo vòng này';
+    }
+    if (trackId && isJudgeBlockedForTrack(personId, trackId)) {
+      return 'đang là mentor cùng bảng';
+    }
+    return null;
+  };
 
   return {
     mentors,
@@ -393,16 +497,23 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
     judgeAssignments,
     finalJudgeAssignments,
     isLoading,
+    assigningMentor,
+    assigningJudge,
+    removingAssignmentId,
     createTempJudge,
     assignMentor,
     removeMentor,
     assignJudge,
     removeJudge,
     patchUserDeptHead,
+    resendInvitation,
     mentorPool,
     prelimJudgePool,
     finalJudgePool,
     isMentorBlockedForTrack,
     isJudgeBlockedForTrack,
+    getMentorAssignBlockReason,
+    getPrelimJudgeAssignBlockReason,
+    getFinalJudgeAssignBlockReason,
   };
 };

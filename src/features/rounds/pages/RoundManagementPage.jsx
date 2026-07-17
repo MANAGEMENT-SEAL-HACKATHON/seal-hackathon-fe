@@ -1,6 +1,6 @@
 // src/features/rounds/pages/RoundManagementPage.jsx
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal, Alert, Tooltip, Input, Progress, List, Switch } from 'antd';
+import { Table, Button, Space, Popconfirm, message, Timeline, Tag, Card, Spin, Typography, Modal, Alert, Tooltip, Input, Progress, List } from 'antd';
 import { InfoCircleOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { Plus, Edit, Trash2, Calendar, List as ListIcon, BarChart3, PlayCircle, Lock, Unlock, UserPlus, Trophy, FileText, History, StopCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -40,8 +40,23 @@ import ScoringProgressCard from '../components/ScoringProgressCard';
 import PrelimReleaseChecklist from '../components/PrelimReleaseChecklist';
 import FinalReleaseChecklist from '../components/FinalReleaseChecklist';
 import ActivateScheduleModal from '../components/ActivateScheduleModal';
+import { canActivateRound, getActivateRoundTooltip } from '../utils/canActivateRound';
 
 const { Title, Text } = Typography;
+
+const buildActivateCtx = (round, tracks, teams) => {
+  const roundTracks = (tracks || []).filter(
+    (t) =>
+      (t.round_id ?? t.roundId) === round?.id &&
+      String(t.status || '').toUpperCase() !== 'CANCELLED',
+  );
+  const teamsByTrack = {};
+  (teams || []).forEach((t) => {
+    const tid = t.track_id ?? t.trackId;
+    if (tid) teamsByTrack[tid] = (teamsByTrack[tid] || 0) + 1;
+  });
+  return { tracks: roundTracks, teamsByTrack };
+};
 
 
 const hasTrackProblem = (track) =>
@@ -368,7 +383,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       await roundService.activate(round.id, payload);
       message.success(
         isRescheduleOnly
-          ? `Đã dời lịch ${round.name} — vòng vẫn Ngưng hoạt động.`
+          ? `Đã dời lịch ${round.name} — vòng vẫn ở trạng thái Bản nháp.`
           : round.is_final
             ? `${round.name} đã kích hoạt — đề theo bảng sơ loại của từng đội đã mở cho sinh viên.`
             : `${round.name} đã được kích hoạt thành công!`,
@@ -747,18 +762,10 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         if (closedEarly || isEnded) {
           return <Tag color="red">{closedEarly ? 'Đã kết thúc sớm' : 'Đã kết thúc'}</Tag>;
         }
-        return (
-          <Tooltip title={record.is_active ? 'Vòng đang hoạt động' : 'Bật để kích hoạt — cần đủ bảng đấu và tiêu chí'}>
-            <Switch
-              checked={record.is_active}
-              checkedChildren="Hoạt động"
-              unCheckedChildren="Bản nháp"
-              onChange={(checked) => {
-                if (checked) handleActivateRound(record);
-              }}
-            />
-          </Tooltip>
-        );
+        if (record.is_active) {
+          return <Tag color="green">Đang hoạt động</Tag>;
+        }
+        return <Tag color="default">Bản nháp</Tag>;
       },
     },
     {
@@ -954,15 +961,25 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                 </Tooltip>
 
                 {/* BƯỚC 1: Nút Play Kích hoạt vòng thi */}
-                <Tooltip title="Kích hoạt Vòng thi">
-                  <Button
-                    type="text"
-                    data-testid="round-activate-btn"
-                    style={{ color: 'var(--ant-color-success)' }}
-                    icon={<PlayCircle size={16} />}
-                    onClick={() => handleActivateRound(record)}
-                  />
-                </Tooltip>
+                {(() => {
+                  const activateCtx = buildActivateCtx(record, advancementTracks, advancementTeams);
+                  const { ok } = canActivateRound(record, activateCtx);
+                  const tip = getActivateRoundTooltip(record, activateCtx);
+                  return (
+                    <Tooltip title={tip}>
+                      <span style={{ display: 'inline-flex' }}>
+                        <Button
+                          type="text"
+                          data-testid="round-activate-btn"
+                          disabled={!ok}
+                          style={{ color: ok ? 'var(--ant-color-success)' : undefined }}
+                          icon={<PlayCircle size={16} />}
+                          onClick={() => handleActivateRound(record)}
+                        />
+                      </span>
+                    </Tooltip>
+                  );
+                })()}
 
                 <Tooltip title="Phân công Giám khảo">
                   <Button 
@@ -1222,17 +1239,8 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                         return <Tag color="orange">Đã kết thúc thi sớm</Tag>;
                       }
                       if (isEnded) return <Tag color="blue">Đã kết thúc</Tag>;
-                      return (
-                        <Switch
-                          size="small"
-                          checked={round.is_active}
-                          checkedChildren="Hoạt động"
-                          unCheckedChildren="Bản nháp"
-                          onChange={(checked) => {
-                            if (checked) handleActivateRound(round);
-                          }}
-                        />
-                      );
+                      if (round.is_active) return <Tag color="green">Đang hoạt động</Tag>;
+                      return <Tag color="default">Bản nháp</Tag>;
                     })()}
                   </div>
                   <div style={{ marginBottom: 4 }}>

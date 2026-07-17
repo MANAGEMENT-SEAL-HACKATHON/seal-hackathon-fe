@@ -148,6 +148,15 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
 
   return (
     <Space direction="vertical" size={18} style={{ width: "100%" }}>
+      {results.seatShortageWarning && (
+        <Alert
+          data-testid="gd4-seat-shortage-warning"
+          type="warning"
+          showIcon
+          message="Thiếu ghế Chung kết so với trần thiết lập"
+          description={results.seatShortageWarning.message}
+        />
+      )}
       <PreliminaryResultsCoordinatorStepper
         hackathonId={hackathonId || results.round?.hackathon_id || results.round?.hackathonId}
         roundId={roundId}

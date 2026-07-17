@@ -140,19 +140,6 @@ const StudentLayout = ({ children }) => {
     }
   };
 
-  const handleLogoutAll = async () => {
-    try {
-      await authService.logoutAll();
-    } catch {
-      // still clear local session
-    } finally {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userInfo');
-      navigate(ROUTES.LOGIN, { replace: true });
-    }
-  };
-
   const sidebar = (
     <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: collapsed && !isMobile ? '22px 16px' : '22px 20px 18px' }}>
@@ -219,23 +206,6 @@ const StudentLayout = ({ children }) => {
       />
 
       <div style={{ padding: 16, marginTop: 'auto' }}>
-        <Button
-          type="text"
-          icon={<LogoutOutlined />}
-          onClick={handleLogoutAll}
-          block={!collapsed || isMobile}
-          style={{
-            height: 42,
-            borderRadius: 12,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
-            gap: 8,
-            marginBottom: 8,
-          }}
-        >
-          {(!collapsed || isMobile) && 'Đăng xuất tất cả thiết bị'}
-        </Button>
         <Button
           danger
           type="text"

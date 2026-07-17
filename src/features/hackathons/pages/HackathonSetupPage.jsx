@@ -1,12 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Card, Tabs, Typography, Button, Row, Col, Drawer } from 'antd';
-import { DoubleLeftOutlined, CloseOutlined } from '@ant-design/icons';
+import { Card, Tabs, Typography, Button, Row, Col, Tooltip, message } from 'antd';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../../../shared/components/ui/PageHeader';
 import TrackManagementPage from '../../tracks/pages/TrackManagementPage';
 import RoundManagementPage from '../../rounds/pages/RoundManagementPage';
 import CriteriaManagementPage from '../../criteria/pages/CriteriaManagementPage';
-import ReviewValidatePage from '../../review/pages/ReviewValidatePage';
 import { ROUTES } from '../../../shared/constants/routes';
 import PeopleManagementPage from '../../people/pages/PeopleManagementPage';
 import EventManagementPage from '../../events/pages/EventManagementPage';
@@ -18,28 +17,25 @@ import { mapHackathonToFE } from '../mappers/hackathonMapper';
 import { mapRoundToFE } from '../../rounds/mappers/roundMapper';
 import LotteryManagementPage from '../../teams/pages/LotteryManagementPage';
 import HackathonGeneralConfig from '../components/HackathonGeneralConfig';
-import HackathonSetupChecklist from '../components/HackathonSetupChecklist';
 import { useReadiness } from '../../review/hooks/useReadiness';
+import { reviewService } from '../../review/services/reviewService';
 
-// IMPORT TRANG MỚI CỦA BẠN
 import AnalyticsPage from '../../analytics/pages/AnalyticsPage';
 import FinalRoundConfigPage from '../../coordinator/pages/FinalRoundConfigPage';
 
-// Kết hợp các Tabs hợp lệ của cả 2 nhánh
 const VALID_TABS = new Set([
   'general',
   'rounds',
   'tracks',
-  'lottery',
   'criteria',
   'people',
   'events',
-  'review',
-  'analytics',
+  'lottery',
   'final-config',
+  'analytics',
 ]);
 
-const getValidTab = (tab) => (VALID_TABS.has(tab) ? tab : 'tracks');
+const getValidTab = (tab) => (VALID_TABS.has(tab) ? tab : 'general');
 
 const HackathonSetupPage = () => {
   const { hackathonId } = useParams();
@@ -53,12 +49,19 @@ const HackathonSetupPage = () => {
   const [eventsCount, setEventsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(() => getValidTab(searchParams.get('tab')));
-  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Từ Upstream
-  const { readinessData, refetch: refetchReadiness } = useReadiness(hackathonId);
+  const { refetch: refetchReadiness, readinessData, hackathon: readinessHackathon } = useReadiness(hackathonId);
 
-  // TỰ ĐỘNG CẬP NHẬT 1: Mỗi khi chuyển Tab, tự động gọi API lấy trạng thái mới nhất
+  useEffect(() => {
+    if (hackathonId) {
+      try {
+        localStorage.setItem('seal-last-hackathon-id', String(hackathonId));
+      } catch {
+        // no-op
+      }
+    }
+  }, [hackathonId]);
+
   useEffect(() => {
     refetchReadiness();
   }, [refetchReadiness, activeTab]);
@@ -190,14 +193,9 @@ const HackathonSetupPage = () => {
       children: <TrackManagementPage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} />,
     },
     {
-      key: 'lottery',
-      label: 'Bốc thăm & khai mạc',
-      children: <LotteryManagementPage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} />,
-    },
-    {
       key: 'criteria',
       label: 'Tiêu chí đánh giá',
-      children: <CriteriaManagementPage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} />, 
+      children: <CriteriaManagementPage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} />,
     },
     {
       key: 'people',
@@ -210,72 +208,273 @@ const HackathonSetupPage = () => {
       children: <EventManagementPage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} />,
     },
     {
-      key: 'review',
-      label: 'Đánh giá & Kiểm tra',
-      children: activeTab === 'review' ? <ReviewValidatePage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} /> : null, 
+      key: 'lottery',
+      label: 'Bốc thăm & khai mạc',
+      children: (
+        <LotteryManagementPage
+          hackathonId={hackathon.id}
+          onUpdated={refreshSetupSnapshot}
+          onGoToGeneral={() => changeTab('general')}
+        />
+      ),
+    },
+    {
+      key: 'final-config',
+      label: 'Cấu hình Chung kết',
+      children: null,
     },
     {
       key: 'analytics',
       label: 'Phân tích & Dữ liệu',
       children: activeTab === 'analytics' ? <AnalyticsPage hackathonId={hackathon.id} hackathon={hackathon} rounds={rounds} /> : null,
     },
-    {
-      key: 'final-config',
-      label: 'Cấu hình Chung kết',
-      children: null, 
-    }
   ];
 
+  const handleActivateHackathon = async () => {
+    try {
+      await reviewService.changeStatus(hackathon.id, 'ONGOING', 'Mở đăng ký');
+      message.success('Đã mở đăng ký — sự kiện đang diễn ra.');
+      await refreshSetupSnapshot();
+    } catch (error) {
+      message.error(error.message || 'Không thể kích hoạt giải đấu');
+    }
+  };
+
+  const isReadyToActivate = readinessData?.ready;
+  const activateBlockers = readinessData?.blockers || [];
+  const canActivateHackathon =
+    isReadyToActivate && (readinessHackathon?.status || hackathon.status) === 'DRAFT';
+
+  const activateTooltip = (() => {
+    if ((readinessHackathon?.status || hackathon.status) !== 'DRAFT') {
+      return 'Chỉ có thể kích hoạt khi trạng thái là DRAFT';
+    }
+    if (!isReadyToActivate) {
+      return (
+        <div style={{ maxWidth: 300 }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Chưa thể kích hoạt</div>
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            {activateBlockers.slice(0, 6).map((b, i) => (
+              <li key={`${b.code || 'b'}-${i}`} style={{ marginBottom: 2 }}>
+                {b.message || b.code}
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+    return 'Sau khi xác nhận, học sinh có thể đăng ký';
+  })();
+
   return (
-    <div>
+    <div className="hackathon-setup-theme">
+      <style>{`
+        /* === Theme indigo/violet — đồng bộ mọi tab với Vòng thi === */
+        .hackathon-setup-theme {
+          --ant-color-primary: #818cf8 !important;
+          --ant-color-primary-hover: #a78bfa !important;
+          --ant-color-primary-active: #6366f1 !important;
+          --ant-color-success: #10b981 !important;
+          --ant-color-purple: #a78bfa !important;
+        }
+        .hackathon-setup-theme .ant-btn-primary {
+          background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%) !important;
+          border: none !important;
+          color: #ffffff !important;
+          font-weight: 600 !important;
+          box-shadow: 0 4px 12px rgba(135, 92, 255, 0.2) !important;
+          border-radius: 8px !important;
+          transition: all 0.3s ease !important;
+        }
+        .hackathon-setup-theme .ant-btn-primary:not(:disabled):hover {
+          background: linear-gradient(135deg, #b59dfb 0%, #76b3fc 100%) !important;
+          box-shadow: 0 6px 16px rgba(135, 92, 255, 0.3) !important;
+          color: #ffffff !important;
+        }
+        .hackathon-setup-theme .ant-btn-primary:disabled,
+        .hackathon-setup-theme .ant-btn-primary.ant-btn-disabled {
+          opacity: 0.55 !important;
+          box-shadow: none !important;
+        }
+        .hackathon-setup-theme .ant-btn-group .ant-btn {
+          border-color: #ddd6fe !important;
+          color: #64748b !important;
+          font-weight: 600 !important;
+        }
+        .hackathon-setup-theme .ant-btn-group .ant-btn-primary {
+          background: #818cf8 !important;
+          border-color: #818cf8 !important;
+          color: #ffffff !important;
+          box-shadow: none !important;
+        }
+        .hackathon-setup-theme .ant-btn-group .ant-btn-primary:hover {
+          background: #6366f1 !important;
+          color: #ffffff !important;
+        }
+        .hackathon-setup-theme .ant-radio-button-wrapper {
+          border-color: #ddd6fe !important;
+          color: #64748b !important;
+          font-weight: 600 !important;
+        }
+        .hackathon-setup-theme .ant-radio-button-wrapper-checked {
+          background: #818cf8 !important;
+          border-color: #818cf8 !important;
+          color: #ffffff !important;
+        }
+        .hackathon-setup-theme .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled):hover {
+          background: #6366f1 !important;
+          border-color: #6366f1 !important;
+          color: #ffffff !important;
+        }
+        .hackathon-setup-theme .ant-radio-button-wrapper-checked::before {
+          background-color: #818cf8 !important;
+        }
+        .hackathon-setup-theme .ant-table-thead > tr > th {
+          background: linear-gradient(90deg, #f5f3ff 0%, #eff6ff 100%) !important;
+          color: #4f46e5 !important;
+          font-weight: 700 !important;
+          border-bottom: 2.5px solid #ddd6fe !important;
+        }
+        .hackathon-setup-theme .ant-table {
+          background: transparent !important;
+        }
+        .hackathon-setup-theme .ant-table-tbody > tr > td {
+          border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+        }
+        .hackathon-setup-theme .ant-table-tbody > tr:nth-child(even) {
+          background-color: #faf5ff !important;
+        }
+        .hackathon-setup-theme .ant-table-tbody > tr:nth-child(odd) {
+          background-color: #ffffff !important;
+        }
+        .hackathon-setup-theme .ant-table-row:hover > td {
+          background: #f3e8ff !important;
+        }
+        .hackathon-setup-theme .ant-tag {
+          border-radius: 6px !important;
+          padding: 2px 8px !important;
+          font-weight: 600 !important;
+        }
+        .hackathon-setup-theme .ant-tag-green {
+          background: #f0fdf4 !important;
+          border-color: #bbf7d0 !important;
+          color: #16a34a !important;
+        }
+        .hackathon-setup-theme .ant-tag-red {
+          background: #fee2e2 !important;
+          border-color: #fca5a5 !important;
+          color: #dc2626 !important;
+        }
+        .hackathon-setup-theme .ant-tag-gold {
+          background: #f5f3ff !important;
+          border-color: #ddd6fe !important;
+          color: #7c3aed !important;
+        }
+        .hackathon-setup-theme .ant-switch.ant-switch-checked {
+          background: #818cf8 !important;
+        }
+        .hackathon-setup-theme .ant-tabs-tab-btn:hover,
+        .hackathon-setup-theme .ant-tabs .ant-tabs-tab:hover .ant-tabs-tab-btn {
+          color: #818cf8 !important;
+        }
+        .hackathon-setup-theme .ant-select-focused .ant-select-selector,
+        .hackathon-setup-theme .ant-select-selector:hover {
+          border-color: #a78bfa !important;
+        }
+        .hackathon-setup-theme .ant-input:hover,
+        .hackathon-setup-theme .ant-input:focus,
+        .hackathon-setup-theme .ant-input-focused {
+          border-color: #a78bfa !important;
+        }
+        .hackathon-setup-theme .ant-input:focus,
+        .hackathon-setup-theme .ant-input-focused {
+          box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2) !important;
+        }
+        /* Nested tabs (e.g. Nhân sự) */
+        .hackathon-setup-theme .ant-tabs-ink-bar {
+          background: linear-gradient(90deg, #a78bfa 0%, #60a5fa 100%) !important;
+        }
+        .hackathon-setup-theme .ant-tabs-tab-active .ant-tabs-tab-btn {
+          color: #6366f1 !important;
+        }
+
+        .hackathon-setup-tabs .ant-tabs-nav::before {
+          border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+        }
+        .hackathon-setup-tabs .ant-tabs-tab {
+          font-size: 14px !important;
+          font-weight: 600 !important;
+          color: #64748b !important;
+          transition: color 0.2s ease !important;
+        }
+        .hackathon-setup-tabs .ant-tabs-tab:hover {
+          color: #818cf8 !important;
+        }
+        .hackathon-setup-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+          color: #6366f1 !important;
+          font-weight: 700 !important;
+        }
+        .hackathon-setup-tabs .ant-tabs-ink-bar {
+          background: linear-gradient(90deg, #a78bfa 0%, #60a5fa 100%) !important;
+          height: 3.5px !important;
+          border-radius: 3px !important;
+        }
+        .hackathon-setup-tabs .ant-tabs-tab-disabled {
+          cursor: default !important;
+          padding-left: 4px !important;
+          padding-right: 4px !important;
+        }
+        .hackathon-setup-card.ant-card {
+          background: rgba(255, 255, 255, 0.45) !important;
+          backdrop-filter: blur(20px) saturate(180%) !important;
+          -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+          border: 1px solid rgba(255, 255, 255, 0.4) !important;
+          box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
+          border-radius: 16px !important;
+        }
+        .hackathon-setup-card > .ant-card-body {
+          padding: 0 24px !important;
+        }
+      `}</style>
+
       <PageHeader
         title={hackathon.name}
         onBack={() => navigate(ROUTES.HACKATHONS)}
+        subtitle={
+          hackathon.status === 'DRAFT'
+            ? 'Hoàn tất cấu hình rồi bấm «Xác nhận Kích hoạt» để mở đăng ký'
+            : undefined
+        }
+        extra={
+          hackathon.status === 'DRAFT' ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              {!canActivateHackathon && activateBlockers.length > 0 ? (
+                <Tooltip title={activateTooltip} placement="bottomRight">
+                  <InfoCircleOutlined
+                    style={{ fontSize: 16, color: 'var(--ant-color-warning)', cursor: 'help' }}
+                  />
+                </Tooltip>
+              ) : null}
+              <Tooltip title={activateTooltip} placement="bottomRight">
+                <span style={{ display: 'inline-block' }}>
+                  <Button
+                    type="primary"
+                    size="large"
+                    data-testid="hackathon-activate-btn"
+                    disabled={!canActivateHackathon}
+                    onClick={handleActivateHackathon}
+                  >
+                    Xác nhận Kích hoạt
+                  </Button>
+                </span>
+              </Tooltip>
+            </span>
+          ) : null
+        }
       />
 
       <Row gutter={24}>
         <Col xs={24} xl={24}>
-
-          <style>{`
-            .hackathon-setup-tabs .ant-tabs-nav::before {
-              border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
-            }
-            .hackathon-setup-tabs .ant-tabs-tab {
-              font-size: 14px !important;
-              font-weight: 600 !important;
-              color: #64748b !important;
-              transition: color 0.2s ease !important;
-            }
-            .hackathon-setup-tabs .ant-tabs-tab:hover {
-              color: #818cf8 !important;
-            }
-            .hackathon-setup-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
-              color: #6366f1 !important;
-              font-weight: 700 !important;
-            }
-            .hackathon-setup-tabs .ant-tabs-ink-bar {
-              background: linear-gradient(90deg, #a78bfa 0%, #60a5fa 100%) !important;
-              height: 3.5px !important;
-              border-radius: 3px !important;
-            }
-            .hackathon-setup-tabs .ant-tabs-tab-disabled {
-              cursor: default !important;
-              padding-left: 4px !important;
-              padding-right: 4px !important;
-            }
-            .hackathon-setup-card.ant-card {
-              background: rgba(255, 255, 255, 0.45) !important;
-              backdrop-filter: blur(20px) saturate(180%) !important;
-              -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-              border: 1px solid rgba(255, 255, 255, 0.4) !important;
-              box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
-              border-radius: 16px !important;
-            }
-            .hackathon-setup-card > .ant-card-body {
-              padding: 0 24px !important;
-            }
-          `}</style>
-
           <Card
             bordered={false}
             className="hackathon-setup-card"
@@ -301,91 +500,6 @@ const HackathonSetupPage = () => {
         </Col>
 
       </Row>
-
-      {/* Floating button on the right edge of the screen */}
-      <div
-        style={{
-          position: 'fixed',
-          right: 0,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          zIndex: 1000,
-          cursor: 'pointer',
-          background: 'rgba(255, 255, 255, 0.6)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.4)',
-          borderRight: 'none',
-          color: '#3b82f6',
-          width: '36px',
-          height: '110px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '16px 0 0 16px',
-          boxShadow: '-4px 0 20px rgba(0, 0, 0, 0.05)',
-          transition: 'all 0.3s ease',
-        }}
-        onClick={() => setDrawerOpen(true)}
-        title="Xem tiến độ chuẩn bị kì thi"
-        onMouseEnter={(e) => { 
-          e.currentTarget.style.width = '42px'; 
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)';
-        }}
-        onMouseLeave={(e) => { 
-          e.currentTarget.style.width = '36px'; 
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.6)';
-        }}
-      >
-        <DoubleLeftOutlined style={{ fontSize: '18px', marginBottom: '8px', color: '#3b82f6' }} />
-        <span style={{ fontSize: '11px', writingMode: 'vertical-rl', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', color: '#475569' }}>Tiến độ</span>
-      </div>
-
-      <Drawer
-        title={null}
-        closable={false}
-        placement="right"
-        onClose={() => setDrawerOpen(false)}
-        open={drawerOpen}
-        width={380}
-        styles={{
-          wrapper: {
-            padding: '16px 16px 16px 0',
-          },
-          content: {
-            borderRadius: '20px',
-            background: '#ffffff',
-            border: '1px solid rgba(226, 232, 240, 0.8)',
-            boxShadow: '-10px 0 30px rgba(0, 0, 0, 0.03), 0 10px 30px rgba(0, 0, 0, 0.03)',
-            overflow: 'hidden',
-          },
-          body: {
-            padding: '0px',
-            display: 'flex',
-            flexDirection: 'column',
-          },
-          mask: {
-            background: 'rgba(0, 0, 0, 0.02)',
-            backdropFilter: 'blur(2px)',
-            WebkitBackdropFilter: 'blur(2px)',
-          }
-        }}
-      >
-        <HackathonSetupChecklist
-          rounds={rounds}
-          tracksCount={tracksCount}
-          eventsCount={eventsCount}
-          hackathon={hackathon}
-          readinessData={readinessData}
-          onStepClick={(tab) => {
-            changeTab(tab);
-            setDrawerOpen(false);
-          }}
-          onClose={() => setDrawerOpen(false)}
-          direction="vertical"
-        />
-      </Drawer>
     </div>
   );
 };

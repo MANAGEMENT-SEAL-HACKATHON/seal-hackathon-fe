@@ -31,7 +31,7 @@ export const getCreatableEventTypes = (events) => {
     types.push('WORKSHOP');
   }
 
-  types.push('PRESENTATION', 'OTHER');
+  types.push('OTHER');
 
   if (!hasEventType(list, 'AWARDS')) {
     types.push('AWARDS');

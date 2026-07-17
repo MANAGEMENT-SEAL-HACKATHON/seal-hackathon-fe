@@ -8,10 +8,8 @@ import {
   Card,
   Alert,
   Typography,
-  theme,
   Input,
   Select,
-  Divider,
 } from "antd";
 import {
   Plus,
@@ -22,6 +20,7 @@ import {
   Inbox,
   Search,
 } from "lucide-react";
+import SectionHeader, { HintList } from "../../../shared/components/ui/SectionHeader";
 import { useCriteriaManagement } from "../hooks/useCriteriaManagement";
 import {
   CRITERIA_TYPES,
@@ -35,6 +34,16 @@ import { CriteriaCloneModal } from "../components/CriteriaCloneModal";
 import { CriteriaBatchModal } from "../components/CriteriaBatchModal";
 import { STANDARD_SYSTEM_CRITERIA } from "../constants/standardCriteria";
 
+const CRITERIA_TAB_HINT = (
+  <HintList
+    items={[
+      "Sơ loại: thiết lập tiêu chí theo từng bảng đấu",
+      "Chung kết: thiết lập tiêu chí theo vòng",
+      "Tổng trọng số của các tiêu chí phải bằng 1",
+    ]}
+  />
+);
+
 const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isCloneVisible, setIsCloneVisible] = useState(false);
@@ -42,7 +51,6 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
   const [editingCriteria, setEditingCriteria] = useState(null);
   const [searchText, setSearchText] = useState("");
   const [filterType, setFilterType] = useState(null);
-  const { token } = theme.useToken();
 
   const {
     hackathonRounds,
@@ -162,8 +170,36 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
     setIsCloneVisible(false);
   };
 
+  const canManage = Boolean(currentRound && (currentRound.is_final || selectedTrackId));
+
   return (
-    <div>
+    <div style={{ padding: "24px 0", animation: "fadeInUp 0.4s ease-out both" }}>
+      <SectionHeader
+        title="Tiêu chí đánh giá"
+        info={CRITERIA_TAB_HINT}
+        extra={
+          canManage ? (
+            <Space>
+              <Button icon={<Copy size={16} />} onClick={() => setIsCloneVisible(true)}>
+                Sao chép
+              </Button>
+              <Button icon={<FileText size={16} />} onClick={() => setIsBatchVisible(true)}>
+                Thêm nhiều
+              </Button>
+              <Button
+                type="primary"
+                icon={<Plus size={16} />}
+                onClick={() => {
+                  setEditingCriteria(null);
+                  setIsModalVisible(true);
+                }}
+              >
+                Thêm mới
+              </Button>
+            </Space>
+          ) : null
+        }
+      />
       <CriteriaHeader
         {...{
           hackathonRounds,
@@ -176,9 +212,9 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
           updateRound,
         }}
       />
-      {!currentRound || (!currentRound.is_final && !selectedTrackId) ? (
+      {!canManage ? (
         <Card style={{ textAlign: "center", padding: "80px 0" }}>
-          <Inbox size={40} color="#ccc" />
+          <Inbox size={40} color="var(--ant-color-text-quaternary)" />
           <Typography.Text type="secondary" style={{ display: "block", marginTop: 16 }}>
             Vui lòng chọn Vòng/Bảng để thiết lập.
           </Typography.Text>
@@ -229,31 +265,6 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
             rowKey="id"
             pagination={{ pageSize: 5 }}
           />
-          <Divider />
-          <Space style={{ display: "flex", justifyContent: "center" }}>
-            <Button
-              icon={<Copy size={16} />}
-              onClick={() => setIsCloneVisible(true)}
-            >
-              Sao chép
-            </Button>
-            <Button
-              icon={<FileText size={16} />}
-              onClick={() => setIsBatchVisible(true)}
-            >
-              Thêm nhiều
-            </Button>
-            <Button
-              type="primary"
-              icon={<Plus size={16} />}
-              onClick={() => {
-                setEditingCriteria(null);
-                setIsModalVisible(true);
-              }}
-            >
-              Thêm mới
-            </Button>
-          </Space>
         </Card>
       )}
       <CriteriaFormModal

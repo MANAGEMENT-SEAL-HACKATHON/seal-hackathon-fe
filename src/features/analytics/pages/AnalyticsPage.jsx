@@ -3,9 +3,20 @@ import { Card, Typography, Alert, Button, Table, Tag, Space, Spin, Row, Col, Pro
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DownloadOutlined, SyncOutlined, FileExcelOutlined, LockOutlined } from '@ant-design/icons';
 import { analyticsService } from '../services/analyticsService';
+import SectionHeader, { HintList } from '../../../shared/components/ui/SectionHeader';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
+
+const ANALYTICS_TAB_HINT = (
+  <HintList
+    items={[
+      'Chỉ khả dụng khi Hackathon đã hoàn thành (FINISHED)',
+      'Dashboard RBL theo dõi độ phủ và độ lệch chấm điểm (ẩn danh giám khảo)',
+      'Yêu cầu xuất dữ liệu được xử lý ngầm, trạng thái tự cập nhật',
+    ]}
+  />
+);
 
 const AnalyticsPage = ({ hackathonId, hackathon, rounds }) => {
   const [loading, setLoading] = useState(false);
@@ -147,13 +158,16 @@ const AnalyticsPage = ({ hackathonId, hackathon, rounds }) => {
   // ==========================================
   if (hackathon?.status !== 'FINISHED') {
     return (
-      <Card style={{ textAlign: 'center', padding: '60px 20px', borderRadius: 16, border: '1px solid #ffccc7', background: '#fff2f0' }}>
-        <LockOutlined style={{ fontSize: 48, color: '#cf1322', marginBottom: 16 }} />
-        <Title level={3} style={{ color: '#cf1322', margin: 0 }}>Dữ liệu phân tích đang khóa</Title>
-        <Text style={{ color: '#cf1322', fontSize: 16, display: 'block', marginTop: 12 }}>
-          Tính năng Dashboard RBL và Xuất dữ liệu (Export) chỉ khả dụng khi Hackathon ở trạng thái <strong>Đã hoàn thành (FINISHED)</strong>.
-        </Text>
-      </Card>
+      <div style={{ padding: '24px 0', animation: 'fadeInUp 0.4s ease-out both' }}>
+        <SectionHeader title="Phân tích & Dữ liệu" info={ANALYTICS_TAB_HINT} />
+        <Card style={{ textAlign: 'center', padding: '60px 20px', borderRadius: 16, border: '1px solid #ffe58f', background: '#fffbe6' }}>
+          <LockOutlined style={{ fontSize: 48, color: '#d48806', marginBottom: 16 }} />
+          <Title level={4} style={{ color: '#ad6800', margin: 0 }}>Dữ liệu phân tích đang khóa</Title>
+          <Text style={{ color: '#ad6800', fontSize: 15, display: 'block', marginTop: 12 }}>
+            Tính năng Dashboard RBL và Xuất dữ liệu (Export) chỉ khả dụng khi Hackathon ở trạng thái <strong>Đã hoàn thành (FINISHED)</strong>.
+          </Text>
+        </Card>
+      </div>
     );
   }
 
@@ -187,7 +201,8 @@ const AnalyticsPage = ({ hackathonId, hackathon, rounds }) => {
   ];
 
   return (
-    <div style={{ animation: 'fadeInUp 0.4s ease-out both' }}>
+    <div style={{ padding: '24px 0', animation: 'fadeInUp 0.4s ease-out both' }}>
+      <SectionHeader title="Phân tích & Dữ liệu" info={ANALYTICS_TAB_HINT} />
       <Row gutter={[24, 24]}>
         {/* KHỐI 1: TỔNG QUAN TIẾN ĐỘ RBL */}
         <Col xs={24}>
@@ -197,7 +212,7 @@ const AnalyticsPage = ({ hackathonId, hackathon, rounds }) => {
                 <Progress 
                   type="dashboard" 
                   percent={progressData?.completionPct ?? 0} 
-                  strokeColor={{ '0%': '#108ee9', '100%': '#87d068' }}
+                  strokeColor={{ '0%': '#6366f1', '100%': '#10b981' }}
                   format={percent => `${percent.toFixed(1)}%`}
                 />
                 <Text strong style={{ display: 'block', marginTop: 12 }}>Tỷ lệ phủ dữ liệu chấm</Text>
@@ -208,9 +223,9 @@ const AnalyticsPage = ({ hackathonId, hackathon, rounds }) => {
                     <Text>Tổng số bài nộp hợp lệ:</Text>
                     <Title level={4} style={{ margin: 0 }}>{progressData?.totalSubmissions || 0}</Title>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 24px', background: '#e6f7ff', borderRadius: 8, border: '1px solid #91d5ff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 24px', background: '#eef2ff', borderRadius: 8, border: '1px solid #c7d2fe' }}>
                     <Text>Số bài nộp đã được phân tích RBL:</Text>
-                    <Title level={4} style={{ margin: 0, color: '#0958d9' }}>{progressData?.scoredSubmissions || 0}</Title>
+                    <Title level={4} style={{ margin: 0, color: '#4f46e5' }}>{progressData?.scoredSubmissions || 0}</Title>
                   </div>
                 </Space>
               </Col>
@@ -235,12 +250,12 @@ const AnalyticsPage = ({ hackathonId, hackathon, rounds }) => {
                   <BarChart data={varianceData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="maskedJudgeName" tick={{ fontSize: 12 }} />
-                    <YAxis yAxisId="left" orientation="left" stroke="#1677ff" label={{ value: 'Điểm TB', angle: -90, position: 'insideLeft' }} />
-                    <YAxis yAxisId="right" orientation="right" stroke="#ff4d4f" label={{ value: 'Độ Lệch Chuẩn', angle: 90, position: 'insideRight' }} />
+                    <YAxis yAxisId="left" orientation="left" stroke="#6366f1" label={{ value: 'Điểm TB', angle: -90, position: 'insideLeft' }} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#f43f5e" label={{ value: 'Độ Lệch Chuẩn', angle: 90, position: 'insideRight' }} />
                     <RechartsTooltip contentStyle={{ borderRadius: 8 }} />
                     <Legend />
-                    <Bar yAxisId="left" dataKey="meanScore" name="Điểm Trung bình" fill="#1677ff" radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="right" dataKey="stdDev" name="Độ Lệch Chuẩn (Variance)" fill="#ff4d4f" radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="left" dataKey="meanScore" name="Điểm Trung bình" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="right" dataKey="stdDev" name="Độ Lệch Chuẩn (Variance)" fill="#f43f5e" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

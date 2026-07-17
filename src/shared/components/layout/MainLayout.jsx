@@ -15,7 +15,7 @@ import {
   LinkOutlined
 } from '@ant-design/icons';
 import {
-  LayoutDashboard, Trophy, Users, HelpCircle,
+  LayoutDashboard, Trophy, Users,
   UserCheck, UserPlus, User,
   FileText, ClipboardCheck, History, CheckSquare, BarChart3, Settings
 } from 'lucide-react';
@@ -24,8 +24,8 @@ import { ROUTES } from '../../constants/routes';
 import { useAppContext } from '../../../app/AppContext';
 import SocialLinkManager from '../../../features/auth/components/SocialLinkManager';
 import { useCoordinatorTodos } from '../../../features/notifications/hooks/useCoordinatorTodos';
-import { authService } from '../../../features/auth/services/authService';
 import NotificationBell from '../ui/NotificationBell';
+import HackathonProgressShell from '../../../features/hackathons/components/HackathonProgressShell';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -151,8 +151,6 @@ const MainLayout = ({ children }) => {
   }
 
   const bottomMenuItems = [
-    { key: 'help', icon: <HelpCircle size={18} />, label: 'Trung tâm Hỗ trợ' },
-    { key: 'logout-all', icon: <LogoutOutlined />, label: 'Đăng xuất tất cả thiết bị' },
     { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true },
   ];
 
@@ -178,15 +176,6 @@ const MainLayout = ({ children }) => {
         }
       } catch (error) {
         console.error('Logout error:', error);
-      } finally {
-        clearSessionAndRedirect();
-      }
-    }
-    if (key === 'logout-all') {
-      try {
-        await authService.logoutAll();
-      } catch (error) {
-        console.error('Logout all error:', error);
       } finally {
         clearSessionAndRedirect();
       }
@@ -305,32 +294,8 @@ const MainLayout = ({ children }) => {
               View Active Round
             </button>
             
-            {/* Support Center & Logout links */}
+            {/* Logout */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 8px 12px' }}>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '10px', 
-                fontSize: '14px', 
-                color: '#374151',
-                cursor: 'pointer',
-                padding: '6px 0'
-              }} onClick={() => navigate('/support-center')}>
-                <HelpCircle size={18} />
-                <span>Support Center</span>
-              </div>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '10px', 
-                fontSize: '14px', 
-                color: '#6B7280',
-                cursor: 'pointer',
-                padding: '6px 0'
-              }} onClick={() => handleBottomMenuClick({ key: 'logout-all' })}>
-                <LogoutOutlined style={{ fontSize: '18px' }} />
-                <span>Logout all devices</span>
-              </div>
               <div style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -473,6 +438,8 @@ const MainLayout = ({ children }) => {
       >
         <SocialLinkManager />
       </Modal>
+
+      {isCoordinatorOrAdmin && <HackathonProgressShell />}
     </Layout>
   );
 };

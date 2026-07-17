@@ -111,9 +111,7 @@ export const mapRoundToBE = (feData) => {
       : null;
   }
 
-  if (isFinal) {
-    Object.assign(payload, mapRoundCkDurationToBE(feData));
-  }
+  Object.assign(payload, mapRoundCkDurationToBE(feData));
 
   return payload;
 };

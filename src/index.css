@@ -19,6 +19,18 @@ code {
     monospace;
 }
 
+/* Shared entrance animation for Setup tab content */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Ant Design Customizations */
 .ant-layout-sider-trigger {
   background: white !important;

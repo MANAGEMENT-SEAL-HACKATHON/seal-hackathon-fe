@@ -19,13 +19,19 @@ export const isEligibleForPrelimJudge = (person) => {
   return role === 'JUDGE' || role === 'MENTOR';
 };
 
-/** Chung kết: EXTERNAL judge hoặc trưởng ban — không mentor, không INTERNAL thường */
+/** Chung kết: EXTERNAL judge hoặc trưởng ban — không mentor, không INTERNAL thường.
+ * Guest judge phải APPROVED và không còn mustChangePassword. */
 export const isEligibleForFinalJudge = (person) => {
   if (!person) return false;
   if (isDeptHead(person)) return true;
   if (getPersonRole(person) === 'MENTOR') return false;
   if (isInternalPerson(person)) return false;
-  return getPersonRole(person) === 'JUDGE' && isExternalPerson(person);
+  if (getPersonRole(person) !== 'JUDGE' || !isExternalPerson(person)) return false;
+  const status = norm(person?.status);
+  const mustChange =
+    person?.mustChangePassword === true || person?.must_change_password === true;
+  if (status !== 'APPROVED' || mustChange) return false;
+  return true;
 };
 
 export const resolvePrelimAssignmentType = (person) =>

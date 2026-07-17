@@ -16,7 +16,7 @@ describe('mapRoundToBE timer fields (TC-FE create payload)', () => {
     assert.equal(payload.defaultQaMinutes, 8);
   });
 
-  it('does not send timer fields for prelim', () => {
+  it('sends timer fields for prelim rounds', () => {
     const payload = mapRoundToBE({
       name: 'Sơ loại',
       exam_at: '2026-06-10T08:00:00',
@@ -27,7 +27,7 @@ describe('mapRoundToBE timer fields (TC-FE create payload)', () => {
       default_presentation_minutes: 15,
       default_qa_minutes: 8,
     });
-    assert.equal(payload.defaultPresentationMinutes, undefined);
-    assert.equal(payload.defaultQaMinutes, undefined);
+    assert.equal(payload.defaultPresentationMinutes, 15);
+    assert.equal(payload.defaultQaMinutes, 8);
   });
 });

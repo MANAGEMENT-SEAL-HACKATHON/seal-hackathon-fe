@@ -8,6 +8,7 @@ import { mapEventToFE, mapEventToBE } from '../mappers/eventMapper';
 import { mapHackathonToFE } from '../../hackathons/mappers/hackathonMapper';
 import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
 import { EVENT_TYPE_LABELS, UNIQUE_EVENT_TYPES } from '../utils/eventTypeRules';
+import { getAwardsMinMoment, buildEventScheduleContext } from '../utils/eventScheduleRules';
 
 export const useEventManagement = (hackathonId, refreshNotifications, onUpdated) => {
   const [events, setEvents] = useState([]);
@@ -106,12 +107,17 @@ export const useEventManagement = (hackathonId, refreshNotifications, onUpdated)
 
     // --- 4. QUY TẮC: AWARDS ---
     if (values.type === 'AWARDS') {
-      const finalRound = rounds.find(r => r.is_final || r.isFinal);
-      if (finalRound && (finalRound.submission_deadline || finalRound.submissionDeadline)) {
-        const finalDeadline = dayjs(finalRound.submission_deadline || finalRound.submissionDeadline);
-        if (eStart.isBefore(finalDeadline)) {
-          return message.error(`Lễ Trao giải phải diễn ra sau hạn chót nộp bài Vòng Chung kết (Sau ${finalDeadline.format(dateFormat)}).`);
-        }
+      const scheduleCtx = buildEventScheduleContext({
+        hackathon: currentHackathon,
+        rounds,
+        events,
+        selectedType: 'AWARDS',
+      });
+      const minMoment = getAwardsMinMoment(scheduleCtx);
+      if (minMoment && eStart.isBefore(minMoment)) {
+        return message.error(
+          `Lễ Trao giải phải diễn ra sau khi vòng Chung kết công bố kết quả (Sau ${minMoment.format(dateFormat)}).`,
+        );
       }
 
       if (hEvEnd && (eStart.isAfter(hEvEnd) || (eEnd && eEnd.isAfter(hEvEnd)))) {
@@ -151,6 +157,27 @@ export const useEventManagement = (hackathonId, refreshNotifications, onUpdated)
     executeSave();
   };
 
+  const updateEvent = async (eventId, values, onSuccess) => {
+    const existing = events.find((e) => e.id === eventId);
+    if (!existing) {
+      return message.error('Không tìm thấy sự kiện');
+    }
+    const merged = { ...existing, ...values, type: existing.type };
+    setIsLoading(true);
+    try {
+      const payload = mapEventToBE(merged);
+      await eventService.update(eventId, payload);
+      message.success('Đã cập nhật sự kiện');
+      await fetchData();
+      if (typeof onUpdated === 'function') await onUpdated();
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      message.error(getTeamErrorMessage(error) || 'Có lỗi xảy ra khi cập nhật sự kiện.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // --- LOGIC XÓA CÓ RÀNG BUỘC KÉP ---
   const deleteEvent = async (eventId) => {
     const eventToDelete = events.find(e => e.id === eventId);
@@ -178,5 +205,5 @@ export const useEventManagement = (hackathonId, refreshNotifications, onUpdated)
     }
   };
 
-  return { events, rounds, currentHackathon, isLoading, createEvent, deleteEvent };
+  return { events, rounds, currentHackathon, isLoading, createEvent, updateEvent, deleteEvent };
 };

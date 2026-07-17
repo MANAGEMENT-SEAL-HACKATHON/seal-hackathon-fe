@@ -172,7 +172,13 @@ export const useRoundResults = (roundId) => {
 
     const advancedTeamIds = [];
     Object.values(byGroup).forEach((groupItems) => {
-      const sorted = [...groupItems].sort((left, right) => left.rank - right.rank);
+      const eligible = groupItems.filter(
+        (item) =>
+          !item.isEliminated &&
+          item.participationStatus !== "ELIMINATED" &&
+          item.status !== "ELIMINATED",
+      );
+      const sorted = [...eligible].sort((left, right) => left.rank - right.rank);
       advancedTeamIds.push(...sorted.slice(0, topN || sorted.length).map((team) => team.teamId));
     });
 
@@ -198,6 +204,12 @@ export const useRoundResults = (roundId) => {
     
     if (!isWildcardEnabled && minTeamsFinal > 0 && mergedAdvanced.length < minTeamsFinal) {
       const fillCandidates = ranking.items
+        .filter(
+          (item) =>
+            !item.isEliminated &&
+            item.participationStatus !== "ELIMINATED" &&
+            item.status !== "ELIMINATED",
+        )
         .map((item) => item.teamId)
         .filter((teamId) => !advancedSet.has(teamId));
       const needed = minTeamsFinal - mergedAdvanced.length;
@@ -250,6 +262,23 @@ export const useRoundResults = (roundId) => {
       eliminatedCount: eliminatedTeamIds.length,
     };
   }, [buildAdvancePayload, ranking.items]);
+
+  const seatShortageWarning = useMemo(() => {
+    const minFinal = Number(round?.min_teams_final ?? round?.minTeamsFinal ?? 0);
+    if (!minFinal) return null;
+    const advancedCount = ranking.items.filter(
+      (item) =>
+        item.participationStatus === 'ADVANCED' ||
+        item.isAdvanced ||
+        advancePreview.advancedTeamIdSet.has(item.teamId),
+    ).length;
+    if (advancedCount >= minFinal) return null;
+    return {
+      advancedCount,
+      minTeamsFinal: minFinal,
+      message: `Số đội vào CK (${advancedCount}) thấp hơn trần thiết lập (${minFinal}). Có thể do DQ hoặc bảng hết đội hợp lệ để đôn — cân nhắc duyệt thêm Vé vớt nếu còn ghế.`,
+    };
+  }, [round, ranking.items, advancePreview.advancedTeamIdSet]);
 
   const rejectedWildcardTeamIdSet = useMemo(
     () =>
@@ -387,6 +416,7 @@ export const useRoundResults = (roundId) => {
     rejectedWildcardTeamIdSet,
     hasUnresolvedTiebreak,
     advancePreview,
+    seatShortageWarning,
     canPublish,
     canAdvance,
     publishDisabledReason,

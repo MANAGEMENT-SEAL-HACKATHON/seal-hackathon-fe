@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Card, Button, Table, Form, Input, Modal, Select, Tag, Radio, Badge, Calendar, Spin, Popconfirm, DatePicker, Switch, Steps, Alert, Typography } from 'antd';
-import { Plus, List, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
+import { Card, Button, Table, Form, Input, Modal, Select, Tag, Radio, Badge, Calendar, Spin, Popconfirm, DatePicker, Switch, Steps, Alert, Typography, Space, Tooltip } from 'antd';
+import { Plus, List, Calendar as CalendarIcon, Trash2, Pencil } from 'lucide-react';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useAppContext } from '../../../app/AppContext';
@@ -22,6 +22,18 @@ import {
   isFirstEventCreation,
 } from '../utils/eventTypeRules';
 import { hackathonService } from '../../hackathons/services/hackathonService';
+import SectionHeader, { HintList } from '../../../shared/components/ui/SectionHeader';
+
+const EVENTS_TAB_HINT = (
+  <HintList
+    items={[
+      'Trước hết tạo Lễ khai mạc, sau đó mới tạo Workshop',
+      'Trên lịch thực tế, Workshop diễn ra trước khai mạc và không cùng ngày',
+      'Khi chọn loại sự kiện, lịch sẽ tự khóa ngày/giờ không hợp lệ',
+      'Mỗi kỳ chỉ có một Lễ khai mạc, một Workshop và một Lễ trao giải',
+    ]}
+  />
+);
 
 const EVENT_TYPE_STYLES = {
   KICKOFF: { tag: 'red', bg: '#fff1f0', border: '#ff7875' },
@@ -38,6 +50,7 @@ const { Text } = Typography;
 const EventManagementPage = ({ hackathonId, onUpdated }) => {
   const { refreshNotifications } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
   const [viewMode, setViewMode] = useState('list');
   const [form] = Form.useForm();
 
@@ -45,7 +58,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
   const selectedType = Form.useWatch('type', form);
   const startsAt = Form.useWatch('starts_at', form);
 
-  const { events, rounds, currentHackathon, isLoading, createEvent, deleteEvent } = useEventManagement(
+  const { events, rounds, currentHackathon, isLoading, createEvent, updateEvent, deleteEvent } = useEventManagement(
     hackathonId,
     refreshNotifications,
     onUpdated,
@@ -68,10 +81,26 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
   const isFirstEvent = isFirstEventCreation(events);
 
   const openCreateModal = () => {
+    setEditingEvent(null);
     form.resetFields();
     form.setFieldsValue({
       type: getDefaultEventType(events),
       is_public: true,
+    });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (record) => {
+    setEditingEvent(record);
+    form.setFieldsValue({
+      title: record.title,
+      type: record.type,
+      is_public: record.is_public,
+      starts_at: record.starts_at ? dayjs(record.starts_at) : null,
+      ends_at: record.ends_at ? dayjs(record.ends_at) : null,
+      location: record.location,
+      meet_url: record.meet_url,
+      description: record.description,
     });
     setIsModalOpen(true);
   };
@@ -103,10 +132,17 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
     }
   }, [isModalOpen, creatableEventTypes, events, form]);
 
-  const handleFinish = (values) => {    createEvent(values, () => {
+  const handleFinish = (values) => {
+    const onDone = () => {
       setIsModalOpen(false);
+      setEditingEvent(null);
       form.resetFields();
-    });
+    };
+    if (editingEvent?.id) {
+      updateEvent(editingEvent.id, values, onDone);
+    } else {
+      createEvent(values, onDone);
+    }
   };
 
   const disabledStartDate = (current) => isEventStartDateDisabled(current, scheduleCtx);
@@ -131,9 +167,13 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
     {
       title: 'Thao tác',
       key: 'actions',
-      width: 80,
+      width: 120,
       render: (_, record) => (
-        <Popconfirm
+        <Space>
+          <Tooltip title="Sửa sự kiện">
+            <Button type="text" icon={<Pencil size={16} />} onClick={() => openEditModal(record)} />
+          </Tooltip>
+          <Popconfirm
           title="Xóa sự kiện"
           description="Bạn có chắc chắn muốn xóa sự kiện này?"
           onConfirm={() => deleteEvent(record.id)}
@@ -142,6 +182,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
         >
           <Button type="text" danger icon={<Trash2 size={16} />} />
         </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -196,37 +237,29 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
 
   const currentStepIndex = () => {
     switch (selectedType) {
-      case 'WORKSHOP': return 0;
-      case 'KICKOFF': return 1;
-      case 'PRESENTATION': return 2;
-      case 'AWARDS': return 3;
+      case 'KICKOFF': return 0;
+      case 'WORKSHOP': return 1;
+      case 'AWARDS': return 2;
       default: return -1;
     }
   };
 
   return (
-    <div>
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16, borderRadius: 12 }}
-        message="Thứ tự tạo sự kiện"
-        description={
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            Trước hết tạo <strong>Lễ khai mạc</strong>, sau đó mới tạo <strong>Workshop</strong>.
-            Trên lịch thực tế, workshop diễn ra trước khai mạc và không cùng ngày.
-            Khi chọn loại sự kiện, lịch sẽ khóa ngày và giờ không hợp lệ — bạn chỉ cần chọn trong khung được phép.
-          </Text>
+    <div style={{ padding: '24px 0', animation: 'fadeInUp 0.4s ease-out both' }}>
+      <SectionHeader
+        title="Lịch trình & Sự kiện"
+        info={EVENTS_TAB_HINT}
+        extra={
+          <Button type="primary" icon={<Plus size={16} />} onClick={openCreateModal}>
+            Tạo Sự kiện
+          </Button>
         }
-      />      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      />
+      <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', marginBottom: 16 }}>
         <Radio.Group value={viewMode} onChange={e => setViewMode(e.target.value)}>
           <Radio.Button value="list"><List size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Danh sách</Radio.Button>
           <Radio.Button value="calendar"><CalendarIcon size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Lịch sự kiện</Radio.Button>
         </Radio.Group>
-
-        <Button type="primary" icon={<Plus size={16} />} onClick={openCreateModal}>
-          Tạo Sự kiện
-        </Button>
       </div>
 
       {awardsReadiness && (
@@ -255,7 +288,6 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
               const style = getEventTypeStyle(record.type);
               return {
                 style: {
-                  background: style.bg,
                   borderLeft: `4px solid ${style.border}`,
                 },
               };
@@ -266,20 +298,27 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
         )}
       </Card>
 
-      <Modal title="Thêm sự kiện" open={isModalOpen} onCancel={() => setIsModalOpen(false)} onOk={() => form.submit()} width={720} okText="Lưu" confirmLoading={isLoading}>
+      <Modal
+        title={editingEvent ? 'Sửa sự kiện' : 'Thêm sự kiện'}
+        open={isModalOpen}
+        onCancel={() => { setIsModalOpen(false); setEditingEvent(null); }}
+        onOk={() => form.submit()}
+        width={720}
+        okText="Lưu"
+        confirmLoading={isLoading}
+      >
         
         <div style={{ marginBottom: 20, padding: '16px 20px', background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
           <div style={{ marginBottom: 12, color: '#475569', fontSize: 13, fontWeight: 500 }}>
-            <InfoCircleOutlined style={{ marginRight: 6, color: '#1677ff' }} />
+            <InfoCircleOutlined style={{ marginRight: 6, color: '#6366f1' }} />
             Dòng thời gian gợi ý
           </div>
           <Steps
             size="small"
             current={currentStepIndex()}
             items={[
-              { title: 'Workshop', description: 'Sau đăng ký', status: getStepStatus('WORKSHOP') },
               { title: 'Khai mạc', description: 'Trước ngày thi 1 ngày', status: getStepStatus('KICKOFF') },
-              { title: 'Thuyết trình', description: 'Trong kỳ thi', status: getStepStatus('PRESENTATION') },
+              { title: 'Workshop', description: 'Sau đăng ký', status: getStepStatus('WORKSHOP') },
               { title: 'Trao giải', description: 'Cuối kỳ', status: getStepStatus('AWARDS') },
             ]}
           />
@@ -290,35 +329,39 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
             <Input placeholder="Ví dụ: Workshop định hướng đề tài" />
           </Form.Item>
           
-          {isFirstEvent && (
-            <Alert
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-              message="Sự kiện đầu tiên"
-              description="Lần đầu tạo sự kiện, bạn cần tạo Lễ khai mạc. Các loại khác sẽ mở sau khi đã có khai mạc."
-            />
+          {isFirstEvent && !editingEvent && (
+            <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>
+              <InfoCircleOutlined style={{ marginRight: 6, color: '#6366f1' }} />
+              Lần đầu tạo sự kiện, bạn cần tạo Lễ khai mạc. Các loại khác sẽ mở sau khi đã có khai mạc.
+            </Text>
           )}
 
-          {!isFirstEvent && (
-            <Alert
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-              message="Loại sự kiện có thể tạo"
-              description={
-                <span style={{ fontSize: 13 }}>
-                  Mỗi kỳ chỉ có một Lễ khai mạc, một Workshop và một Lễ trao giải — loại đã tạo sẽ không hiện lại.
-                  {hasEventType(events, 'KICKOFF') && !hasEventType(events, 'WORKSHOP') && ' Bạn có thể thêm Workshop sau khai mạc.'}
-                </span>
-              }
-            />
+          {!isFirstEvent && !editingEvent && (
+            <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>
+              <InfoCircleOutlined style={{ marginRight: 6, color: '#6366f1' }} />
+              Mỗi kỳ chỉ có một Lễ khai mạc, một Workshop và một Lễ trao giải — loại đã tạo sẽ không hiện lại.
+              {hasEventType(events, 'KICKOFF') && !hasEventType(events, 'WORKSHOP') && ' Bạn có thể thêm Workshop sau khai mạc.'}
+            </Text>
           )}
 
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="type" label="Loại sự kiện" style={{ flex: 1 }} rules={[{ required: true, message: 'Chọn loại sự kiện' }]}>
-              <Select placeholder="Chọn loại">
-                {creatableEventTypes.map((type) => (
+            <Form.Item
+              name="type"
+              label={
+                <span>
+                  Loại sự kiện{' '}
+                  {scheduleHint && (
+                    <Tooltip title={scheduleHint}>
+                      <InfoCircleOutlined style={{ color: '#6366f1', marginLeft: 4 }} />
+                    </Tooltip>
+                  )}
+                </span>
+              }
+              style={{ flex: 1 }}
+              rules={[{ required: true, message: 'Chọn loại sự kiện' }]}
+            >
+              <Select placeholder="Chọn loại" disabled={Boolean(editingEvent)}>
+                {(editingEvent ? [editingEvent.type] : creatableEventTypes).map((type) => (
                   <Select.Option key={type} value={type}>
                     {getEventTypeOptionLabel(type, events)}
                   </Select.Option>
@@ -330,18 +373,22 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
             </Form.Item>
           </div>
 
-          {selectedType && (
-            <Alert
-              type="success"
-              showIcon
-              style={{ marginBottom: 16 }}
-              message="Khung thời gian được phép"
-              description={<Text style={{ fontSize: 13 }}>{scheduleHint}</Text>}
-            />
-          )}
-
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="starts_at" label="Bắt đầu" style={{ flex: 1 }} rules={[{ required: true, message: 'Chọn thời gian bắt đầu' }]}>
+            <Form.Item
+              name="starts_at"
+              label={
+                <span>
+                  Bắt đầu{' '}
+                  {scheduleHint && (
+                    <Tooltip title={scheduleHint}>
+                      <InfoCircleOutlined style={{ color: '#6366f1', marginLeft: 4 }} />
+                    </Tooltip>
+                  )}
+                </span>
+              }
+              style={{ flex: 1 }}
+              rules={[{ required: true, message: 'Chọn thời gian bắt đầu' }]}
+            >
               <DatePicker
                 disabledDate={disabledStartDate}
                 disabledTime={disabledStartTime}

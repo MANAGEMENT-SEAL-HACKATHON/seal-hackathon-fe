@@ -18,9 +18,20 @@ import { ReviewTabs } from "../components/ReviewTabs";
 import { ReviewSummaryCard } from "../components/ReviewSummaryCard";
 import { ROUTES } from "../../../shared/constants/routes";
 import StatusBadge from "../../../shared/components/ui/StatusBadge";
+import SectionHeader, { HintList } from "../../../shared/components/ui/SectionHeader";
 
-const { Title, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { useToken } = theme;
+
+const REVIEW_TAB_HINT = (
+  <HintList
+    items={[
+      "Hệ thống tự kiểm tra cấu trúc vòng thi, tiêu chí và nhân sự",
+      "Phải xử lý hết mục chặn (blocker) trước khi mở đăng ký",
+      "Cảnh báo (warning) nên xử lý nhưng không bắt buộc",
+    ]}
+  />
+);
 
 // === PAGE: TRANG REVIEW VÀ VALIDATE ĐIỀU KIỆN KÍCH HOẠT ===
 const ReviewValidatePage = ({ hackathonId: propHackathonId, onUpdated }) => {
@@ -114,106 +125,69 @@ const ReviewValidatePage = ({ hackathonId: propHackathonId, onUpdated }) => {
     <>
       <style>
         {`
-          @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
           .validation-item-hover:hover {
             transform: translateY(-2px);
             box-shadow: ${token.boxShadowSecondary} !important;
           }
         `}
       </style>
-      <div
-        style={{
-          minHeight: "100vh",
-          padding: "24px 0",
-        }}
-      >
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              marginBottom: 40,
-            }}
-          >
-            <div>
-              <Space align="center" size="middle" style={{ marginBottom: 8 }}>
-                <Title
-                  level={2}
-                  style={{
-                    margin: 0,
-                    fontWeight: 700,
-                    letterSpacing: "-0.5px",
-                  }}
-                >
-                  Điều kiện phát hành
-                </Title>
-                <StatusBadge status={hackathon?.status || "DRAFT"} />
-              </Space>
-              <Title
-                level={5}
+      <div style={{ padding: "24px 0", animation: "fadeInUp 0.4s ease-out both" }}>
+        <SectionHeader
+          title="Điều kiện phát hành"
+          info={REVIEW_TAB_HINT}
+          extra={
+            <Space align="center">
+              <StatusBadge status={hackathon?.status || "DRAFT"} />
+              <Button
+                icon={<RefreshCw size={16} />}
+                onClick={handleRefetch}
+                style={{ display: "flex", alignItems: "center" }}
+              >
+                Kiểm tra lại
+              </Button>
+            </Space>
+          }
+        />
+        <Text type="secondary" style={{ display: "block", marginTop: -8, marginBottom: 24 }}>
+          Hackathon: {hackathon?.name || "Đang tải dữ liệu..."}
+        </Text>
+
+        <Row gutter={[32, 32]}>
+          <Col xs={24} lg={16}>
+            <div style={{ marginBottom: 32 }}>
+              <div
                 style={{
-                  color: token.colorPrimary,
-                  margin: 0,
-                  marginBottom: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  marginBottom: 20,
                 }}
               >
-                Hackathon: {hackathon?.name || "Đang tải dữ liệu..."}
-              </Title>
-              <Paragraph type="secondary" style={{ fontSize: 16, margin: 0 }}>
-                Hệ thống tự động kiểm tra cấu trúc, tiêu chí và nhân sự trước
-                khi mở cổng đăng ký.
-              </Paragraph>
+                <ShieldCheck size={20} color={token.colorPrimary} />
+                <Title level={5} style={{ margin: 0, fontWeight: 600 }}>
+                  Danh sách kiểm tra
+                </Title>
+              </div>
+
+              <ReviewTabs
+                groupedBlockers={groupedBlockers}
+                warnings={warnings}
+              />
             </div>
-            <Button
-              icon={<RefreshCw size={16} />}
-              onClick={handleRefetch}
-              style={{ display: "flex", alignItems: "center" }}
-            >
-              Kiểm tra lại
-            </Button>
-          </div>
+          </Col>
 
-          <Row gutter={[32, 32]}>
-            <Col xs={24} lg={16}>
-              <div style={{ marginBottom: 32 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    marginBottom: 20,
-                  }}
-                >
-                  <ShieldCheck size={24} color={token.colorPrimary} />
-                  <Title level={4} style={{ margin: 0, fontWeight: 600 }}>
-                    Danh sách kiểm tra
-                  </Title>
-                </div>
-
-                <ReviewTabs
-                  groupedBlockers={groupedBlockers}
-                  warnings={warnings}
-                />
-              </div>
-            </Col>
-
-            <Col xs={24} lg={8}>
-              <div style={{ position: "sticky", top: 40 }}>
-                <ReviewSummaryCard
-                  isReady={isReady}
-                  hackathonStatus={hackathon?.status}
-                  blockersCount={blockers.length}
-                  warningsCount={warnings.length}
-                  onActivate={handleActivate}
-                />
-              </div>
-            </Col>
-          </Row>
-        </div>
+          <Col xs={24} lg={8}>
+            <div style={{ position: "sticky", top: 24 }}>
+              <ReviewSummaryCard
+                isReady={isReady}
+                hackathonStatus={hackathon?.status}
+                blockersCount={blockers.length}
+                warningsCount={warnings.length}
+                onActivate={handleActivate}
+              />
+            </div>
+          </Col>
+        </Row>
       </div>
     </>
   );

@@ -70,6 +70,23 @@ export const buildEventScheduleContext = ({ hackathon, rounds, events, selectedT
   };
 };
 
+/** Mốc sớm nhất cho AWARDS: publishedAt → scoringLockedAt → kế hoạch sau CK */
+export const getAwardsMinMoment = (ctx) => {
+  const fr = ctx?.finalRound;
+  if (!fr) return null;
+  const published = fr.published_at ?? fr.publishedAt;
+  if (published) return dayjs(published);
+  const locked = fr.scoring_locked_at ?? fr.scoringLockedAt;
+  if (locked) return dayjs(locked);
+  const exam = fr.exam_at ?? fr.examAt;
+  if (!exam) return null;
+  const codingHours = Number(fr.coding_duration_hours ?? fr.codingDurationHours ?? 0);
+  const presMin = Number(fr.default_presentation_minutes ?? fr.defaultPresentationMinutes ?? 10);
+  const qaMin = Number(fr.default_qa_minutes ?? fr.defaultQaMinutes ?? 5);
+  const presentationBuffer = (presMin + qaMin) * 4;
+  return dayjs(exam).add(codingHours, 'hour').add(presentationBuffer, 'minute');
+};
+
 export const isEventStartDateDisabled = (current, ctx) => {
   if (!current || !ctx?.selectedType) return false;
 
@@ -87,12 +104,14 @@ export const isEventStartDateDisabled = (current, ctx) => {
   }
 
   if (ctx.selectedType === 'AWARDS') {
-    const finalDeadline = ctx.finalRound?.submission_deadline || ctx.finalRound?.submissionDeadline;
-    if (finalDeadline && day.isBefore(dayjs(finalDeadline).startOf('day'), 'day')) return true;
+    const minMoment = getAwardsMinMoment(ctx);
+    const awardsDay = ctx.hEvEnd?.startOf('day') ?? minMoment?.startOf('day');
+    if (awardsDay && !day.isSame(awardsDay, 'day')) return true;
+    if (minMoment && day.isBefore(minMoment.startOf('day'), 'day')) return true;
     if (ctx.hEvEnd && day.isAfter(ctx.hEvEnd, 'day')) return true;
   }
 
-  if (ctx.selectedType === 'PRESENTATION' || ctx.selectedType === 'OTHER') {
+  if (ctx.selectedType === 'OTHER') {
     if (ctx.hEvStart && day.isBefore(ctx.hEvStart, 'day')) return true;
     if (ctx.hEvEnd && day.isAfter(ctx.hEvEnd, 'day')) return true;
   }
@@ -129,6 +148,13 @@ export const getEventStartDisabledTime = (current, ctx) => {
     const wsEnd = dayjs(ctx.latestWorkshop.ends_at || ctx.latestWorkshop.starts_at);
     if (current.isSame(wsEnd, 'day') && wsEnd.isAfter(minMoment || dayjs(0))) {
       minMoment = wsEnd;
+    }
+  }
+
+  if (ctx.selectedType === 'AWARDS') {
+    const awardsMin = getAwardsMinMoment(ctx);
+    if (awardsMin && current.isSame(awardsMin, 'day') && awardsMin.isAfter(minMoment || dayjs(0))) {
+      minMoment = awardsMin;
     }
   }
 
@@ -171,10 +197,7 @@ export const getEventScheduleHint = (ctx) => {
       return 'Workshop thường tổ chức sau khi kết thúc đăng ký và trước lễ khai mạc.';
 
     case 'AWARDS':
-      return 'Lễ trao giải đặt sau khi vòng Chung kết kết thúc, trong khung thời gian của kỳ thi.';
-
-    case 'PRESENTATION':
-      return 'Buổi thuyết trình nằm trong thời gian diễn ra kỳ thi.';
+      return 'Lễ trao giải đặt cùng ngày kết thúc kỳ thi, sau khi vòng Chung kết công bố kết quả (hoặc sau khóa chấm).';
 
     default:
       return 'Chọn ngày và giờ nằm trong khung thời gian kỳ thi.';

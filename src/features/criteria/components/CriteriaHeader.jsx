@@ -91,9 +91,6 @@ export const CriteriaHeader = ({
             </div>
           )}
         </Space>
-        <Text type="secondary" style={{ fontSize: 12, display: "block" }}>
-          ℹ️ Sơ loại: theo từng bảng đấu. Chung kết: theo vòng. Tổng trọng số = 1.
-        </Text>
       </Card>
 
       {currentRound && (currentRound.is_final || selectedTrackId) && (

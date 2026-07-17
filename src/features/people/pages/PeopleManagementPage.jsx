@@ -2,11 +2,13 @@
 import { useState } from 'react';
 import { Card, Tabs, Button, Table, Form, Input, Modal, Select, Tag, Popconfirm, Typography, message, Switch, Space, Avatar, Tooltip } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { UserPlus, Trash2, Eye } from 'lucide-react';
+import { UserPlus, Trash2, Eye, Mail } from 'lucide-react';
+import dayjs from 'dayjs';
 import { usePeopleManagement } from '../hooks/usePeopleManagement';
 import PersonAssignmentsModal from '../components/PersonAssignmentsModal';
 import { PersonTableCell, personSelectOption } from '../components/PersonDisplay';
 import EmailAutoComplete from '../../../shared/components/ui/EmailAutoComplete';
+import SectionHeader, { HintList } from '../../../shared/components/ui/SectionHeader';
 import {
   resolveFinalAssignmentType,
   resolvePrelimAssignmentType,
@@ -16,6 +18,18 @@ import {
 
 const { Option } = Select;
 const { Text } = Typography;
+
+const PEOPLE_TAB_HINT = (
+  <HintList
+    items={[
+      'Giám khảo khách mời: pool tài khoản khách toàn hệ thống',
+      'Mentor & Giám khảo Sơ loại: gán theo từng bảng đấu',
+      'Giám khảo Chung kết: gán theo vòng/bảng Chung kết',
+      'Một người không thể vừa mentor vừa giám khảo cùng một bảng',
+      'Bật Trưởng ban trước khi phân công Chung kết',
+    ]}
+  />
+);
 
 const tabLabelWithInfo = (label, info) => (
   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -55,14 +69,21 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
     prelimJudgePool,
     finalJudgePool,
     isLoading,
+    assigningMentor,
+    assigningJudge,
+    removingAssignmentId,
     createTempJudge,
     assignMentor,
     removeMentor,
     assignJudge,
     removeJudge,
     patchUserDeptHead,
+    resendInvitation,
     isMentorBlockedForTrack,
     isJudgeBlockedForTrack,
+    getMentorAssignBlockReason,
+    getPrelimJudgeAssignBlockReason,
+    getFinalJudgeAssignBlockReason,
   } = usePeopleManagement(hackathonId, onUpdated);
   const trackByRoundType = (isFinal) =>
     tracks.filter((track) => {
@@ -136,7 +157,8 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
 
   const mentorOptionsForTrack = (trackId) =>
     mentorPool.map((p) => {
-      const blocked = trackId && isMentorBlockedForTrack(p.id, trackId);
+      const blockReason = getMentorAssignBlockReason(p.id, trackId);
+      const blocked = Boolean(blockReason);
       const rawName = getPersonDisplayName(p);
       const formattedName = getFormattedPersonName(p);
       const personCode = getPersonCode(p);
@@ -144,23 +166,36 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
       const avatarSrc = p.avatarUrl || p.avatar_url || p.avatar;
       return (
         <Option key={p.id} value={p.id} disabled={blocked} label={`${formattedName} (${personCode})`}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '4px 0',
+              opacity: blocked ? 0.45 : 1,
+              filter: blocked ? 'grayscale(0.35)' : undefined,
+            }}
+          >
             <Avatar
               size={32}
               src={avatarSrc}
-              style={{ backgroundColor: '#1677ff', fontSize: 13, flexShrink: 0 }}
+              style={{ backgroundColor: '#6366f1', fontSize: 13, flexShrink: 0 }}
             >
               {rawName.charAt(0).toUpperCase()}
             </Avatar>
             <div style={{ lineHeight: 1.4, minWidth: 0, flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <Text strong style={{ fontSize: 13 }}>
+                <Text strong style={{ fontSize: 13, color: blocked ? 'rgba(0,0,0,0.45)' : undefined }}>
                   {formattedName}
                 </Text>
                 <Tag color="orange" style={{ margin: 0, fontSize: 11, fontWeight: 700, padding: '0 6px' }}>
                   {personCode}
                 </Tag>
-                {blocked && <Text type="danger" style={{ fontSize: 11 }}> (đang là giám khảo cùng bảng)</Text>}
+                {blocked && (
+                  <Text type="danger" style={{ fontSize: 11 }}>
+                    ({blockReason})
+                  </Text>
+                )}
               </div>
               <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
                 {roleLabel} · {getPersonTitle(p)} · {getPersonEmail(p)}
@@ -173,7 +208,8 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
 
   const prelimJudgeOptionsForTrack = (trackId) =>
     prelimJudgePool.map((p) => {
-      const blocked = trackId && isJudgeBlockedForTrack(p.id, trackId);
+      const blockReason = getPrelimJudgeAssignBlockReason(p.id, trackId);
+      const blocked = Boolean(blockReason);
       const roleLabel = formatJudgeRoleLabel(resolvePrelimAssignmentType(p));
       const name = getPersonDisplayName(p);
       return (
@@ -181,22 +217,24 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
           {personSelectOption(p, {
             disabled: blocked,
             label: name,
-            extra: `${roleLabel}${blocked ? ' · đang là mentor cùng bảng' : ''}`,
+            extra: blocked ? `${roleLabel} · ${blockReason}` : roleLabel,
           })}
         </Option>
       );
     });
 
-  const finalJudgeOptionsForTrack = (trackId) =>
+  const finalJudgeOptionsForTrack = (trackId, roundId) =>
     finalJudgePool.map((p) => {
-      const blocked = trackId && isJudgeBlockedForTrack(p.id, trackId);
+      const blockReason = getFinalJudgeAssignBlockReason(p.id, { trackId, roundId });
+      const blocked = Boolean(blockReason);
       const roleLabel = formatJudgeRoleLabel(resolveFinalAssignmentType(p));
       const name = getPersonDisplayName(p);
       return (
         <Option key={p.id} value={p.id} disabled={blocked} label={name}>
           {personSelectOption(p, {
+            disabled: blocked,
             label: name,
-            extra: `${roleLabel}${blocked ? ' · đang là mentor cùng bảng' : ''}`,
+            extra: blocked ? `${roleLabel} · ${blockReason}` : roleLabel,
           })}
         </Option>
       );
@@ -233,26 +271,51 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
       record.tokenSent === false ||
       record.token_sent === false ||
       record.invitation?.tokenSent === false;
+
     if (tokenFailed) {
       return <Tag color="warning">Email chưa gửi</Tag>;
     }
-    if (status === 'APPROVED') {
+
+    const expiresAt = record.invitation?.expiresAt ?? record.expiresAt;
+    const invitationExpired =
+      expiresAt &&
+      dayjs(expiresAt).isBefore(dayjs()) &&
+      (status === 'PENDING' || record.mustChangePassword === true);
+
+    if (invitationExpired) {
+      return <Tag color="error">Lời mời hết hạn</Tag>;
+    }
+
+    if (status === 'PENDING' || record.mustChangePassword === true) {
+      return (
+        <Tooltip title="Giám khảo đang trong quá trình kích hoạt tài khoản lần đầu.">
+          <Tag color="orange">Chờ đổi mật khẩu</Tag>
+        </Tooltip>
+      );
+    }
+
+    if (status === 'APPROVED' && record.mustChangePassword !== true) {
       return <Tag color="green">Đã duyệt</Tag>;
     }
-    return <Tag color="orange">Chờ xác nhận</Tag>;
+
+    return <Tag color="default">Chờ xác nhận</Tag>;
   };
 
   return (
-    <div>
+    <div style={{ padding: '24px 0', animation: 'fadeInUp 0.4s ease-out both' }}>
+      <SectionHeader title="Nhân sự" info={PEOPLE_TAB_HINT} />
       <Card style={{ borderRadius: 12 }}>
         <Tabs defaultActiveKey="2" destroyInactiveTabPane>
           <Tabs.TabPane
             tab={tabLabelWithInfo(
               'Giám khảo khách mời',
-              'Hệ thống gửi email kèm mật khẩu tạm (72 giờ) để giám khảo đăng nhập.',
+              'Danh sách tài khoản giám khảo khách toàn hệ thống (pool mời). Chưa đồng nghĩa đã phân công Mentor/Giám khảo Sơ loại cho sự kiện này. Hệ thống có thể gửi email kèm mật khẩu tạm khi mời mới.',
             )}
             key="1"
           >
+            <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
+              Pool tài khoản khách toàn hệ thống — không đồng nghĩa đã gán Mentor/GK Sơ loại.
+            </Text>
             <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
               <Button type="primary" icon={<UserPlus size={16} />} onClick={() => setIsModalOpen(true)}>
                 Mời giám khảo
@@ -273,6 +336,34 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                   dataIndex: 'status',
                   render: renderTempJudgeStatus,
                 },
+                {
+                  title: 'Thao tác',
+                  key: 'actions',
+                  width: 100,
+                  render: (_, record) => {
+                    const tokenFailed =
+                      record.tokenSent === false ||
+                      record.token_sent === false ||
+                      record.invitation?.tokenSent === false;
+                    const expiresAt = record.invitation?.expiresAt ?? record.expiresAt;
+                    const invitationExpired =
+                      expiresAt &&
+                      dayjs(expiresAt).isBefore(dayjs()) &&
+                      (record.status === 'PENDING' || record.mustChangePassword === true);
+                    const invitationId =
+                      record.invitation?.id ?? record.invitationId ?? record.invitation_id;
+                    if ((!tokenFailed && !invitationExpired) || !invitationId) return null;
+                    return (
+                      <Tooltip title="Gửi lại email kèm mật khẩu tạm mới">
+                        <Button
+                          type="text"
+                          icon={<Mail size={16} />}
+                          onClick={() => resendInvitation(invitationId)}
+                        />
+                      </Tooltip>
+                    );
+                  },
+                },
               ]}
             />
           </Tabs.TabPane>
@@ -284,7 +375,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
             )}
             key="2"
           >
-            <Card type="inner" style={{ marginBottom: 24, background: '#fafafa', borderRadius: 8 }}>
+            <Card type="inner" style={{ marginBottom: 24, background: 'var(--ant-color-fill-quaternary)', borderRadius: 8 }}>
               <Form
                 layout="inline"
                 form={mentorForm}
@@ -336,8 +427,13 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                   </Select>
                 </Form.Item>
 
-                <Button type="primary" htmlType="submit" loading={isLoading} disabled={!tracks.length}>
-                  Gán mentor
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={assigningMentor}
+                  disabled={!tracks.length || assigningMentor}
+                >
+                  {assigningMentor ? 'Đang gán…' : 'Gán mentor'}
                 </Button>
               </Form>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
@@ -368,11 +464,11 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                     const avatarSrc = found?.avatarUrl || found?.avatar_url || found?.avatar;
                     return (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Avatar size={24} src={avatarSrc} style={{ backgroundColor: '#1677ff', fontSize: 11 }}>
+                        <Avatar size={24} src={avatarSrc} style={{ backgroundColor: '#6366f1', fontSize: 11 }}>
                           {rawName.charAt(0).toUpperCase()}
                         </Avatar>
                         <div>
-                          <Text strong style={{ color: '#1677ff', marginRight: 6 }}>
+                          <Text strong style={{ color: '#6366f1', marginRight: 6 }}>
                             {formattedName}
                           </Text>
                           <Tag color="orange" style={{ margin: 0, fontSize: 10, fontWeight: 700 }}>
@@ -389,7 +485,13 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                   align: 'right',
                   render: (_, r) => (
                     <Popconfirm title="Gỡ mentor khỏi bảng này?" onConfirm={() => removeMentor(r.id)}>
-                      <Button type="text" danger icon={<Trash2 size={16} />} />
+                      <Button
+                        type="text"
+                        danger
+                        loading={removingAssignmentId === r.id}
+                        disabled={removingAssignmentId === r.id}
+                        icon={<Trash2 size={16} />}
+                      />
                     </Popconfirm>
                   ),
                 },
@@ -404,7 +506,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
             )}
             key="3"
           >
-            <Card type="inner" style={{ marginBottom: 24, background: '#fafafa', borderRadius: 8 }}>
+            <Card type="inner" style={{ marginBottom: 24, background: 'var(--ant-color-fill-quaternary)', borderRadius: 8 }}>
               <Form
                 layout="inline"
                 form={prelimJudgeForm}
@@ -444,8 +546,13 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                   )}
                 </Form.Item>
 
-                <Button type="primary" htmlType="submit" loading={isLoading} disabled={!prelimTracks.length}>
-                  Gán giám khảo
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={assigningJudge}
+                  disabled={!prelimTracks.length || assigningJudge}
+                >
+                  {assigningJudge ? 'Đang gán…' : 'Gán giám khảo'}
                 </Button>
               </Form>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
@@ -475,7 +582,13 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                   align: 'right',
                   render: (_, r) => (
                     <Popconfirm title="Gỡ giám khảo khỏi bảng này?" onConfirm={() => removeJudge(r.id)}>
-                      <Button type="text" danger icon={<Trash2 size={16} />} />
+                      <Button
+                        type="text"
+                        danger
+                        loading={removingAssignmentId === r.id}
+                        disabled={removingAssignmentId === r.id}
+                        icon={<Trash2 size={16} />}
+                      />
                     </Popconfirm>
                   ),
                 },
@@ -490,7 +603,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
             )}
             key="4"
           >
-            <Card type="inner" style={{ marginBottom: 24, background: '#fafafa', borderRadius: 8 }}>
+            <Card type="inner" style={{ marginBottom: 24, background: 'var(--ant-color-fill-quaternary)', borderRadius: 8 }}>
               <Form
                 layout="inline"
                 form={finalJudgeForm}
@@ -530,7 +643,14 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                     optionFilterProp="children"
                     disabled={finalTracks.length > 0 ? !selectedFinalJudgeTrackId : !selectedFinalRoundId}
                   >
-                    {finalJudgeOptionsForTrack(selectedFinalJudgeTrackId)}
+                    {finalJudgeOptionsForTrack(
+                      selectedFinalJudgeTrackId,
+                      selectedFinalRoundId
+                        || (selectedFinalJudgeTrackId
+                          ? tracks.find((t) => t.id === selectedFinalJudgeTrackId)?.roundId
+                            || tracks.find((t) => t.id === selectedFinalJudgeTrackId)?.round_id
+                          : null),
+                    )}
                   </Select>
                 </Form.Item>
                 <Form.Item name="is_final_assignment" hidden>
@@ -543,8 +663,13 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                     <Text type="secondary">Chọn giám khảo để hiện vai trò</Text>
                   )}
                 </Form.Item>
-                <Button type="primary" htmlType="submit" loading={isLoading} disabled={!finalTracks.length && !finalRounds.length}>
-                  Gán giám khảo CK
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={assigningJudge}
+                  disabled={(!finalTracks.length && !finalRounds.length) || assigningJudge}
+                >
+                  {assigningJudge ? 'Đang gán…' : 'Gán giám khảo CK'}
                 </Button>
               </Form>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
@@ -573,7 +698,13 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                   align: 'right',
                   render: (_, r) => (
                     <Popconfirm title="Gỡ giám khảo khỏi vòng CK?" onConfirm={() => removeJudge(r.id)}>
-                      <Button type="text" danger icon={<Trash2 size={16} />} />
+                      <Button
+                        type="text"
+                        danger
+                        loading={removingAssignmentId === r.id}
+                        disabled={removingAssignmentId === r.id}
+                        icon={<Trash2 size={16} />}
+                      />
                     </Popconfirm>
                   ),
                 },

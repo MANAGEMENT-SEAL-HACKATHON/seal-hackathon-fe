@@ -1,17 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Button,
+  Card,
+  Col,
   Form,
   Image,
   Input,
   List,
   Modal,
+  Progress,
+  Row,
   Space,
+  Tag,
+  Tooltip,
   Typography,
   message,
 } from 'antd';
-import { ExclamationCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { ExclamationCircleOutlined, InfoCircleOutlined, StopOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { hackathonService } from '../services/hackathonService';
 import { mapHackathonToBE, resolveHackathonBannerUrl } from '../mappers/hackathonMapper';
@@ -20,8 +26,43 @@ import { ROUTES } from '../../../shared/constants/routes';
 import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
 import { resolveUserError } from '../../../shared/errors/resolveUserError';
 import { isRegistrationPeriodEnded } from '../utils/hackathonRegistrationRules';
+import FormLabelWithInfo from '../../../shared/components/ui/FormLabelWithInfo';
+import SectionHeader, { HintList } from '../../../shared/components/ui/SectionHeader';
+import { teamService } from '../../teams/services/teamService';
 
 const { Text, Title } = Typography;
+
+const CLOSE_REG_EARLY_HINT = (
+  <HintList
+    items={[
+      'Dùng khi số đội đã đủ hoặc cần dừng nhận đăng ký vì lý do đặc biệt',
+      'Chốt danh sách đội thi chính thức',
+      'Tự động loại thí sinh lẻ và nhóm chưa hoàn thành thủ tục',
+      'Gửi thông báo Ban tổ chức nếu có đội đang chờ duyệt',
+      'Nhóm đủ thành viên chưa xác nhận: thêm 24 giờ để Trưởng nhóm xác nhận',
+    ]}
+  />
+);
+
+const REG_CLOSED_HINT = (
+  <HintList
+    items={[
+      'Cổng đăng ký đã đóng — danh sách đội thi chính thức đã được chốt',
+      'Chuyển sang «Bốc thăm & khai mạc» để phân chia bảng đấu',
+      'Thời gian thi dự kiến vẫn được giữ nguyên',
+      'Khi bắt đầu vòng thi: giữ lịch hiện tại hoặc bắt đầu làm bài ngay',
+    ]}
+  />
+);
+
+const MAX_PARTICIPANTS_LOCKED_HINT = (
+  <HintList
+    items={[
+      'Sự kiện đã kích hoạt — không chỉnh số lượng tối đa được nữa',
+      'Chỉ xem giá trị đã cấu hình trong giai đoạn Bản nháp',
+    ]}
+  />
+);
 
 const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
   const navigate = useNavigate();
@@ -32,16 +73,30 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [resultModal, setResultModal] = useState({ open: false, data: null });
   const [bannerFileList, setBannerFileList] = useState([]);
+  const [activeTeamCount, setActiveTeamCount] = useState(0);
+  const [pendingTeamCount, setPendingTeamCount] = useState(0);
   const isDraft = hackathon?.status === 'DRAFT';
   const isOngoing = hackathon?.status === 'ONGOING';
+  const canEditBanner = isDraft || isOngoing;
   const registrationEnded = isRegistrationPeriodEnded(hackathon);
   const closedEarly = Boolean(
     hackathon?.registration_closed_early_at ?? hackathon?.registrationClosedEarlyAt,
   );
   const registrationClosedUi = registrationEnded;
   const bannerSrc = resolveHackathonBannerUrl(hackathon);
+  const maxParticipants = Number(hackathon?.max_participants ?? hackathon?.maxParticipants) || 0;
+  const fillPercent = maxParticipants > 0
+    ? Math.min(100, Math.round((activeTeamCount / maxParticipants) * 100))
+    : 0;
 
-  React.useEffect(() => {
+  const statusPill = (() => {
+    if (isDraft) return { label: 'Bản nháp', color: 'default' };
+    if (registrationClosedUi) return { label: closedEarly ? 'Đã đóng ĐK sớm' : 'Đã đóng đăng ký', color: 'success' };
+    if (isOngoing) return { label: 'Đang mở đăng ký', color: 'processing' };
+    return { label: hackathon?.status || '—', color: 'default' };
+  })();
+
+  useEffect(() => {
     if (hackathon) {
       form.setFieldsValue({
         max_participants: hackathon.max_participants ?? hackathon.maxParticipants,
@@ -49,6 +104,32 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
       setBannerFileList([]);
     }
   }, [hackathon, form]);
+
+  useEffect(() => {
+    if (!hackathon?.id) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [activeRes, pendingRes] = await Promise.all([
+          teamService.listByHackathon(hackathon.id, { status: 'ACTIVE' }),
+          teamService.listByHackathon(hackathon.id, { status: 'PENDING' }).catch(() => []),
+        ]);
+        if (cancelled) return;
+        const activeList = Array.isArray(activeRes) ? activeRes : activeRes?.items || [];
+        const pendingList = Array.isArray(pendingRes) ? pendingRes : pendingRes?.items || [];
+        setActiveTeamCount(activeList.length);
+        setPendingTeamCount(pendingList.length);
+      } catch {
+        if (!cancelled) {
+          setActiveTeamCount(0);
+          setPendingTeamCount(0);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hackathon?.id, hackathon?.registration_closed_early_at]);
 
   const handleSave = async () => {
     try {
@@ -109,110 +190,170 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
   const hasCoordinatorAction = awaitingApprovalTeams.length > 0;
 
   return (
-    <div style={{ padding: '24px 0' }}>
-      <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
-        Cấu hình chung
-      </Typography.Title>
+    <div style={{ padding: '24px 0', animation: 'fadeInUp 0.4s ease-out both' }}>
+      <SectionHeader title="Cấu hình chung" />
 
-      {isOngoing && (
-        <Alert
-          type={registrationClosedUi ? 'success' : 'warning'}
-          showIcon
-          style={{ marginBottom: 16, borderRadius: 8 }}
-          message={
-            registrationClosedUi
-              ? (closedEarly ? 'Đã đóng cổng đăng ký sớm' : 'Đăng ký đã đóng')
-              : 'Đóng cổng đăng ký sớm (chỉ dùng khi cần thiết)'
-          }
-          description={
-            registrationClosedUi
-              ? 'Cổng đăng ký đã đóng. Danh sách đội thi chính thức đã được chốt — vui lòng chuyển sang mục «Bốc thăm & khai mạc» để phân chia bảng đấu. Thời gian thi dự kiến vẫn được giữ nguyên; khi bắt đầu vòng thi, bạn có thể lựa chọn giữ nguyên lịch này hoặc bắt đầu làm bài ngay.'
-              : 'Dùng khi số lượng đội đã đủ hoặc cần dừng nhận đăng ký vì lý do đặc biệt. Hệ thống sẽ chốt danh sách các đội thi chính thức, tự động loại các thí sinh và nhóm chưa hoàn thành thủ tục đăng ký, đồng thời gửi thông báo đến Ban tổ chức nếu có đội đang chờ duyệt. Những nhóm đã đủ thành viên nhưng chưa xác nhận sẽ có thêm 24 giờ để Trưởng nhóm xác nhận tham gia.'
-          }
-          action={
-            registrationClosedUi ? (
-              onGoToLottery ? (
-                <Button type="primary" onClick={onGoToLottery}>
-                  Bốc thăm & Khai mạc
-                </Button>
-              ) : null
+      <div
+        style={{
+          marginBottom: 20,
+          padding: '18px 20px',
+          borderRadius: 16,
+          background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 55%, #eff6ff 100%)',
+          border: '1px solid #e0e7ff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div>
+          <Text strong style={{ fontSize: 16, color: '#312e81' }}>{hackathon?.name}</Text>
+          <div style={{ marginTop: 8 }}>
+            <Tag color={statusPill.color}>{statusPill.label}</Tag>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Đội đã duyệt</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#4f46e5' }}>{activeTeamCount}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Đang chờ duyệt</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#ea580c' }}>{pendingTeamCount}</div>
+          </div>
+          <div style={{ minWidth: 140 }}>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>
+              Lấp đầy {maxParticipants ? `(${activeTeamCount}/${maxParticipants})` : ''}
+            </div>
+            <Progress percent={fillPercent} size="small" strokeColor="#6366f1" />
+          </div>
+        </div>
+      </div>
+
+      <Row gutter={[20, 20]}>
+        <Col xs={24} lg={12}>
+          <Card
+            title="Ảnh banner"
+            style={{ borderRadius: 14, height: '100%', borderTop: '3px solid #818cf8' }}
+          >
+            {bannerSrc ? (
+              <Image
+                src={bannerSrc}
+                alt={hackathon?.name}
+                style={{ width: '100%', maxHeight: 280, objectFit: 'cover', borderRadius: 12, border: '1px solid #f0f0f0' }}
+                fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+              />
             ) : (
-              <Button
-                danger
-                type="primary"
-                icon={<StopOutlined />}
-                onClick={() => setConfirmOpen(true)}
+              <div
+                style={{
+                  height: 180,
+                  borderRadius: 12,
+                  border: '1.5px dashed #c7d2fe',
+                  background: '#f8fafc',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#94a3b8',
+                }}
               >
-                Kết thúc đăng ký sớm
-              </Button>
-            )
-          }
-        />
-      )}
+                Chưa có ảnh banner
+              </div>
+            )}
+            {canEditBanner ? (
+              <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 16 }}>
+                <HackathonBannerUpload value={bannerFileList} onChange={setBannerFileList} />
+                <Button type="primary" onClick={handleUploadBanner} loading={uploadingBanner} block>
+                  Lưu banner
+                </Button>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Chọn ảnh xong bấm «Lưu banner» để áp dụng (không tự lưu khi chỉ chọn file).
+                </Text>
+              </Space>
+            ) : null}
+          </Card>
+        </Col>
 
-      {!isDraft && (
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 16, borderRadius: 8 }}
-          message="Thông tin chỉ được chỉnh sửa trong giai đoạn chuẩn bị (Bản nháp)"
-          description="Sự kiện này đã được kích hoạt và chính thức bắt đầu — Số lượng người tham gia tối đa và ảnh banner hiện tại chỉ ở chế độ xem, không thể thay đổi lúc này."
-        />
-      )}
+        <Col xs={24} lg={12}>
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            <Card title="Thông số chung" style={{ borderRadius: 14, borderTop: '3px solid #60a5fa' }}>
+              <Form form={form} layout="vertical">
+                <Form.Item
+                  name="max_participants"
+                  label={
+                    <FormLabelWithInfo
+                      label="Số lượng người tham gia tối đa"
+                      info={!isDraft ? MAX_PARTICIPANTS_LOCKED_HINT : undefined}
+                      required
+                    />
+                  }
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập số lượng người tham gia tối đa' },
+                    {
+                      validator: (_, value) => {
+                        const num = Number(value);
+                        if (!value || Number.isNaN(num) || num < 1) {
+                          return Promise.reject(new Error('Giá trị phải là số nguyên dương, tối thiểu 1'));
+                        }
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                >
+                  <Input type="number" min={1} disabled={!isDraft} placeholder="Ví dụ: 100" />
+                </Form.Item>
+                {isDraft && (
+                  <Button type="primary" onClick={handleSave} loading={saving}>
+                    Lưu cấu hình
+                  </Button>
+                )}
+              </Form>
+            </Card>
 
-      <Space direction="vertical" size={16} style={{ width: '100%', marginBottom: 24 }}>
-        <Text strong>Ảnh Banner hiện tại</Text>
-        {bannerSrc ? (
-          <Image
-            src={bannerSrc}
-            alt={hackathon?.name}
-            style={{ maxWidth: 480, borderRadius: 12, border: '1px solid #f0f0f0' }}
-            fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
-          />
-        ) : (
-          <Text type="secondary">Chưa có ảnh banner</Text>
-        )}
-        {isDraft && (
-          <Space align="start" direction="vertical" size={8}>
-            <HackathonBannerUpload value={bannerFileList} onChange={setBannerFileList} />
-            <Button type="primary" onClick={handleUploadBanner} loading={uploadingBanner}>
-              Lưu banner
-            </Button>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Chọn ảnh xong bấm «Lưu banner» để áp dụng (không tự lưu khi chỉ chọn file).
-            </Text>
-          </Space>
-        )}
-      </Space>
-
-      <Form form={form} layout="vertical" style={{ maxWidth: 420 }}>
-        <Form.Item
-          name="max_participants"
-          label="Số lượng người tham gia tối đa"
-          rules={[
-            { required: true, message: 'Vui lòng nhập số lượng người tham gia tối đa' },
-            {
-              validator: (_, value) => {
-                const num = Number(value);
-                if (!value || Number.isNaN(num) || num < 1) {
-                  return Promise.reject(new Error('Giá trị phải là số nguyên dương, tối thiểu 1'));
+            {isOngoing && (
+              <Card
+                title={
+                  <Space size={8}>
+                    <span>Hành động đăng ký</span>
+                    <Tooltip title={registrationClosedUi ? REG_CLOSED_HINT : CLOSE_REG_EARLY_HINT}>
+                      <InfoCircleOutlined style={{ color: '#8c8c8c', cursor: 'help' }} />
+                    </Tooltip>
+                  </Space>
                 }
-                return Promise.resolve();
-              },
-            },
-          ]}
-        >
-          <Input type="number" min={1} disabled={!isDraft} placeholder="Ví dụ: 100" />
-        </Form.Item>
-
-        {isDraft && (
-          <Space>
-            <Button type="primary" onClick={handleSave} loading={saving}>
-              Lưu cấu hình
-            </Button>
+                style={{
+                  borderRadius: 14,
+                  borderTop: `3px solid ${registrationClosedUi ? '#34d399' : '#fbbf24'}`,
+                  background: registrationClosedUi ? '#f0fdf4' : '#fffbeb',
+                }}
+              >
+                <Text strong style={{ display: 'block', marginBottom: 12 }}>
+                  {registrationClosedUi
+                    ? closedEarly
+                      ? 'Đã đóng cổng đăng ký sớm'
+                      : 'Đăng ký đã đóng'
+                    : 'Đóng cổng đăng ký sớm'}
+                </Text>
+                {registrationClosedUi ? (
+                  onGoToLottery ? (
+                    <Button type="primary" onClick={onGoToLottery}>
+                      Bốc thăm & Khai mạc
+                    </Button>
+                  ) : null
+                ) : (
+                  <Button
+                    danger
+                    type="primary"
+                    icon={<StopOutlined />}
+                    onClick={() => setConfirmOpen(true)}
+                  >
+                    Kết thúc đăng ký sớm
+                  </Button>
+                )}
+              </Card>
+            )}
           </Space>
-        )}
-      </Form>
+        </Col>
+      </Row>
 
       <Modal
         title="Đóng cổng đăng ký sớm?"

@@ -26,6 +26,9 @@ export const ROUND_ERROR_MESSAGES = {
     'Còn bài chưa được chấm điểm, không thể khóa chấm!',
   SCORING_NOT_OPEN:
     'Chưa thể chấm điểm. Đội thi chưa lên bục trình bày (Chờ Điều phối viên khởi động).',
+  NO_TEAMS_IN_ROUND: 'Không có đội tham gia vòng thi này',
+  TRACK_EMPTY_TEAMS: 'Có bảng đấu chưa có đội tham gia',
+  JUDGE_NOT_ASSIGNED: 'Bảng đấu chưa có giám khảo được phân công',
   ACTIVE_TEAMS_NOT_LOCKED: 'Vui lòng khóa danh sách đội thi trước khi thực hiện thao tác này.',
 };
 

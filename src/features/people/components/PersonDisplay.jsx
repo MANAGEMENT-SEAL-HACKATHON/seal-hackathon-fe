@@ -49,12 +49,28 @@ export const PersonTableCell = ({ person, subtitle, size = 24 }) => {
 export const personSelectOption = (person, { disabled = false, extra, label } = {}) => {
   const name = person?.fullName || person?.full_name || person?.name || 'Chưa có tên';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '4px 0',
+        opacity: disabled ? 0.45 : 1,
+        filter: disabled ? 'grayscale(0.35)' : undefined,
+      }}
+    >
       <PersonAvatar person={person} size={32} name={name} />
       <div style={{ lineHeight: 1.4, minWidth: 0, flex: 1 }}>
-        <Text strong style={{ fontSize: 13 }}>{label || name}</Text>
+        <Text strong style={{ fontSize: 13, color: disabled ? 'rgba(0,0,0,0.45)' : undefined }}>
+          {label || name}
+        </Text>
         {extra ? (
-          <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{extra}</Text>
+          <Text
+            type={disabled ? 'danger' : 'secondary'}
+            style={{ fontSize: 11, display: 'block' }}
+          >
+            {extra}
+          </Text>
         ) : null}
       </div>
     </div>
