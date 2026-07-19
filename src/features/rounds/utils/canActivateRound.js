@@ -23,14 +23,19 @@ export const canActivateRound = (round, ctx = {}) => {
   }
 
   const teamsByTrack = ctx.teamsByTrack || {};
+  const criteriaByTrack = ctx.criteriaCountByTrack || {};
+  const judgesByTrack = ctx.judgeCountByTrack || {};
+
   for (const track of tracks) {
     const trackId = track.id;
-    const criteriaCount = track.criteria_count ?? track.criteriaCount ?? ctx.criteriaCountByTrack?.[trackId];
-    if (criteriaCount === 0 || criteriaCount == null) {
+    const criteriaCount =
+      track.criteria_count ?? track.criteriaCount ?? criteriaByTrack[trackId];
+    // null/undefined = chưa nạp count → không kết luận «thiếu» (tránh false negative)
+    if (criteriaCount !== undefined && criteriaCount !== null && Number(criteriaCount) <= 0) {
       reasons.push(`Bảng «${track.name}» chưa có tiêu chí`);
     }
-    const judgeCount = track.judge_count ?? track.judgeCount ?? ctx.judgeCountByTrack?.[trackId];
-    if (judgeCount === 0 || judgeCount == null) {
+    const judgeCount = track.judge_count ?? track.judgeCount ?? judgesByTrack[trackId];
+    if (judgeCount !== undefined && judgeCount !== null && Number(judgeCount) <= 0) {
       reasons.push(`Bảng «${track.name}» chưa có giám khảo`);
     }
     const teamCount = teamsByTrack[trackId] ?? track.team_count ?? track.teamCount ?? 0;

@@ -5,7 +5,7 @@ export const COORD_TIMER_WARN_KEY = 'seal_coord_timer_warn_ack';
 
 export const getPresentationRoleHints = ({ role, isController, scoringLocked }) => {
   const normalizedRole = String(role || '').toUpperCase();
-  const isCoordinator = ['COORDINATOR', 'ADMIN'].includes(normalizedRole);
+  const isCoordinator = ['COORDINATOR', 'SUPERADMIN'].includes(normalizedRole);
   const isJudge = ['JUDGE', 'TEMP_JUDGE', 'MENTOR'].includes(normalizedRole);
 
   if (isCoordinator) {

@@ -13,6 +13,10 @@ export const hackathonService = {
   create: async (data) => {
     return axiosClient.post(ENDPOINTS.HACKATHONS.BASE, data);
   },
+
+  clone: async (sourceId, data) => {
+    return axiosClient.post(ENDPOINTS.HACKATHONS.CLONE(sourceId), data);
+  },
   
   update: async (id, data) => {
     return axiosClient.put(ENDPOINTS.HACKATHONS.DETAIL(id), data);

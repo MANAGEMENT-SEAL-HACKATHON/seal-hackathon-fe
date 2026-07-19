@@ -17,6 +17,7 @@ const ActivateScheduleModal = ({
 }) => {
   const examAt = round?.exam_at ? dayjs(round.exam_at) : null;
   const examInFuture = examAt?.isValid() && examAt.isAfter(dayjs());
+  const isAlreadyActive = Boolean(round?.is_active ?? round?.isActive);
   const [mode, setMode] = useState('START_NOW');
   const [newExamAt, setNewExamAt] = useState(null);
   const [setupLeadMinutes, setSetupLeadMinutes] = useState(5);
@@ -92,9 +93,11 @@ const ActivateScheduleModal = ({
       title={
         isReschedule
           ? `Dời lịch ${round?.name || 'vòng thi'}?`
-          : `Kích hoạt ${round?.name || 'vòng thi'}?`
+          : isAlreadyActive
+            ? `Bắt đầu thi sớm ${round?.name || 'vòng thi'}?`
+            : `Kích hoạt ${round?.name || 'vòng thi'}?`
       }
-      okText={isReschedule ? 'Lưu lịch mới' : 'Kích hoạt'}
+      okText={isReschedule ? 'Lưu lịch mới' : isAlreadyActive ? 'Bắt đầu thi sớm' : 'Kích hoạt'}
       cancelText="Hủy"
       confirmLoading={confirmLoading}
       okButtonProps={{ disabled: okDisabled }}
@@ -108,7 +111,9 @@ const ActivateScheduleModal = ({
         <Text type="secondary">
           {isReschedule
             ? 'Chỉ đổi giờ thi — vòng vẫn Bản nháp. Sau này bấm Play để kích hoạt hoặc bắt đầu thi sớm.'
-            : 'Kích hoạt mở môi trường vận hành (chia bảng, giám khảo, đề). Chọn rõ bên dưới nếu muốn bắt đầu thi sớm hoặc chỉ dời lịch.'}
+            : isAlreadyActive
+              ? 'Vòng đã kích hoạt. Bắt đầu thi sớm sẽ nén giờ thi và hạn nộp bài về thời điểm hiện tại (+ thời gian chuẩn bị).'
+              : 'Kích hoạt mở môi trường vận hành (chia bảng, giám khảo, đề). Chọn rõ bên dưới nếu muốn bắt đầu thi sớm hoặc chỉ dời lịch.'}
         </Text>
 
         {examInFuture ? (
@@ -129,7 +134,7 @@ const ActivateScheduleModal = ({
               style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
             >
               <Radio value="START_NOW">
-                Kích hoạt và bắt đầu thi sớm{' '}
+                {isAlreadyActive ? 'Bắt đầu thi sớm ngay' : 'Kích hoạt và bắt đầu thi sớm'}{' '}
                 <Text type="secondary">(Cài đặt thời gian chuẩn bị)</Text>
               </Radio>
               <Radio value="RESCHEDULE">

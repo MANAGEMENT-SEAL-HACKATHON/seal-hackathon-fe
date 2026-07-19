@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, Table, Button, Modal, Input, Typography, Spin, Space, Tooltip, Alert } from 'antd';
@@ -13,6 +13,8 @@ const LateSubmissionReviewPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const roundIdParam = searchParams.get('roundId');
+  const trackIdParam = searchParams.get('trackId');
+  const hackathonIdParam = searchParams.get('hackathonId');
 
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
@@ -38,6 +40,16 @@ const LateSubmissionReviewPage: React.FC = () => {
     queryFn: () => personBApi.getLateSubmissions(roundIdParam || undefined),
     retry: false,
   });
+
+  const filteredSubmissions = useMemo(() => {
+    if (!trackIdParam) return submissions;
+    const tid = Number(trackIdParam);
+    if (!Number.isFinite(tid)) return submissions;
+    return submissions.filter((sub) => {
+      const subTrack = sub.track_id ?? sub.trackId;
+      return subTrack != null && Number(subTrack) === tid;
+    });
+  }, [submissions, trackIdParam]);
 
   const approveMutation = useMutation({
     mutationFn: (submissionId: string) =>
@@ -173,10 +185,22 @@ const LateSubmissionReviewPage: React.FC = () => {
       <div>
         <Title level={2} className="!m-0">Duyệt bài nộp muộn</Title>
         <Text type="secondary" className="block mt-1">
-          {roundIdParam ? `Vòng #${roundIdParam} — ` : ''}
+          {hackathonIdParam ? `Hackathon #${hackathonIdParam}` : ''}
+          {roundIdParam ? `${hackathonIdParam ? ' · ' : ''}Vòng #${roundIdParam}` : ''}
+          {trackIdParam ? `${roundIdParam || hackathonIdParam ? ' · ' : ''}Bảng #${trackIdParam}` : ''}
+          {roundIdParam || trackIdParam || hackathonIdParam ? ' — ' : ''}
           Xem xét và phê duyệt hoặc từ chối các bài nộp sau hạn chót.
         </Text>
       </div>
+
+      {!roundIdParam && (
+        <Alert
+          type="info"
+          showIcon
+          message="Đang xem theo vòng thi đang hoạt động"
+          description="Trang được mở không kèm ngữ cảnh vòng thi (roundId). Hệ thống tự tra vòng đang hoạt động — nếu danh sách trống, hãy mở từ nút «Màn duyệt trễ» trong trang điều phối hàng đợi để lọc đúng vòng / bảng đấu."
+        />
+      )}
 
       {isLoading ? (
         <div className="flex flex-col items-center py-20"><Spin size="large" /></div>
@@ -195,9 +219,14 @@ const LateSubmissionReviewPage: React.FC = () => {
         <Card>
           <Table
             columns={columns}
-            dataSource={submissions}
+            dataSource={filteredSubmissions}
             rowKey="submission_id"
-            locale={{ emptyText: 'Không có bài nộp muộn đang chờ duyệt.' }}
+            locale={{
+              emptyText:
+                trackIdParam && submissions.length > 0
+                  ? `Không có bài nộp muộn chờ duyệt cho Bảng #${trackIdParam}.`
+                  : 'Không có bài nộp muộn đang chờ duyệt.',
+            }}
             pagination={{ pageSize: 10, hideOnSinglePage: true }}
           />
         </Card>

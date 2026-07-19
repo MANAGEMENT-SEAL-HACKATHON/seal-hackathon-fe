@@ -41,51 +41,55 @@ const LiveCodingMonitor = ({ activeRound }) => {
   // ==========================================
   // 2. LOGIC TÍNH TOÁN ĐẾM NGƯỢC (CẬP NHẬT MỖI GIÂY)
   // ==========================================
+  const examAt = activeRound?.exam_at ?? activeRound?.examAt;
+  const submissionDeadline =
+    activeRound?.submission_deadline ?? activeRound?.submissionDeadline;
+  const scoringLocked =
+    activeRound?.scoring_locked === true
+    || activeRound?.scoringLocked === true
+    || activeRound?.status === 'SCORING_LOCKED'
+    || activeRound?.status === 'COMPLETED';
+  const closedEarlyAt =
+    activeRound?.submission_closed_early_at ?? activeRound?.submissionClosedEarlyAt;
+
   useEffect(() => {
-    if (!activeRound) return;
+    if (!activeRound) return undefined;
 
     // KIỂM TRA: Vòng thi đã khóa chấm hoặc hoàn thành chưa?
-    const isLockedOrCompleted = 
-      activeRound?.scoring_locked === true
-      || activeRound?.scoringLocked === true
-      || activeRound?.status === 'SCORING_LOCKED' 
-      || activeRound?.status === 'COMPLETED';
-
-    // NẾU ĐÃ KHÓA / HOÀN THÀNH: Gán trạng thái và thoát luôn, không đếm ngược nữa
-    if (isLockedOrCompleted) {
+    if (scoringLocked) {
       setStatus('LOCKED_OR_COMPLETED');
       setProgress(100);
-      setTimeLeft({ 
-        hours: 0, 
-        minutes: 0, 
-        seconds: 0 
+      setTimeLeft({
+        hours: 0,
+        minutes: 0,
+        seconds: 0,
       });
       setChipCountdown('');
-      return;
+      return undefined;
     }
 
-    const startTime = dayjs(activeRound.exam_at);
-    const endTime = dayjs(activeRound.submission_deadline);
+    const startTime = dayjs(examAt);
+    const endTime = dayjs(submissionDeadline);
     const totalDuration = endTime.diff(startTime);
 
-    const timer = setInterval(() => {
+    const tick = () => {
       const now = dayjs();
 
-      if (now.isBefore(startTime)) {
+      if (!startTime.isValid() || now.isBefore(startTime)) {
         // TRẠNG THÁI 1: CHƯA TỚI GIỜ THI
         setStatus('WAITING');
         setProgress(0);
 
-        const diffToStart = startTime.diff(now);
-        const d = dayjs.duration(diffToStart);
+        const diffToStart = startTime.isValid() ? startTime.diff(now) : 0;
+        const d = dayjs.duration(Math.max(0, diffToStart));
         const h = Math.floor(d.asHours());
         const m = d.minutes();
         const s = d.seconds();
 
-        setTimeLeft({ 
-          hours: h, 
-          minutes: m, 
-          seconds: s 
+        setTimeLeft({
+          hours: h,
+          minutes: m,
+          seconds: s,
         });
 
         if (h > 0) {
@@ -93,19 +97,16 @@ const LiveCodingMonitor = ({ activeRound }) => {
         } else {
           setChipCountdown(`${m}p ${String(s).padStart(2, '0')}s`);
         }
-
-      } else if (now.isAfter(endTime)) {
+      } else if (!endTime.isValid() || now.isAfter(endTime) || closedEarlyAt) {
         // TRẠNG THÁI 2: ĐÃ HẾT GIỜ NỘP BÀI NHƯNG CHƯA KHÓA CHẤM
         setStatus('ENDED');
         setProgress(100);
-        setTimeLeft({ 
-          hours: 0, 
-          minutes: 0, 
-          seconds: 0 
+        setTimeLeft({
+          hours: 0,
+          minutes: 0,
+          seconds: 0,
         });
         setChipCountdown('');
-        clearInterval(timer);
-        
       } else {
         // TRẠNG THÁI 3: ĐANG TRONG THỜI GIAN THI VÀ NỘP BÀI
         setStatus('ONGOING');
@@ -113,20 +114,24 @@ const LiveCodingMonitor = ({ activeRound }) => {
 
         const diff = endTime.diff(now);
         const d = dayjs.duration(diff);
-        
+
         setTimeLeft({
           hours: Math.floor(d.asHours()),
           minutes: d.minutes(),
           seconds: d.seconds(),
         });
-        
-        const elapsed = now.diff(startTime);
-        setProgress(Math.min((elapsed / totalDuration) * 100, 100));
-      }
-    }, 1000);
 
+        const elapsed = now.diff(startTime);
+        setProgress(
+          totalDuration > 0 ? Math.min((elapsed / totalDuration) * 100, 100) : 0,
+        );
+      }
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [activeRound]);
+  }, [activeRound, examAt, submissionDeadline, scoringLocked, closedEarlyAt]);
 
   // Nếu chưa có activeRound, return null để chống lỗi trắng trang (bảo mật 2 lớp)
   if (!activeRound) return null;
@@ -323,7 +328,7 @@ const LiveCodingMonitor = ({ activeRound }) => {
                 <div style={{ fontSize: 12 }}>
                   <span style={{ color: '#cbd5e1', fontWeight: 700, marginRight: 6 }}>BẮT ĐẦU</span>
                   <span style={{ color: '#ffffff', fontWeight: 800 }}>
-                    {dayjs(activeRound?.exam_at).format('HH:mm - DD/MM/YYYY')}
+                    {dayjs(examAt).format('HH:mm - DD/MM/YYYY')}
                   </span>
                 </div>
               </div>
@@ -333,7 +338,7 @@ const LiveCodingMonitor = ({ activeRound }) => {
                 <div style={{ fontSize: 12 }}>
                   <span style={{ color: '#cbd5e1', fontWeight: 700, marginRight: 6 }}>HẠN NỘP BÀI</span>
                   <span style={{ color: '#ffffff', fontWeight: 800 }}>
-                    {dayjs(activeRound?.submission_deadline).format('HH:mm - DD/MM/YYYY')}
+                    {dayjs(submissionDeadline).format('HH:mm - DD/MM/YYYY')}
                   </span>
                 </div>
               </div>

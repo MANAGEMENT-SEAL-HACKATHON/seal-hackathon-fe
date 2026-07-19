@@ -40,7 +40,7 @@ File này ghi **những màn hình, API và luồng GĐ3 còn thiếu hoặc ch�
 | Track assignments | `GET /me/judge-track-assignments` | ✅ | `JudgeDashboard` |
 | Live scoring E2E | `POST /scores` | ✅ | `useLiveScoringV2` + `judgeService.submitScore` |
 | SCORING_INCOMPLETE acknowledge | `PATCH queue/next` | ✅ | `Modal.confirm` + `acknowledgeIncompleteScoring` |
-| Calibration prelim + final | calibration-sessions | ✅ | `CalibrationSessionsPanel` (GĐ3 + GĐ5) |
+| ~~Calibration prelim + final~~ | ~~calibration-sessions~~ | ❌ GỠ FE | UI Calibration đã purge (R4 / Analytics+Judge) — BE `rbl_calibration_*` C.b vẫn tồn tại |
 
 ---
 
@@ -48,10 +48,8 @@ File này ghi **những màn hình, API và luồng GĐ3 còn thiếu hoặc ch�
 
 | API | Role | Trạng thái FE |
 |-----|------|---------------|
-| `GET /calibration-sessions?roundId=` | COORD | ✅ `CalibrationSessionManager` (prelim trên RoundManagement) |
-| `POST /calibration-sessions` | COORD | ✅ |
-| `PATCH /calibration-sessions/{id}` | COORD | ✅ |
-| Judge panel | JUDGE | ✅ `CalibrationSessionsPanel` — prelim + final |
+| ~~`GET /calibration-sessions`~~ | — | ❌ GỠ FE — C.a archived; BE RBL `rbl_calibration_*` C.b vẫn tồn tại |
+| ~~Judge / Coord Calibration UI~~ | — | ❌ GỠ FE — không còn Hiệu chỉnh giám khảo / Phiên đồng thuận mẫu |
 
 ---
 
@@ -98,7 +96,7 @@ File này ghi **những màn hình, API và luồng GĐ3 còn thiếu hoặc ch�
 | Student status views + problem tab | ✅ |
 | Judge E2E + acknowledge modal | ✅ |
 | Coordinator stepper + late review polish | ✅ |
-| Calibration GĐ3 prelim | ✅ |
+| Calibration GĐ3 prelim | ❌ GỠ FE |
 | WebSocket queue | ✅ |
 | Mentor polish | ✅ |
 | E2E smoke `preliminary-student-submit.spec.js` | ✅ (skip khi BE offline) |

@@ -63,16 +63,9 @@ const LiveScoringPage = () => {
     trackId,
     isFinal,
     assignmentType,
-    isCalibration,
-    calibrationSessionId,
-    sampleSubmissionId,
   } = useLocation().state || {};
 
-  const scoringLogic = useLiveScoringV2(assignmentId, roundId, trackId, isFinal, assignmentType, {
-    isCalibration: Boolean(isCalibration),
-    calibrationSessionId,
-    sampleSubmissionId,
-  });
+  const scoringLogic = useLiveScoringV2(assignmentId, roundId, trackId, isFinal, assignmentType);
 
   if (scoringLogic.isLoading) {
     return (
@@ -201,7 +194,6 @@ const LiveScoringPage = () => {
                 trackQueue={scoringLogic.trackQueue}
                 myScoredSubmissions={scoringLogic.myScoredSubmissions}
                 isFinal={isFinal}
-                isCalibration={scoringLogic.isCalibration}
                 localTimerPhase={scoringLogic.localTimerPhase}
                 canSubmitFinalScore={scoringLogic.canSubmitFinalScore}
               />

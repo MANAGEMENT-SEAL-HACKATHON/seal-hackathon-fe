@@ -2,15 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal, Tabs, Select, Empty, Grid } from 'antd';
 import { DoubleLeftOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useHackathonProgressContext } from '../hooks/useHackathonProgressContext';
+import { useHackathonScope } from '../context/HackathonScopeContext';
 import HackathonPrepProgressPanel from './HackathonPrepProgressPanel';
 import HackathonEventProgressPanel from './HackathonEventProgressPanel';
-import { useHackathonSelect } from '../../coordinator/hooks/useHackathonSelect';
 
 const { useBreakpoint } = Grid;
 
 /**
- * Global progress shell for COORD/ADMIN.
+ * Global progress shell for COORD/SUPERADMIN.
  * Uses a single Modal for both tabs (width changes) to avoid drawer↔modal jank.
  */
 const HackathonProgressShell = () => {
@@ -32,11 +31,9 @@ const HackathonProgressShell = () => {
     ctx,
     refreshSnapshot,
     hasHackathon,
-  } = useHackathonProgressContext();
-
-  const { hackathons, isLoadingHackathons } = useHackathonSelect(
-    hackathonId || undefined,
-  );
+    hackathons,
+    isLoadingHackathons,
+  } = useHackathonScope();
 
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('prep');

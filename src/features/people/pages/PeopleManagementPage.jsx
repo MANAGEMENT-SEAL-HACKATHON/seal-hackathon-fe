@@ -1,6 +1,6 @@
 // src/features/people/pages/PeopleManagementPage.jsx
 import { useState } from 'react';
-import { Card, Tabs, Button, Table, Form, Input, Modal, Select, Tag, Popconfirm, Typography, message, Switch, Space, Avatar, Tooltip } from 'antd';
+import { Card, Tabs, Button, Table, Form, Input, Modal, Select, Tag, Popconfirm, Typography, message, Space, Avatar, Tooltip, Alert } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { UserPlus, Trash2, Eye, Mail } from 'lucide-react';
 import dayjs from 'dayjs';
@@ -10,10 +10,7 @@ import { PersonTableCell, personSelectOption } from '../components/PersonDisplay
 import EmailAutoComplete from '../../../shared/components/ui/EmailAutoComplete';
 import SectionHeader, { HintList } from '../../../shared/components/ui/SectionHeader';
 import {
-  resolveFinalAssignmentType,
-  resolvePrelimAssignmentType,
   formatJudgeRoleLabel,
-  formatPersonRoleLabel,
 } from '../utils/peoplePersonnelRules';
 
 const { Option } = Select;
@@ -24,9 +21,8 @@ const PEOPLE_TAB_HINT = (
     items={[
       'Giám khảo khách mời: pool tài khoản khách toàn hệ thống',
       'Mentor & Giám khảo Sơ loại: gán theo từng bảng đấu',
-      'Giám khảo Chung kết: gán theo vòng/bảng Chung kết',
+      'Giám khảo Chung kết: chọn Giám khảo nội bộ (INTERNAL) hoặc Giám khảo khách khi gán',
       'Một người không thể vừa mentor vừa giám khảo cùng một bảng',
-      'Bật Trưởng ban trước khi phân công Chung kết',
     ]}
   />
 );
@@ -40,6 +36,10 @@ const tabLabelWithInfo = (label, info) => (
   </span>
 );
 
+const GUEST_JUDGE_POLICY =
+  'Sau khi sự kiện kết thúc, tài khoản giám khảo khách không bị xóa mà chỉ bị khóa đăng nhập. ' +
+  'Hệ thống chưa hỗ trợ tái mời cùng email qua giao diện — dùng email khác hoặc nhờ quản trị hệ thống.';
+
 const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [assignmentsPerson, setAssignmentsPerson] = useState(null);
@@ -49,12 +49,12 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
   const [finalJudgeForm] = Form.useForm();
 
   const selectedMentorTrackId = Form.useWatch('track_id', mentorForm);
-  const selectedPrelimPersonId = Form.useWatch('person_id', prelimJudgeForm);
   const selectedFinalPersonId = Form.useWatch('person_id', finalJudgeForm);
 
   const selectedPrelimJudgeTrackId = Form.useWatch('track_id', prelimJudgeForm);
   const selectedFinalJudgeTrackId = Form.useWatch('track_id', finalJudgeForm);
   const selectedFinalRoundId = Form.useWatch('round_id', finalJudgeForm);
+  const selectedFinalAssignmentType = Form.useWatch('assignment_type', finalJudgeForm) || 'FINAL_EXTERNAL';
 
   const {
     mentors,
@@ -68,6 +68,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
     mentorPool,
     prelimJudgePool,
     finalJudgePool,
+    getFinalJudgePoolForType,
     isLoading,
     assigningMentor,
     assigningJudge,
@@ -77,8 +78,8 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
     removeMentor,
     assignJudge,
     removeJudge,
-    patchUserDeptHead,
     resendInvitation,
+    revokeInvitation,
     isMentorBlockedForTrack,
     isJudgeBlockedForTrack,
     getMentorAssignBlockReason,
@@ -103,11 +104,19 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
     /chung\s*kết|final/i.test(String(round?.name || ''))
   );
 
-  const renderJudgeRole = (role) => (
-    <Tag color={role === 'HEAD' ? 'red' : role === 'FINAL_EXTERNAL' ? 'purple' : 'blue'}>
-      {formatJudgeRoleLabel(role)}
-    </Tag>
-  );
+  const renderJudgeRole = (role) => {
+    const normalized = String(role || '').toUpperCase();
+    return (
+      <Tag color={normalized === 'FINAL_EXTERNAL' ? 'purple' : 'blue'}>
+        {formatJudgeRoleLabel(normalized)}
+      </Tag>
+    );
+  };
+
+  const hasFinalInternalJudge = finalJudgeAssignments.some((a) => {
+    const type = String(a.assignment_type || a.assignmentType || '').toUpperCase();
+    return type === 'NORMAL' || type === 'HEAD';
+  });
 
   const getPersonDisplayName = (person) =>
     person?.fullName || person?.full_name || person?.name || 'Chưa có tên';
@@ -210,7 +219,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
     prelimJudgePool.map((p) => {
       const blockReason = getPrelimJudgeAssignBlockReason(p.id, trackId);
       const blocked = Boolean(blockReason);
-      const roleLabel = formatJudgeRoleLabel(resolvePrelimAssignmentType(p));
+      const roleLabel = formatJudgeRoleLabel('NORMAL');
       const name = getPersonDisplayName(p);
       return (
         <Option key={p.id} value={p.id} disabled={blocked} label={name}>
@@ -222,12 +231,17 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
         </Option>
       );
     });
+
+  const finalJudgePoolForForm = getFinalJudgePoolForType(selectedFinalAssignmentType);
 
   const finalJudgeOptionsForTrack = (trackId, roundId) =>
-    finalJudgePool.map((p) => {
+    finalJudgePoolForForm.map((p) => {
       const blockReason = getFinalJudgeAssignBlockReason(p.id, { trackId, roundId });
       const blocked = Boolean(blockReason);
-      const roleLabel = formatJudgeRoleLabel(resolveFinalAssignmentType(p));
+      const roleLabel =
+        selectedFinalAssignmentType === 'NORMAL'
+          ? 'Giám khảo nội bộ'
+          : formatJudgeRoleLabel(selectedFinalAssignmentType);
       const name = getPersonDisplayName(p);
       return (
         <Option key={p.id} value={p.id} disabled={blocked} label={name}>
@@ -239,34 +253,36 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
         </Option>
       );
     });
-
-  const selectedPrelimPerson = prelimJudgePool.find((p) => p.id === selectedPrelimPersonId);
-  const selectedFinalPerson = finalJudgePool.find((p) => p.id === selectedFinalPersonId);
-  const prelimRolePreview = selectedPrelimPerson
-    ? resolvePrelimAssignmentType(selectedPrelimPerson)
-    : null;
-  const finalRolePreview = selectedFinalPerson
-    ? resolveFinalAssignmentType(selectedFinalPerson)
-    : null;
 
   const findPersonById = (personId) =>
     judges.find((j) => j.id === personId) ||
     mentors.find((m) => m.id === personId) ||
     tempJudges.find((t) => t.id === personId);
 
-  const renderPrelimJudgeRole = (record) => {
-    const person = findPersonById(record.person_id);
-    const role = person ? resolvePrelimAssignmentType(person) : record.assignment_type;
-    return renderJudgeRole(role);
-  };
+  const renderPrelimJudgeRole = (record) =>
+    renderJudgeRole(record.assignment_type || record.assignmentType || 'NORMAL');
 
   const renderFinalJudgeRole = (record) => {
-    const person = findPersonById(record.person_id);
-    const role = person ? resolveFinalAssignmentType(person) : record.assignment_type;
-    return renderJudgeRole(role);
+    const type = String(record.assignment_type || record.assignmentType || 'FINAL_EXTERNAL').toUpperCase();
+    if (type === 'NORMAL' || type === 'HEAD') {
+      return <Tag color="blue">Giám khảo nội bộ</Tag>;
+    }
+    return renderJudgeRole(type);
   };
 
   const renderTempJudgeStatus = (status, record) => {
+    if (record.invitation?.revokedAt) {
+      return <Tag color="default">Đã thu hồi</Tag>;
+    }
+
+    // «Đã duyệt» CHỈ khi đã thực sự kích hoạt (accepted / đã đổi mật khẩu + APPROVED).
+    const activated =
+      record.invitation?.acceptedAt ||
+      (record.mustChangePassword === false && status === 'APPROVED');
+    if (activated) {
+      return <Tag color="green">Đã duyệt</Tag>;
+    }
+
     const tokenFailed =
       record.tokenSent === false ||
       record.token_sent === false ||
@@ -294,10 +310,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
       );
     }
 
-    if (status === 'APPROVED' && record.mustChangePassword !== true) {
-      return <Tag color="green">Đã duyệt</Tag>;
-    }
-
+    // Lời mời còn treo (chưa accepted, chưa đổi mật khẩu) — KHÔNG hiển thị «Đã duyệt».
     return <Tag color="default">Chờ xác nhận</Tag>;
   };
 
@@ -316,6 +329,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
             <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
               Pool tài khoản khách toàn hệ thống — không đồng nghĩa đã gán Mentor/GK Sơ loại.
             </Text>
+            <Alert type="info" showIcon message="Chính sách vòng đời" description={GUEST_JUDGE_POLICY} style={{ marginBottom: 16 }} />
             <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
               <Button type="primary" icon={<UserPlus size={16} />} onClick={() => setIsModalOpen(true)}>
                 Mời giám khảo
@@ -341,6 +355,12 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                   key: 'actions',
                   width: 100,
                   render: (_, record) => {
+                    if (record.invitation?.revokedAt) return null;
+                    const activated =
+                      record.invitation?.acceptedAt ||
+                      (record.mustChangePassword === false && record.status === 'APPROVED');
+                    if (activated) return null;
+
                     const tokenFailed =
                       record.tokenSent === false ||
                       record.token_sent === false ||
@@ -352,15 +372,33 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                       (record.status === 'PENDING' || record.mustChangePassword === true);
                     const invitationId =
                       record.invitation?.id ?? record.invitationId ?? record.invitation_id;
-                    if ((!tokenFailed && !invitationExpired) || !invitationId) return null;
+                    if (!invitationId) return null;
+
+                    const canResend = tokenFailed || invitationExpired;
+                    const canRevoke =
+                      (record.status === 'PENDING' || record.mustChangePassword) && !activated;
+
                     return (
-                      <Tooltip title="Gửi lại email kèm mật khẩu tạm mới">
-                        <Button
-                          type="text"
-                          icon={<Mail size={16} />}
-                          onClick={() => resendInvitation(invitationId)}
-                        />
-                      </Tooltip>
+                      <Space>
+                        {canResend && (
+                          <Tooltip title="Gửi lại email kèm mật khẩu tạm mới">
+                            <Button
+                              type="text"
+                              icon={<Mail size={16} />}
+                              onClick={() => resendInvitation(invitationId)}
+                            />
+                          </Tooltip>
+                        )}
+                        {canRevoke && (
+                          <Popconfirm
+                            title="Thu hồi lời mời?"
+                            description="Chỉ khi giám khảo chưa đổi mật khẩu."
+                            onConfirm={() => revokeInvitation(invitationId)}
+                          >
+                            <Button type="text" danger icon={<Trash2 size={16} />} />
+                          </Popconfirm>
+                        )}
+                      </Space>
                     );
                   },
                 },
@@ -437,7 +475,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                 </Button>
               </Form>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
-                Hiện cả mentor và giám khảo nội bộ hoặc trưởng ban — một người có thể đảm nhiệm cả hai vai, nhưng không cùng một bảng đấu.
+                Hiện mentor và giám khảo nội bộ — một người có thể đảm nhiệm cả hai vai, nhưng không cùng một bảng đấu.
               </Text>
             </Card>
 
@@ -502,7 +540,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
           <Tabs.TabPane
             tab={tabLabelWithInfo(
               'Giám khảo Sơ loại',
-              'Chỉ giám khảo nội bộ hoặc trưởng ban. Vai trò cập nhật theo phân quyền Trưởng ban.',
+              'Chỉ giám khảo/mentor nội bộ (INTERNAL). Mỗi giám khảo chỉ thuộc một bảng trong cùng vòng Sơ loại. Vai trò gán: Giám khảo (NORMAL).',
             )}
             key="3"
           >
@@ -510,6 +548,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
               <Form
                 layout="inline"
                 form={prelimJudgeForm}
+                initialValues={{ assignment_type: 'NORMAL' }}
                 onFinish={(vals) =>
                   assignJudge({ ...vals, is_final_assignment: false }, () =>
                     prelimJudgeForm.resetFields(['person_id', 'track_id'])
@@ -526,6 +565,19 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                   </Select>
                 </Form.Item>
 
+                <Form.Item
+                  name="assignment_type"
+                  label="Vai trò"
+                  rules={[{ required: true, message: 'Chọn vai trò' }]}
+                >
+                  <Select
+                    style={{ width: 200 }}
+                    options={[
+                      { value: 'NORMAL', label: 'Giám khảo' },
+                    ]}
+                  />
+                </Form.Item>
+
                 <Form.Item name="person_id" rules={[{ required: true, message: 'Chọn giám khảo' }]}>
                   <Select
                     placeholder="Chọn giám khảo"
@@ -538,14 +590,6 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                   </Select>
                 </Form.Item>
 
-                <Form.Item label="Vai trò">
-                  {prelimRolePreview ? (
-                    renderJudgeRole(prelimRolePreview)
-                  ) : (
-                    <Text type="secondary">Chọn giám khảo để hiện vai trò</Text>
-                  )}
-                </Form.Item>
-
                 <Button
                   type="primary"
                   htmlType="submit"
@@ -556,7 +600,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                 </Button>
               </Form>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
-                Chỉ hiện giám khảo nội bộ hoặc trưởng ban. Vai trò tự lấy từ hồ sơ nhân sự.
+                Chỉ giám khảo/mentor nội bộ. Vai trò gán: Giám khảo (NORMAL) theo từng bảng — không kế thừa từ hồ sơ.
               </Text>
             </Card>
 
@@ -599,21 +643,44 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
           <Tabs.TabPane
             tab={tabLabelWithInfo(
               'Giám khảo Chung kết',
-              'Gán giám khảo Chung kết theo vòng/bảng. Mỗi vòng CK cần ít nhất một trưởng ban.',
+              'Gán giám khảo Chung kết theo vòng/bảng. Chọn Giám khảo nội bộ (INTERNAL) hoặc Giám khảo khách ngay khi gán.',
             )}
             key="4"
           >
+            {(finalRounds.length > 0 || finalTracks.length > 0) && !hasFinalInternalJudge && (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginBottom: 16, borderRadius: 8 }}
+                message="Chưa có giám khảo nội bộ cho vòng Chung kết"
+                description="Nên gán ít nhất một giám khảo nội bộ (INTERNAL). Cảnh báo này không chặn thao tác gán."
+              />
+            )}
             <Card type="inner" style={{ marginBottom: 24, background: 'var(--ant-color-fill-quaternary)', borderRadius: 8 }}>
               <Form
                 layout="inline"
                 form={finalJudgeForm}
-                initialValues={{ is_final_assignment: true }}
+                initialValues={{ is_final_assignment: true, assignment_type: 'FINAL_EXTERNAL' }}
                 onFinish={(vals) =>
                   assignJudge(vals, () =>
                     finalJudgeForm.resetFields(['person_id', 'track_id', 'round_id'])
                   )
                 }
               >
+                <Form.Item
+                  name="assignment_type"
+                  label="Vai trò CK"
+                  rules={[{ required: true, message: 'Chọn vai trò' }]}
+                >
+                  <Select
+                    style={{ width: 220 }}
+                    onChange={() => finalJudgeForm.setFieldValue('person_id', undefined)}
+                    options={[
+                      { value: 'NORMAL', label: 'Giám khảo nội bộ' },
+                      { value: 'FINAL_EXTERNAL', label: 'Giám khảo khách' },
+                    ]}
+                  />
+                </Form.Item>
                 {finalTracks.length > 0 ? (
                   <Form.Item name="track_id" rules={[{ required: true, message: 'Chọn bảng đấu CK' }]}>
                     <Select placeholder="Chọn bảng đấu CK" style={{ width: 240 }} showSearch optionFilterProp="children">
@@ -656,13 +723,6 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                 <Form.Item name="is_final_assignment" hidden>
                   <Input />
                 </Form.Item>
-                <Form.Item label="Vai trò">
-                  {finalRolePreview ? (
-                    renderJudgeRole(finalRolePreview)
-                  ) : (
-                    <Text type="secondary">Chọn giám khảo để hiện vai trò</Text>
-                  )}
-                </Form.Item>
                 <Button
                   type="primary"
                   htmlType="submit"
@@ -673,7 +733,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                 </Button>
               </Form>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
-                Chỉ hiện giám khảo khách hoặc trưởng ban. Mentor và giám khảo nội bộ thường không chấm Chung kết.
+                Giám khảo nội bộ: chọn giám khảo INTERNAL. Giám khảo khách: chỉ tài khoản EXTERNAL đã duyệt.
               </Text>
             </Card>
             <Table
@@ -706,55 +766,6 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                         icon={<Trash2 size={16} />}
                       />
                     </Popconfirm>
-                  ),
-                },
-              ]}
-            />
-          </Tabs.TabPane>
-
-          <Tabs.TabPane
-            tab={tabLabelWithInfo(
-              'Phân quyền nhân sự',
-              'Chỉ một Trưởng ban tại một thời điểm. Bật Trưởng ban trước khi phân công Chung kết.',
-            )}
-            key="5"
-          >
-            <Table
-              dataSource={[...judges, ...mentors].filter((p, idx, arr) => arr.findIndex((x) => x.id === p.id) === idx)}
-              rowKey="id"
-              pagination={false}
-              loading={isLoading}
-              columns={[
-                {
-                  title: 'Họ tên',
-                  render: (_, r) => <PersonTableCell person={r} subtitle={formatPersonRoleLabel(r.role)} />,
-                },
-                {
-                  title: 'Vai trò',
-                  dataIndex: 'role',
-                  render: (role) => <Tag>{formatPersonRoleLabel(role)}</Tag>,
-                },
-                {
-                  title: 'Trưởng ban',
-                  render: (_, r) => (
-                    <Switch
-                      checked={Boolean(r.isDeptHead ?? r.is_dept_head)}
-                      disabled={!['JUDGE', 'MENTOR'].includes(r.role)}
-                      onChange={(checked) => patchUserDeptHead(r.id, checked)}
-                    />
-                  ),
-                },
-                {
-                  title: '',
-                  width: 120,
-                  render: (_, r) => (
-                    <Button
-                      size="small"
-                      icon={<Eye size={14} />}
-                      onClick={() => setAssignmentsPerson(r)}
-                    >
-                      Lịch PC
-                    </Button>
                   ),
                 },
               ]}

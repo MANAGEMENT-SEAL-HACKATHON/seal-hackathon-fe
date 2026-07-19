@@ -174,6 +174,26 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
               </Popconfirm>
             )}
 
+            {isController && presentingSlot?.submissionId && ['WAITING', 'PRESENTING', 'SETUP', 'IDLE', 'PAUSED'].includes(localTimerPhase) && (
+              <Popconfirm
+                title="Bỏ qua đội này (không có mặt)?"
+                description="Đội sẽ bị đánh dấu SKIPPED — không tính như đã thuyết trình. Thao tác không hoàn tác."
+                onConfirm={() => handleTimerAction('SKIP_NOSHOW')}
+                okText="Bỏ qua đội"
+                cancelText="Hủy"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  danger
+                  data-testid="presentation-skip-noshow-btn"
+                  loading={isTimerActionLoading}
+                  style={{ fontWeight: 700, width: '100%', marginTop: 8, minHeight: 44, borderRadius: 10 }}
+                >
+                  Bỏ qua đội này (không có mặt)
+                </Button>
+              </Popconfirm>
+            )}
+
             {localTimerPhase !== 'IDLE' &&
               localTimerPhase !== 'SETUP' &&
               localTimerPhase !== 'QA' &&

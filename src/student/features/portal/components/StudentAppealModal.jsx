@@ -53,7 +53,7 @@ const StudentAppealModal = ({
         type="info"
         showIcon
         message="Quy định khiếu nại"
-        description="Chỉ Trưởng nhóm (Leader) của đội bị loại thủ công (ELIMINATED) mới có thể gửi khiếu nại trong thời hạn quy định của Ban tổ chức."
+        description="Chỉ Trưởng nhóm của đội bị loại thủ công mới có thể gửi khiếu nại trong thời hạn quy định của Ban tổ chức."
         style={{ marginBottom: 16 }}
       />
       <Form

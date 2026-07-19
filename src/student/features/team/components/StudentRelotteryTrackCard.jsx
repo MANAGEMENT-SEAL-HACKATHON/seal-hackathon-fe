@@ -97,7 +97,7 @@ const StudentRelotteryTrackCard = ({ hackathonId, teamId, team, onChanged }) => 
           onChange={setSelectedTrackId}
           options={tracks.map((t) => ({
             value: t.id,
-            label: t.name ?? t.trackName ?? `Track #${t.id}`,
+            label: t.name ?? t.trackName ?? `Hạng mục #${t.id}`,
           }))}
         />
         <Button type="primary" loading={submitting} onClick={handleRelottery}>

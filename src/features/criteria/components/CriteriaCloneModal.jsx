@@ -18,6 +18,7 @@ import { ENDPOINTS } from "../../../shared/api/endpoints";
 import { criteriaService } from "../services/criteriaService";
 import { STANDARD_SYSTEM_CRITERIA } from "../constants/standardCriteria";
 import { CRITERIA_COLORS } from "../constants/criteria.constants";
+import { CRITERIA_TYPE_LABELS, labelOf } from "../../../shared/constants/labels";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -29,7 +30,11 @@ const previewColumns = [
     title: "Loại",
     dataIndex: "type",
     key: "type",
-    render: (type) => <Tag color={CRITERIA_COLORS[type] || "default"}>{type}</Tag>,
+    render: (type) => (
+      <Tag color={CRITERIA_COLORS[type] || "default"}>
+        {labelOf(CRITERIA_TYPE_LABELS, type, type)}
+      </Tag>
+    ),
   },
   {
     title: "Trọng số",

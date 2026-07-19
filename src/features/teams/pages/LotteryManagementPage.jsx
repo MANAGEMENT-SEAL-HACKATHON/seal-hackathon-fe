@@ -1,8 +1,9 @@
 // src/features/teams/pages/LotteryManagementPage.jsx
 import { useState } from 'react';
-import { Card, Table, Button, Space, Select, Typography, Tag, Modal, Input, Form, Alert, theme, message, Empty } from 'antd';
+import { Card, Table, Button, Space, Select, Typography, Tag, Modal, Input, Form, Alert, theme, message, Empty, Tooltip } from 'antd';
 import { Shuffle, Edit, Repeat, LayoutGrid, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 import { useLotteryManagement } from '../hooks/useLotteryManagement';
 import { isRegistrationClosedEarly, isRegistrationPeriodEnded } from '../../hackathons/utils/hackathonRegistrationRules';
 import SectionHeader, { HintList } from '../../../shared/components/ui/SectionHeader';
@@ -17,6 +18,7 @@ const LOTTERY_TAB_HINT = (
   <HintList
     items={[
       'Chỉ bốc thăm sau khi kết thúc đăng ký (hoặc kết thúc sớm) và khóa đội',
+      'Xử lý hết đội PENDING (duyệt / từ chối sớm) trước khi bốc thăm',
       'Gán chủ đề cho từng bảng đấu trước',
       'Bốc thăm tự động để phân bảng cho các đội đã duyệt',
       'Sau khi phân bảng xong, kích hoạt vòng Sơ loại',
@@ -36,7 +38,7 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
   const [trackForm] = Form.useForm();
 
   const {
-    rounds, tracks, activeTeams, hackathon, isLoading,
+    rounds, tracks, activeTeams, pendingBuckets, hackathon, isLoading,
     selectedRoundId, setSelectedRoundId, lotteryGate,
     handleAssignTopic, handleRunAutoLottery, handleChangeTrack
   } = useLotteryManagement(hackathonId, onUpdated);
@@ -50,6 +52,8 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
     : lotteryGate.reason || 'Chưa thể bốc thăm: cần kết thúc đăng ký và khóa đội trước.';
 
   const noApprovedTeams = !isLoading && activeTeams.length === 0;
+  const hasPending = (pendingBuckets?.total || 0) > 0;
+  const teamsUrl = `${ROUTES.GLOBAL_TEAMS}?hackathonId=${hackathonId}&status=PENDING`;
 
   // Lọc Bảng đấu theo vòng đang chọn
   const currentTracks = tracks.filter(t => (t.round_id || t.roundId) === selectedRoundId);
@@ -161,20 +165,58 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
             style={{ borderRadius: 12, borderTop: '3px solid #10b981' }}
             extra={
               !noApprovedTeams ? (
-              <Button
-                type="primary"
-                icon={<Shuffle size={16} />}
-                onClick={handleRunAutoLottery}
-                loading={isLoading}
-                disabled={!lotteryGate.allowed}
-                title={lotteryGate.reason || undefined}
-                style={{ background: lotteryGate.allowed ? 'linear-gradient(135deg, #34d399 0%, #10b981 100%)' : undefined, boxShadow: lotteryGate.allowed ? '0 4px 12px rgba(16, 185, 129, 0.25)' : undefined }}
-              >
-                Bốc thăm Tự động (Cho đội chưa có)
-              </Button>
+              <Tooltip title={!lotteryGate.allowed ? lotteryGate.reason : undefined}>
+                <span style={{ display: 'inline-block' }}>
+                  <Button
+                    type="primary"
+                    icon={<Shuffle size={16} />}
+                    onClick={handleRunAutoLottery}
+                    loading={isLoading}
+                    disabled={!lotteryGate.allowed}
+                    data-testid="lottery-run-auto-btn"
+                    style={{ background: lotteryGate.allowed ? 'linear-gradient(135deg, #34d399 0%, #10b981 100%)' : undefined, boxShadow: lotteryGate.allowed ? '0 4px 12px rgba(16, 185, 129, 0.25)' : undefined }}
+                  >
+                    Bốc thăm Tự động (Cho đội chưa có)
+                  </Button>
+                </span>
+              </Tooltip>
               ) : null
             }
           >
+            {hasPending ? (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginBottom: 16, borderRadius: 8 }}
+                message={`Còn ${pendingBuckets.total} đội đang chờ xử lý — chưa thể bốc thăm`}
+                description={
+                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                    {pendingBuckets.awaitingApproval.length > 0 && (
+                      <Text>
+                        {pendingBuckets.awaitingApproval.length} đội đã xác nhận — đang chờ bạn duyệt
+                      </Text>
+                    )}
+                    {pendingBuckets.inGrace.length > 0 && (
+                      <Text>
+                        {pendingBuckets.inGrace.length} đội chưa xác nhận — hạn gần nhất{' '}
+                        {pendingBuckets.earliestGraceDeadlineAt
+                          ? dayjs(pendingBuckets.earliestGraceDeadlineAt).format('DD/MM/YYYY HH:mm')
+                          : '—'}{' '}
+                        (có thể từ chối sớm để mở khóa)
+                      </Text>
+                    )}
+                    {pendingBuckets.blockedOther.length > 0 && (
+                      <Text>
+                        {pendingBuckets.blockedOther.length} đội cần xem lại / từ chối
+                      </Text>
+                    )}
+                    <Button type="primary" size="small" onClick={() => navigate(teamsUrl)}>
+                      Xử lý danh sách đội thi
+                    </Button>
+                  </Space>
+                }
+              />
+            ) : null}
             {noApprovedTeams ? (
               <Empty
                 image={

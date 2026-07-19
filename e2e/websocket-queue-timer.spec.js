@@ -1,5 +1,6 @@
 /**
- * Module 3 â€” STOMP presentation-queue after REST shuffle/timer.
+ * Module 3 — STOMP presentation-queue after REST shuffle/advance/timer.
+ * Revived on live seed seal-gd3-prelim-open (fresh queue each BE restart).
  * Connect via @stomp/stompjs + ws (no sockjs-client in Node).
  *
  * Run:
@@ -14,7 +15,6 @@ import {
 } from './helpers/api.js';
 import { isMutatingEnabled } from './helpers/progressionApiHelpers.js';
 import {
-test.skip(true, 'deprecated seed slug removed — see intentional-errors-catalog.md');
   connectStomp,
   disposeStomp,
   subscribePresentationQueue,
@@ -25,7 +25,7 @@ test.skip(true, 'deprecated seed slug removed — see intentional-errors-catalog.m
 
 const COORD_EMAIL = process.env.E2E_COORD_EMAIL || 'coord@fpt.edu.vn';
 const COORD_PASSWORD = process.env.E2E_COORD_PASSWORD || 'Coordinator@dev1';
-const SLUG = 'seal-gd3-scoring-live';
+const SLUG = 'seal-gd3-prelim-open';
 
 test.describe('WebSocket queue/timer STOMP', () => {
   test.describe.configure({ mode: 'serial' });
@@ -41,20 +41,21 @@ test.describe('WebSocket queue/timer STOMP', () => {
   };
 
   test.beforeAll(async () => {
-    test.skip(!isMutatingEnabled(), 'E2E_MUTATING=1 required');
+    expect(isMutatingEnabled(), 'E2E_MUTATING=1 required').toBeTruthy();
     const ready = await isBackendReady();
-    test.skip(!ready, 'BE not reachable');
+    expect(ready, 'BE not reachable').toBeTruthy();
     ctx.token = await login(COORD_EMAIL, COORD_PASSWORD);
     const hackathon = await findHackathonBySlug(SLUG, ctx.token);
-    test.skip(!hackathon?.id, `Seed ${SLUG} missing â€” restart BE`);
+    expect(hackathon?.id, `Seed ${SLUG} missing — restart BE`).toBeTruthy();
     ctx.hackathonId = hackathon.id;
     const prelim = await findPrelimRound(ctx.hackathonId, ctx.token);
-    test.skip(!prelim?.id, 'Prelim round missing');
+    expect(prelim?.id, 'Prelim round missing').toBeTruthy();
     ctx.roundId = prelim.id;
 
-    const tracks = await apiFetch('GET', `/hackathons/${ctx.hackathonId}/tracks`, ctx.token);
+    const tracks = await apiFetch('GET', `/rounds/${ctx.roundId}/tracks`, ctx.token);
     const list = Array.isArray(tracks.data) ? tracks.data : tracks.data?.items || [];
     ctx.trackId = list[0]?.id ?? null;
+    expect(ctx.trackId, 'Track missing on prelim').toBeTruthy();
   });
 
   test.afterEach(async () => {
@@ -73,7 +74,7 @@ test.describe('WebSocket queue/timer STOMP', () => {
     unsubscribe();
   });
 
-  test('2) REST timer/qa (or start) â†’ STOMP payload with timer.phase', async () => {
+  test('2) REST shuffle (or timer) ? STOMP broadcast with queue payload', async () => {
     ctx.client = await connectStomp({ token: ctx.token });
     const { messages, unsubscribe } = subscribePresentationQueue(ctx.client, {
       roundId: ctx.roundId,
@@ -83,20 +84,21 @@ test.describe('WebSocket queue/timer STOMP', () => {
     // Small delay so subscription is active before mutate
     await new Promise((r) => setTimeout(r, 300));
 
-    const q = new URLSearchParams({ roundId: String(ctx.roundId) });
-    if (ctx.trackId != null) q.set('trackId', String(ctx.trackId));
-
-    // Prefer QA (scoring-live often already PRESENTING); fallback start
-    let action = await apiFetch('POST', `/presentation/timer/qa?${q}`, ctx.token, {});
-    if (!action.res.ok) {
-      action = await apiFetch('POST', `/presentation/timer/start?${q}`, ctx.token, {});
-    }
-    // Soft: if both fail (INVALID_STATE), try pause then still expect a prior/future broadcast from shuffle
-    if (!action.res.ok) {
-      await apiFetch('POST', `/presentation/queue/shuffle`, ctx.token, {
-        roundId: ctx.roundId,
-        trackIds: ctx.trackId != null ? [ctx.trackId] : undefined,
-      });
+    // Fresh seed: queue not shuffled ? shuffle creates the queue and broadcasts.
+    const shuffle = await apiFetch('POST', `/presentation/queue/shuffle`, ctx.token, {
+      roundId: ctx.roundId,
+      trackIds: ctx.trackId != null ? [ctx.trackId] : undefined,
+    });
+    expect(shuffle.status, `shuffle must not 500: ${JSON.stringify(shuffle.json).slice(0, 300)}`).not.toBe(500);
+    if (!shuffle.res.ok) {
+      // Already shuffled by a previous run — nudge timer to force a broadcast.
+      const q = new URLSearchParams({ roundId: String(ctx.roundId) });
+      if (ctx.trackId != null) q.set('trackId', String(ctx.trackId));
+      let action = await apiFetch('POST', `/presentation/timer/qa?${q}`, ctx.token, {});
+      if (!action.res.ok) {
+        action = await apiFetch('POST', `/presentation/timer/start?${q}`, ctx.token, {});
+      }
+      expect(action.status).not.toBe(500);
     }
 
     const msg = await waitForQueueMessage(
@@ -106,7 +108,6 @@ test.describe('WebSocket queue/timer STOMP', () => {
         return (
           phases.some((p) => /PRESENTING|QA|PAUSED|SETUP|ENDED|IDLE/i.test(p)) ||
           statuses.some((s) => /PRESENTING|WAITING|DONE/i.test(s)) ||
-          m.body?.roundId === ctx.roundId ||
           Number(m.body?.roundId) === Number(ctx.roundId)
         );
       },
@@ -114,12 +115,10 @@ test.describe('WebSocket queue/timer STOMP', () => {
     );
 
     expect(msg.body).toBeTruthy();
-    const { phases, statuses } = queuePhases(msg.body);
-    expect(phases.length + statuses.length).toBeGreaterThan(0);
     unsubscribe();
   });
 
-  test('3) REST pause â†’ STOMP reflects PAUSED or queue update', async () => {
+  test('3) REST advance/timer mutations ? STOMP reflects updates', async () => {
     ctx.client = await connectStomp({ token: ctx.token });
     const { messages, unsubscribe } = subscribePresentationQueue(ctx.client, {
       roundId: ctx.roundId,
@@ -130,25 +129,33 @@ test.describe('WebSocket queue/timer STOMP', () => {
     const q = new URLSearchParams({ roundId: String(ctx.roundId) });
     if (ctx.trackId != null) q.set('trackId', String(ctx.trackId));
 
-    // Ensure timer running then pause
-    await apiFetch('POST', `/presentation/timer/start?${q}`, ctx.token, {});
     const before = messages.length;
-    const pause = await apiFetch('POST', `/presentation/timer/pause?${q}`, ctx.token, {});
-    test.skip(!pause.res.ok && pause.status === 422, `pause not applicable: ${JSON.stringify(pause.json)}`);
 
-    const msg = await waitForQueueMessage(
-      messages,
-      () => messages.length > before,
-      20_000,
-    ).catch(() =>
-      waitForQueueMessage(
-        messages,
-        (m) => queuePhases(m.body).phases.includes('PAUSED') || m.body?.roundId != null,
-        8_000,
-      ),
+    // Advance the queue so a team is PRESENTING (broadcasts), then start + pause timer.
+    const next = await apiFetch(
+      'PATCH',
+      `/presentation/queue/next?roundId=${ctx.roundId}&trackId=${ctx.trackId}`,
+      ctx.token,
+      {},
     );
+    expect(next.status, `queue/next must not 500: ${JSON.stringify(next.json).slice(0, 300)}`).not.toBe(500);
 
+    const start = await apiFetch('POST', `/presentation/timer/start?${q}`, ctx.token, {});
+    expect(start.status).not.toBe(500);
+    const pause = await apiFetch('POST', `/presentation/timer/pause?${q}`, ctx.token, {});
+    expect(pause.status).not.toBe(500);
+
+    // At least one of the mutations above must have produced a broadcast.
+    const anyMutationOk = next.res.ok || start.res.ok || pause.res.ok;
+    expect(
+      anyMutationOk,
+      `all mutations rejected: next=${next.status} start=${start.status} pause=${pause.status}`,
+    ).toBeTruthy();
+
+    const msg = await waitForQueueMessage(messages, () => messages.length > before, 25_000);
     expect(msg).toBeTruthy();
+    const { phases, statuses } = queuePhases(msg.body);
+    expect(phases.length + statuses.length).toBeGreaterThan(0);
     unsubscribe();
   });
 });

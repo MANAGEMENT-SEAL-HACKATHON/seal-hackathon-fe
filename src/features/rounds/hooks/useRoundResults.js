@@ -24,7 +24,6 @@ export const useRoundResults = (roundId) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isAdvancing, setIsAdvancing] = useState(false);
-  const [decidingReviewId, setDecidingReviewId] = useState(null);
   const [confirmingProposal, setConfirmingProposal] = useState(false);
   const [overridingReviewId, setOverridingReviewId] = useState(null);
   const [overrideHistory, setOverrideHistory] = useState([]);
@@ -50,7 +49,16 @@ export const useRoundResults = (roundId) => {
       if (rankingResult.status === "fulfilled") {
         nextRanking = rankingResult.value;
         setRanking(nextRanking);
-      } else nextErrors.ranking = rankingResult.reason;
+      } else {
+        // Chưa khóa chấm → /ranking trả ROUND_NOT_SCORING_LOCKED. Fallback sang
+        // preview để tab «Kiểm tra chấm» xem điểm thành phần LÚC đang chấm (trước Lock).
+        try {
+          nextRanking = await roundResultsService.getRankingPreview(roundId);
+          setRanking(nextRanking);
+        } catch {
+          nextErrors.ranking = rankingResult.reason;
+        }
+      }
 
       if (tiebreakResult.status === "fulfilled") {
         // Gọi hàm JOIN data truyền kèm nextRanking.items
@@ -76,22 +84,6 @@ export const useRoundResults = (roundId) => {
     },
     [roundId],
   );
-
-  const decideWildcard = async (candidate, approved, note) => {
-    setDecidingReviewId(candidate.reviewId);
-    try {
-      await roundResultsService.decideWildcardReview(candidate.reviewId, { approved, note });
-      message.success(approved ? "Đã duyệt vé vớt." : "Đã từ chối vé vớt.");
-      await fetchResults({ silent: true });
-      return true;
-    } catch (error) {
-      const { message: msg } = resolveProgressionError(error, "Không thể cập nhật quyết định vé vớt.");
-      message.error(msg);
-      return false;
-    } finally {
-      setDecidingReviewId(null);
-    }
-  };
 
   const confirmWildcardProposal = async () => {
     if (!roundId) return false;
@@ -161,7 +153,6 @@ export const useRoundResults = (roundId) => {
 
   const buildAdvancePayload = useCallback(() => {
     const topN = Number(ranking.topNAdvance || round?.top_n_advance || 0);
-    const minTeamsFinal = Number(round?.min_teams_final || round?.minTeamsFinal || 0);
     const byGroup = {};
 
     ranking.items.forEach((item) => {
@@ -182,45 +173,12 @@ export const useRoundResults = (roundId) => {
       advancedTeamIds.push(...sorted.slice(0, topN || sorted.length).map((team) => team.teamId));
     });
 
-    // Merge wildcard approved teams (BE: coordinatorApproved/approved = true)
-    const wildcardApprovedTeamIds = wildcard.items
-      .filter((item) => item?.coordinatorApproved === true)
-      .map((item) => item.teamId)
-      .filter(Boolean);
-
-    const mergedAdvanced = [...advancedTeamIds];
-    wildcardApprovedTeamIds.forEach((teamId) => {
-      if (!mergedAdvanced.includes(teamId)) mergedAdvanced.push(teamId);
-    });
-
     const allTeamIds = ranking.items.map((item) => item.teamId);
-    const advancedSet = new Set(mergedAdvanced);
+    const advancedSet = new Set(advancedTeamIds);
     const eliminatedTeamIds = allTeamIds.filter((teamId) => !advancedSet.has(teamId));
 
-    // Soft guard to satisfy FINAL min team gate from BE.
-    // Chỉ tự động bốc thêm đội nếu chức năng Vé vớt (Wildcard) BỊ TẮT.
-    // Nếu Wildcard đang bật, bắt buộc Coordinator phải duyệt tay bên tab Wildcard!
-    const isWildcardEnabled = wildcard?.config?.roundEnabled || wildcard?.config?.hackathonEnabled;
-    
-    if (!isWildcardEnabled && minTeamsFinal > 0 && mergedAdvanced.length < minTeamsFinal) {
-      const fillCandidates = ranking.items
-        .filter(
-          (item) =>
-            !item.isEliminated &&
-            item.participationStatus !== "ELIMINATED" &&
-            item.status !== "ELIMINATED",
-        )
-        .map((item) => item.teamId)
-        .filter((teamId) => !advancedSet.has(teamId));
-      const needed = minTeamsFinal - mergedAdvanced.length;
-      fillCandidates.slice(0, needed).forEach((teamId) => {
-        mergedAdvanced.push(teamId);
-        advancedSet.add(teamId);
-      });
-    }
-
-    return { advancedTeamIds: mergedAdvanced, eliminatedTeamIds: allTeamIds.filter((teamId) => !advancedSet.has(teamId)), note: "" };
-  }, [ranking.items, ranking.topNAdvance, round?.top_n_advance, round?.min_teams_final, round?.minTeamsFinal, wildcard.items]);
+    return { advancedTeamIds, eliminatedTeamIds, note: "" };
+  }, [ranking.items, ranking.topNAdvance, round?.top_n_advance]);
 
   const scoringLocked = Boolean(round?.scoring_locked ?? round?.scoringLocked);
   const isPublished = Boolean(round?.is_published ?? ranking.isPublished);
@@ -230,24 +188,9 @@ export const useRoundResults = (roundId) => {
     [ranking.items],
   );
 
-  const wildcardDecisionsReady = useMemo(() => {
-    const slots = Number(wildcard.config?.availableSlots ?? 0);
-    const pool = wildcard.items;
-    // Runtime hết ghế (kể cả DB wildcardEnabled=true) → không bắt duyệt WC
-    if (slots <= 0 || pool.length === 0 || !wildcard.config.roundEnabled) return true;
-    // Plan C: cần xác nhận đề xuất (LOCK)
-    return Boolean(
-      wildcard.proposalConfirmedAt ??
-        wildcard.config?.proposalConfirmedAt ??
-        wildcard.decisionsFinalized ??
-        wildcard.config?.decisionsFinalized,
-    );
-  }, [wildcard]);
-
-  const showWildcardTab = useMemo(() => {
-    const slots = Number(wildcard.config?.availableSlots ?? 0);
-    return Boolean(wildcard.config?.roundEnabled) && slots > 0;
-  }, [wildcard]);
+  // Phase 1: Wildcard (Vé vớt) removed from UI — always ready / never show tab
+  const wildcardDecisionsReady = true;
+  const showWildcardTab = false;
 
   const advancePreview = useMemo(() => {
     const { advancedTeamIds, eliminatedTeamIds } = buildAdvancePayload();
@@ -276,7 +219,7 @@ export const useRoundResults = (roundId) => {
     return {
       advancedCount,
       minTeamsFinal: minFinal,
-      message: `Số đội vào CK (${advancedCount}) thấp hơn trần thiết lập (${minFinal}). Có thể do DQ hoặc bảng hết đội hợp lệ để đôn — cân nhắc duyệt thêm Vé vớt nếu còn ghế.`,
+      message: `Số đội vào Chung kết (${advancedCount}) thấp hơn trần thiết lập (${minFinal}). Có thể do bị loại kỷ luật hoặc bảng hết đội hợp lệ để đôn (Top-N mỗi bảng).`,
     };
   }, [round, ranking.items, advancePreview.advancedTeamIdSet]);
 
@@ -311,7 +254,6 @@ export const useRoundResults = (roundId) => {
       scoringLocked &&
       isPublished &&
       !hasAdvanced &&
-      wildcardDecisionsReady &&
       !hasUnresolvedTiebreak &&
       !errors.ranking &&
       ranking.items.length > 0,
@@ -319,7 +261,6 @@ export const useRoundResults = (roundId) => {
       scoringLocked,
       isPublished,
       hasAdvanced,
-      wildcardDecisionsReady,
       hasUnresolvedTiebreak,
       errors.ranking,
       ranking.items.length,
@@ -338,16 +279,15 @@ export const useRoundResults = (roundId) => {
     if (!scoringLocked) return "Cần khóa chấm điểm trước.";
     if (!isPublished) return "Cần công bố kết quả trước khi chốt chuyển vòng.";
     if (hasAdvanced) return "Danh sách chuyển vòng đã được chốt.";
-    if (!wildcardDecisionsReady) return "Cần xác nhận đề xuất Wild Card trước khi chốt chuyển vòng.";
     if (hasUnresolvedTiebreak) {
-      return "Có các đội đồng điểm tại ranh giới đi tiếp. Vui lòng giải quyết Tiebreak.";
+      return "Có các đội đồng điểm tại ranh giới đi tiếp. Vui lòng phân xử đồng điểm.";
     }
     if (errors.ranking) return "Chưa tải được bảng xếp hạng.";
     return "";
-  }, [scoringLocked, isPublished, hasAdvanced, wildcardDecisionsReady, hasUnresolvedTiebreak, errors.ranking]);
+  }, [scoringLocked, isPublished, hasAdvanced, hasUnresolvedTiebreak, errors.ranking]);
 
   const publishRound = async () => {
-    if (!roundId) return false;
+    if (!roundId || isPublishing) return false;
     if (!canPublish) {
       message.info(publishDisabledReason || "Không thể công bố kết quả lúc này.");
       return false;
@@ -404,7 +344,7 @@ export const useRoundResults = (roundId) => {
     isRefreshing,
     isPublishing,
     isAdvancing,
-    decidingReviewId,
+    decidingReviewId: null,
     confirmingProposal,
     overridingReviewId,
     overrideHistory,
@@ -424,7 +364,6 @@ export const useRoundResults = (roundId) => {
     isResolvingTiebreak,
     buildAdvancePayload,
     fetchResults,
-    decideWildcard,
     confirmWildcardProposal,
     overrideWildcard,
     loadOverrideHistory,

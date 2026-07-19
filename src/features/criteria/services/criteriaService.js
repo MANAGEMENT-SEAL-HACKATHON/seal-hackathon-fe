@@ -98,5 +98,18 @@ export const criteriaService = {
   // 14. GET danh sách track làm nguồn để clone (API MỚI BỔ SUNG)
   getCloneSourcesForTrack: async (trackId) => {
     return axiosClient.get(`/api/v1/tracks/${trackId}/criteria/clone-sources`);
-  }
+  },
+
+  listTemplates: () => axiosClient.get(ENDPOINTS.CRITERIA.TEMPLATES),
+  createTemplate: (data) => axiosClient.post(ENDPOINTS.CRITERIA.TEMPLATES, data),
+  updateTemplate: (id, data) => axiosClient.put(ENDPOINTS.CRITERIA.TEMPLATE_DETAIL(id), data),
+  deleteTemplate: (id) => axiosClient.delete(ENDPOINTS.CRITERIA.TEMPLATE_DETAIL(id)),
+  applyTemplateToTrack: (trackId, templateId, replaceExisting) =>
+    axiosClient.post(ENDPOINTS.CRITERIA.APPLY_TEMPLATE_TO_TRACK(trackId, templateId), {
+      replaceExisting,
+    }),
+  applyTemplateToFinalRound: (roundId, templateId, replaceExisting) =>
+    axiosClient.post(ENDPOINTS.CRITERIA.APPLY_TEMPLATE_TO_ROUND(roundId, templateId), {
+      replaceExisting,
+    }),
 };

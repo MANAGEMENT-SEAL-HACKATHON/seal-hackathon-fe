@@ -13,24 +13,19 @@ const OfficialRankingPanel = ({
   isLoading,
   error,
   advancePreviewTeamIds,
-  rejectedWildcardTeamIds,
+  rejectedWildcardTeamIds: _rejectedWildcardTeamIds,
   hasAdvanced,
   isPublished,
   rosterDecided,
-  wildcardData,
-  topN,
+  wildcardData: _wildcardData,
+  topN: _topN,
   roundId,
-  hasUnresolvedTiebreak = false,
 }) => {
   const [selectedGroup, setSelectedGroup] = useState("all");
   const [breakdownTarget, setBreakdownTarget] = useState(null);
   const previewSet = useMemo(
     () => advancePreviewTeamIds ?? new Set(),
     [advancePreviewTeamIds],
-  );
-  const rejectedWildcardSet = useMemo(
-    () => rejectedWildcardTeamIds ?? new Set(),
-    [rejectedWildcardTeamIds],
   );
   const displayItems = useMemo(() => ranking.items, [ranking.items]);
   const groups = useMemo(
@@ -115,34 +110,14 @@ const OfficialRankingPanel = ({
           return <Tag color="default" style={{ padding: "4px 12px", borderRadius: 4 }}>Bị loại</Tag>;
         }
 
-        // Đang trong giai đoạn Preview (Chờ chốt)
+        // Đang trong giai đoạn Preview (Chờ chốt) — Phase 1: Top-N only, no Vé vớt labels
         if (isPublished) {
           const isProposed = previewSet.has(item.teamId);
-          const isTopN = item.rank <= topN;
-          
-          // Kiểm tra xem đội này có nằm trong danh sách Wildcard không
-          const wildcardItem = wildcardData?.items?.find(w => w.teamId === item.teamId);
 
           if (isProposed) {
-            // Nếu được đề xuất và nằm trong Top N -> Đi thẳng
-            if (isTopN) {
-               return <Tag color="processing" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Đề xuất vào Chung kết</Tag>;
-            }
-            // Nếu được đề xuất nhưng KHÔNG thuộc Top N -> Chắc chắn là do duyệt Vé vớt
-            return <Tag color="purple" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Sẽ vào CK (Vé vớt)</Tag>;
+            return <Tag color="processing" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Đề xuất vào Chung kết</Tag>;
           }
 
-          // Nếu KHÔNG được đề xuất vào CK
-          if (wildcardItem) {
-             if (wildcardItem.coordinatorApproved === false) {
-                 return <Tag color="error" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Wild Card từ chối</Tag>;
-             }
-             if (wildcardItem.coordinatorApproved === null || wildcardItem.coordinatorApproved === undefined) {
-                 return <Tag color="warning" style={{ fontWeight: 600, padding: "4px 12px", borderRadius: 4 }}>Đang chờ xét Vé vớt</Tag>;
-             }
-          }
-
-          // Nếu mọi quyết định đã chốt mà vẫn không có tên -> Bị loại
           if (rosterDecided) {
              return <Tag color="default" style={{ padding: "4px 12px", borderRadius: 4 }}>Bị loại</Tag>;
           }
@@ -173,21 +148,13 @@ const OfficialRankingPanel = ({
 
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
-      {hasUnresolvedTiebreak && (
-        <Alert
-          showIcon
-          type="warning"
-          message="Thứ hạng tạm thời — đang chờ xử lý đồng điểm"
-          description="Bảng xếp hạng có thể thay đổi sau khi Ban tổ chức resolve tiebreak."
-        />
-      )}
       <Alert
         showIcon
         type="info"
         message="Bảng xếp hạng chính thức sau khóa chấm"
-        description="Mỗi bảng được xếp hạng độc lập theo điểm trung bình có trọng số. Điểm CALIBRATION và PENALTY không hiển thị trong bảng này."
+        description="Mỗi bảng được xếp hạng độc lập theo điểm trung bình có trọng số. Điểm trừ phân xử (nếu có) không hiển thị trong bảng này."
       />
-      {error && <Alert showIcon type="error" message="Không tải được leaderboard" description={error.message} />}
+      {error && <Alert showIcon type="error" message="Không tải được bảng xếp hạng" description={error.message} />}
       <Card
         title={<Space><TrophyOutlined style={{ color: '#faad14' }} /><Text strong style={{ fontSize: 16 }}>Bảng điểm xếp hạng</Text></Space>}
         extra={

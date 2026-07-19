@@ -22,7 +22,7 @@ export function useSubmissionWindow(round, now = new Date()) {
     const msRemaining =
       closed || deadlineMs == null ? 0 : Math.max(0, deadlineMs - nowMs);
 
-    let phase = 'OPEN';
+    let phase;
     if (!round) phase = 'UNKNOWN';
     else if (closed) phase = 'CLOSED';
     else if (examAt && nowMs < new Date(examAt).getTime()) phase = 'BEFORE_EXAM';

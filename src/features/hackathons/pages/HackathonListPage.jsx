@@ -15,11 +15,16 @@ import {
 } from "antd";
 import { Plus, Trash2, Settings, Search, Trophy, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import PageHeader from "../../../shared/components/ui/PageHeader";
+import CoordinatorHero from "../../../shared/components/ui/CoordinatorHero";
+import {
+  primaryGradientButtonStyle,
+  tableCardStyle,
+} from "../../../shared/theme/coordinatorTheme";
 import StatusBadge from "../../../shared/components/ui/StatusBadge";
 import { ROUTES } from "../../../shared/constants/routes";
 import { hackathonService } from "../services/hackathonService";
 import { mapHackathonToFE, resolveHackathonBannerUrl } from "../mappers/hackathonMapper";
+import { formatDate } from "../../../shared/utils/date";
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -28,8 +33,21 @@ const { Search: AntSearch } = Input;
 const DEFAULT_BANNER =
   "https://images.unsplash.com/photo-1517048676732-d65bc937f952?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80";
 
+const getStoredUserRole = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('userInfo') || '{}');
+    return user?.role;
+  } catch {
+    return null;
+  }
+};
+
+const isCoordinatorRole = (role) => role === 'COORDINATOR' || role === 'SUPERADMIN';
+
 const HackathonListPage = () => {
   const navigate = useNavigate();
+  const userRole = getStoredUserRole();
+  const canManageHackathons = isCoordinatorRole(userRole);
   const [hackathons, setHackathons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
@@ -76,23 +94,36 @@ const HackathonListPage = () => {
     return matchesSearch && matchesStatus;
   });
 
+  const ongoingCount = hackathons.filter((h) => h.status === 'ONGOING').length;
+
   return (
-    <div>
-      <PageHeader
+    <div className="coord-page">
+      <CoordinatorHero
+        data-testid="hackathon-list-hero"
         title="Cấu hình sự kiện"
         subtitle="Quản lý và cấu hình các sự kiện hackathon của bạn"
-        extra={
-          <Button
-            type="primary"
-            icon={<Plus size={16} />}
-            onClick={() => navigate(ROUTES.HACKATHON_CREATE)}
-          >
-            Tạo sự kiện
-          </Button>
+        pills={[
+          { key: 'total', label: `Tổng sự kiện: ${hackathons.length}`, tone: 'info', loading },
+          { key: 'ongoing', label: `Đang diễn ra: ${ongoingCount}`, tone: ongoingCount > 0 ? 'success' : 'neutral', loading },
+        ]}
+        actions={
+          canManageHackathons ? (
+            <>
+              <span />
+              <Button
+                type="primary"
+                icon={<Plus size={16} />}
+                style={{ ...primaryGradientButtonStyle, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                onClick={() => navigate(ROUTES.HACKATHON_CREATE)}
+              >
+                Tạo sự kiện
+              </Button>
+            </>
+          ) : null
         }
       />
 
-      <Card style={{ marginBottom: 24, borderRadius: 12 }}>
+      <Card style={{ ...tableCardStyle, marginBottom: 24 }}>
         <Row gutter={16} align="middle">
           <Col xs={24} md={12} lg={8}>
             <AntSearch
@@ -185,18 +216,20 @@ const HackathonListPage = () => {
                   </div>
                 }
                 actions={[
+                  canManageHackathons && (
                   <Button
                     type="text"
                     icon={<Copy size={16} />}
                     key="clone"
                     onClick={() =>
-                      navigate(ROUTES.HACKATHON_CREATE, {
-                        state: { cloneFromId: hackathon.id },
-                      })
+                      navigate(
+                        `${ROUTES.HACKATHON_CREATE}?cloneFrom=${hackathon.id}`,
+                        { state: { cloneFromId: hackathon.id } },
+                      )
                     }
                   >
                     Nhân bản
-                  </Button>,
+                  </Button>),
                   (hackathon.status === "DRAFT" ||
                     hackathon.status === "ONGOING") && (
                     <Button
@@ -256,13 +289,24 @@ const HackathonListPage = () => {
                         <Tag color="blue">
                           {hackathon.season} {hackathon.year}
                         </Tag>
+                        {hackathon.cloned_from_hackathon_name && (
+                          <Tag color="purple" style={{ marginLeft: 4 }}>
+                            Nhân bản từ: {hackathon.cloned_from_hackathon_name}
+                          </Tag>
+                        )}
                       </div>
                       <Paragraph ellipsis={{ rows: 2 }}>
                         {hackathon.description}
                       </Paragraph>
                       <div style={{ fontSize: 12, color: "#8c8c8c" }}>
-                        Reg: {hackathon.registration_start || "N/A"} -{" "}
-                        {hackathon.registration_end || "N/A"}
+                        Reg:{" "}
+                        {hackathon.registration_start
+                          ? formatDate(hackathon.registration_start, "DD/MM/YYYY")
+                          : "N/A"}{" "}
+                        -{" "}
+                        {hackathon.registration_end
+                          ? formatDate(hackathon.registration_end, "DD/MM/YYYY")
+                          : "N/A"}
                       </div>
                       {hackathon.max_participants != null && (
                         <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>

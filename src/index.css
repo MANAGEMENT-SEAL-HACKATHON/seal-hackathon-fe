@@ -93,6 +93,238 @@ code {
   }
 }
 
+/* ============================================================
+   Coordinator theme (Final-config indigo/slate) — page surfaces
+   Áp cho mọi trang coordinator qua className="coord-page"
+   ============================================================ */
+.coord-page .ant-card {
+  border-radius: 16px;
+  border: 1px solid rgba(99, 102, 241, 0.14);
+  box-shadow: 0 1px 2px rgba(79, 70, 229, 0.06);
+}
+
+.coord-page .ant-card .ant-card-head {
+  border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+  background: linear-gradient(90deg, rgba(238, 242, 255, 0.6) 0%, rgba(255, 255, 255, 0) 70%);
+  border-radius: 16px 16px 0 0;
+}
+
+.coord-page .ant-table {
+  border-radius: 12px;
+}
+
+.coord-page .ant-table-thead > tr > th {
+  background: #eef2ff !important;
+  color: #3730a3 !important;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.15) !important;
+}
+
+.coord-page .ant-table-tbody > tr:hover > td {
+  background: #f5f7ff !important;
+}
+
+.coord-page .ant-tabs-ink-bar {
+  background: #4f46e5 !important;
+}
+
+.coord-page .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #4f46e5 !important;
+  font-weight: 600;
+}
+
+.coord-page .ant-tabs-tab:hover .ant-tabs-tab-btn {
+  color: #6366f1;
+}
+
+.coord-page .ant-pagination-item-active {
+  border-color: #4f46e5;
+}
+
+.coord-page .ant-pagination-item-active a {
+  color: #4f46e5;
+}
+
+/* Segmented (tab lọc trạng thái) — tông indigo final-config */
+.coord-page .ant-segmented {
+  background: #eef2ff;
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.coord-page .ant-segmented .ant-segmented-item {
+  border-radius: 9px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.coord-page .ant-segmented .ant-segmented-item-selected {
+  background: #4f46e5;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+}
+
+.coord-page .ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected) {
+  color: #4f46e5;
+}
+
+.coord-page .ant-segmented .ant-segmented-thumb {
+  background: #4f46e5;
+  border-radius: 9px;
+}
+
+/* Input focus — viền indigo thay xanh mặc định */
+.coord-page .ant-input:focus,
+.coord-page .ant-input-focused,
+.coord-page .ant-input-affix-wrapper:focus-within,
+.coord-page .ant-input-number-focused,
+.coord-page .ant-select-focused .ant-select-selector {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12) !important;
+}
+
+.coord-page .ant-input,
+.coord-page .ant-input-affix-wrapper,
+.coord-page .ant-input-number {
+  border-radius: 10px;
+}
+
+/* Tiêu đề mục (SectionHeader) — thanh accent indigo trước chữ */
+.coord-page .section-header h1::before,
+.coord-page .section-header h2::before,
+.coord-page .section-header h3::before,
+.coord-page .section-header h4::before,
+.coord-page .section-header h5::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 0.9em;
+  border-radius: 2px;
+  margin-right: 10px;
+  vertical-align: -0.08em;
+  background: linear-gradient(180deg, #4f46e5, #3b82f6);
+}
+
+/* Primary solid → indigo final-config (gradient chỉ dành cho 1 CTA/trang) */
+.coord-page .ant-btn-primary:not(.ant-btn-dangerous):not(:disabled) {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
+}
+
+.coord-page .ant-btn-primary:not(.ant-btn-dangerous):not(:disabled):hover {
+  background: #6366f1;
+  border-color: #6366f1;
+}
+
+.coord-page .ant-progress-bg {
+  background: linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%) !important;
+}
+
+/* Dark mode: giữ tint indigo nhưng trên nền tối */
+.dark .coord-page .ant-card {
+  border-color: rgba(129, 140, 248, 0.25);
+}
+
+.dark .coord-page .ant-card .ant-card-head {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+.dark .coord-page .ant-table-thead > tr > th {
+  background: rgba(99, 102, 241, 0.18) !important;
+  color: #c7d2fe !important;
+}
+
+.dark .coord-page .ant-table-tbody > tr:hover > td {
+  background: rgba(99, 102, 241, 0.08) !important;
+}
+
+/* ============================================================
+   Coordinator shell — light-mode header + sidebar tint (Final-config)
+   ============================================================ */
+.coord-shell .coord-shell-sider.ant-layout-sider,
+.coord-shell .coord-shell-sider .ant-layout-sider-children {
+  background: linear-gradient(180deg, #ffffff 0%, #f6f7ff 100%) !important;
+  border-right: 1px solid rgba(99, 102, 241, 0.12) !important;
+}
+
+.coord-shell .coord-shell-sider .ant-menu {
+  background: transparent !important;
+}
+
+.coord-shell .coord-shell-sider .ant-menu-item {
+  border-radius: 8px !important;
+  margin: 4px 8px !important;
+  color: #475569 !important;
+}
+
+.coord-shell .coord-shell-sider .ant-menu-item:hover {
+  background: rgba(99, 102, 241, 0.06) !important;
+  color: #3730a3 !important;
+}
+
+.coord-shell .coord-shell-sider .ant-menu-item:hover .ant-menu-title-content,
+.coord-shell .coord-shell-sider .ant-menu-item:hover .anticon,
+.coord-shell .coord-shell-sider .ant-menu-item:hover svg {
+  color: #3730a3 !important;
+}
+
+.coord-shell .coord-shell-sider .ant-menu-item-selected {
+  background: rgba(99, 102, 241, 0.12) !important;
+  color: #4338ca !important;
+  font-weight: 600 !important;
+}
+
+.coord-shell .coord-shell-sider .ant-menu-item-selected .ant-menu-title-content,
+.coord-shell .coord-shell-sider .ant-menu-item-selected .anticon,
+.coord-shell .coord-shell-sider .ant-menu-item-selected svg {
+  color: #4338ca !important;
+}
+
+.coord-shell .coord-shell-header.ant-layout-header {
+  background: #fbfcff !important;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.15);
+  box-shadow: none !important;
+}
+
+.coord-shell .coord-shell-cta.ant-btn-primary {
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25) !important;
+}
+
+.coord-shell .coord-shell-cta.ant-btn-primary:hover {
+  background: linear-gradient(135deg, #6366f1 0%, #60a5fa 100%) !important;
+}
+
+/* Mobile drawer (portaled) — same indigo menu tint */
+.coord-shell-drawer .ant-menu {
+  background: transparent !important;
+}
+
+.coord-shell-drawer .ant-menu-item {
+  border-radius: 8px !important;
+  margin: 4px 8px !important;
+  color: #475569 !important;
+}
+
+.coord-shell-drawer .ant-menu-item:hover {
+  background: rgba(99, 102, 241, 0.06) !important;
+  color: #3730a3 !important;
+}
+
+.coord-shell-drawer .ant-menu-item-selected {
+  background: rgba(99, 102, 241, 0.12) !important;
+  color: #4338ca !important;
+  font-weight: 600 !important;
+}
+
+.coord-shell-drawer .ant-menu-item-selected .ant-menu-title-content,
+.coord-shell-drawer .ant-menu-item-selected .anticon,
+.coord-shell-drawer .ant-menu-item-selected svg {
+  color: #4338ca !important;
+}
+
 /* Dark Mode Overrides */
 .dark body {
   background-color: #141414;

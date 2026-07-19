@@ -13,6 +13,7 @@ import { ROUTES } from '../../shared/constants/routes';
 import { useAppContext } from '../../app/AppContext';
 import { authService } from '../../features/auth/services/authService';
 import NotificationBell from '../../shared/components/ui/NotificationBell';
+import StudentAnnouncementListener from './StudentAnnouncementListener';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -86,10 +87,9 @@ const StudentLayout = ({ children }) => {
         label: 'Giải cá nhân năm',
       },
       {
-        key: 'student-schedule',
+        key: ROUTES.STUDENT_EVENTS,
         icon: <CalendarDays size={18} />,
         label: 'Lịch sự kiện',
-        disabled: true,
       },
       {
         key: ROUTES.PROFILE,
@@ -115,9 +115,11 @@ const StudentLayout = ({ children }) => {
       key === ROUTES.DASHBOARD ||
       key === ROUTES.STUDENT_HACKATHON_HISTORY ||
       key === ROUTES.STUDENT_TEAM ||
+      key === ROUTES.STUDENT_MATCHMAKING ||
       key === ROUTES.STUDENT_SUBMIT ||
       key === ROUTES.STUDENT_RESULTS ||
       key === ROUTES.STUDENT_ANNUAL_AWARDS ||
+      key === ROUTES.STUDENT_EVENTS ||
       key === ROUTES.PROFILE
     ) {
       navigate(key);
@@ -354,6 +356,7 @@ const StudentLayout = ({ children }) => {
         </Header>
 
         <Content style={{ padding: isMobile ? 16 : 24, minHeight: 'calc(100vh - 68px)' }}>
+          <StudentAnnouncementListener />
           {children}
         </Content>
       </Layout>

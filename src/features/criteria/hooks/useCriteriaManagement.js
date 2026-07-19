@@ -19,6 +19,8 @@ export const useCriteriaManagement = (hackathonId, onUpdated) => {
   const [criteriaList, setCriteriaList] = useState([]);
   const [weightSummary, setWeightSummary] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const notifyHub = useCallback(async () => {
     if (typeof onUpdated === "function") await onUpdated();
   }, [onUpdated]);
@@ -51,6 +53,25 @@ export const useCriteriaManagement = (hackathonId, onUpdated) => {
   useEffect(() => {
     fetchBaseData();
   }, [fetchBaseData]);
+
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const data = await criteriaService.listTemplates();
+      const items = Array.isArray(data) ? data : [];
+      setTemplates(items);
+      setSelectedTemplateId((current) =>
+        items.some((item) => item.id === current)
+          ? current
+          : (items.find((item) => item.isDefault)?.id ?? items[0]?.id ?? null),
+      );
+    } catch (_error) {
+      message.error("Không thể tải danh sách mẫu tiêu chí");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
   const hackathonRounds = useMemo(
     () => [...rounds].sort((a, b) => a.sequence_order - b.sequence_order),
@@ -273,6 +294,59 @@ export const useCriteriaManagement = (hackathonId, onUpdated) => {
     [currentRound, selectedRoundId, selectedTrackId, currentCriteria, fetchCriteria, notifyHub],
   );
 
+  const handleApplyTemplate = useCallback(
+    async (templateId, replaceExisting = false) => {
+      if (!templateId) return;
+      setIsLoading(true);
+      try {
+        if (currentRound?.is_final) {
+          await criteriaService.applyTemplateToFinalRound(
+            selectedRoundId,
+            templateId,
+            replaceExisting,
+          );
+        } else {
+          await criteriaService.applyTemplateToTrack(
+            selectedTrackId,
+            templateId,
+            replaceExisting,
+          );
+        }
+        message.success("Đã áp dụng mẫu tiêu chí");
+        await fetchCriteria();
+        await notifyHub();
+      } catch (_error) {
+        message.error("Không thể áp dụng mẫu tiêu chí");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [currentRound, selectedRoundId, selectedTrackId, fetchCriteria, notifyHub],
+  );
+
+  const saveTemplate = useCallback(async (values, id) => {
+    try {
+      if (id) await criteriaService.updateTemplate(id, values);
+      else await criteriaService.createTemplate(values);
+      message.success(id ? "Đã cập nhật mẫu" : "Đã tạo mẫu");
+      await fetchTemplates();
+      return true;
+    } catch (_error) {
+      message.error("Không thể lưu mẫu tiêu chí");
+      return false;
+    }
+  }, [fetchTemplates]);
+
+  const deleteTemplate = useCallback(async (id) => {
+    try {
+      await criteriaService.deleteTemplate(id);
+      message.success("Đã xóa mẫu");
+      await fetchTemplates();
+    } catch (_error) {
+      message.error("Không thể xóa mẫu tiêu chí");
+    }
+  }, [fetchTemplates]);
+
   const handleDeleteCriteria = useCallback(
     async (id) => {
       setIsLoading(true);
@@ -310,6 +384,12 @@ export const useCriteriaManagement = (hackathonId, onUpdated) => {
     handleSaveCriteria,
     handleBatchSaveCriteria,
     handleApplyStandardCriteria,
+    templates,
+    selectedTemplateId,
+    setSelectedTemplateId,
+    handleApplyTemplate,
+    saveTemplate,
+    deleteTemplate,
     deleteCriteria: handleDeleteCriteria,
     updateRound: async (id, data) => {
       try {

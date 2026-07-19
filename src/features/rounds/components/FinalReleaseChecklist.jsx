@@ -95,7 +95,7 @@ const FinalReleaseChecklist = ({ roundId, onReadyChange }) => {
                     gap: 8,
                   }}
                 >
-                  <span>{t.name || `Track #${t.id}`}</span>
+                  <span>{t.name || `Hạng mục #${t.id}`}</span>
                   {hasPdf ? (
                     <Tag color="success" icon={<CheckCircleOutlined />}>
                       {t.problem_statement_filename || 'Có PDF'}

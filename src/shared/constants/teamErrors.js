@@ -13,6 +13,8 @@ export const TEAM_ERROR_MESSAGES = {
   RESOURCE_NOT_FOUND:
     'Đội thi chưa được phân bảng trong vòng này. Hãy hoàn tất kết thúc đăng ký, khóa đội và bốc thăm trước.',
   ACTIVE_TEAMS_NOT_LOCKED: 'Vui lòng khóa danh sách đội thi trước khi thực hiện thao tác này.',
+  TEAMS_PENDING_APPROVAL:
+    'Còn đội đang chờ xử lý (chờ duyệt / 24h suy nghĩ). Hãy duyệt hoặc từ chối hết trước khi bốc thăm / kích hoạt sơ loại.',
   REGISTRATION_ALREADY_CLOSED: 'Đăng ký đã kết thúc trước đó — không thể kết thúc đăng ký sớm lần nữa.',
   REGISTRATION_CLOSED: 'Đăng ký đã đóng. Không thể bốc thăm hoặc đổi bảng lúc này.',
   TRACK_CLOSED: 'Bảng đấu đã đóng — không thể chuyển đội vào bảng này.',

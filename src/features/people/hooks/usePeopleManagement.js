@@ -10,7 +10,6 @@ import {
   buildMentorPool,
   buildPrelimJudgePool,
   findPersonById,
-  resolveFinalAssignmentType,
   resolvePrelimAssignmentType,
   formatJudgeRoleLabel,
   isEligibleForFinalJudge,
@@ -215,8 +214,13 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
   );
 
   const finalJudgePool = useMemo(
-    () => buildFinalJudgePool(judges, tempJudges),
-    [judges, tempJudges]
+    () => buildFinalJudgePool(judges, tempJudges, 'FINAL_EXTERNAL'),
+    [judges, tempJudges],
+  );
+
+  const getFinalJudgePoolForType = useCallback(
+    (assignmentType = 'FINAL_EXTERNAL') => buildFinalJudgePool(judges, tempJudges, assignmentType),
+    [judges, tempJudges],
   );
 
   const mentorIdsByTrack = useMemo(() => {
@@ -328,13 +332,20 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
         return;
       }
 
+      const rawFinalType = String(values.assignment_type || 'FINAL_EXTERNAL').toUpperCase();
       const assignmentType = isFinalFlow
-        ? resolveFinalAssignmentType(person)
-        : resolvePrelimAssignmentType(person);
+        ? rawFinalType === 'NORMAL'
+          ? 'NORMAL'
+          : 'FINAL_EXTERNAL'
+        : resolvePrelimAssignmentType();
 
       if (isFinalFlow && finalRoundId) {
-        if (!isEligibleForFinalJudge(person)) {
-          message.error('Chung kết chỉ gán giám khảo khách hoặc trưởng ban.');
+        if (!isEligibleForFinalJudge(person, assignmentType)) {
+          message.error(
+            assignmentType === 'NORMAL'
+              ? 'Chung kết Giám khảo nội bộ chỉ gán giám khảo INTERNAL.'
+              : 'Chung kết FINAL_EXTERNAL chỉ gán giám khảo khách đã duyệt.',
+          );
           return;
         }
         await peopleService.assignFinalRoundJudge({
@@ -342,10 +353,14 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
           judgeId: values.person_id,
           assignmentType,
         });
-        message.success(`Đã gán giám khảo Chung kết (${formatJudgeRoleLabel(assignmentType)}).`);
+        message.success(
+          `Đã gán giám khảo Chung kết (${
+            assignmentType === 'NORMAL' ? 'Giám khảo nội bộ' : formatJudgeRoleLabel(assignmentType)
+          }).`,
+        );
       } else {
         if (!isEligibleForPrelimJudge(person)) {
-          message.error('Sơ loại chỉ gán giám khảo/mentor nội bộ hoặc trưởng ban.');
+          message.error('Sơ loại chỉ gán giám khảo/mentor nội bộ.');
           return;
         }
         await peopleService.assignJudge({
@@ -377,54 +392,6 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
     }
   };
 
-  const patchUserDeptHead = async (userId, isDeptHead) => {
-    setIsLoading(true);
-    try {
-      if (isDeptHead) {
-        const uniquePeople = [...judges, ...mentors].filter(
-          (p, idx, arr) => arr.findIndex((x) => x.id === p.id) === idx,
-        );
-        const otherHeads = uniquePeople.filter(
-          (p) => p.id !== userId && Boolean(p.isDeptHead ?? p.is_dept_head),
-        );
-        for (const head of otherHeads) {
-          await peopleService.patchUserDeptHead(head.id, false);
-        }
-      }
-      const result = await peopleService.patchUserDeptHead(userId, isDeptHead);
-      const updatedAssignments = result?.assignments ?? result?.data?.assignments;
-      const applyAssignmentPatch = (person) => {
-        if (!updatedAssignments?.length) return person;
-        const hit = updatedAssignments.find(
-          (a) => (a.judgeId ?? a.judge_id ?? a.personId) === person.id,
-        );
-        if (!hit) return person;
-        return {
-          ...person,
-          assignment_type: hit.assignmentType ?? hit.assignment_type ?? person.assignment_type,
-        };
-      };
-      const clearOthers = (list) =>
-        list.map((p) => {
-          let next = applyAssignmentPatch(p);
-          if (next.id === userId) {
-            next = { ...next, isDeptHead, is_dept_head: isDeptHead };
-          } else if (isDeptHead && Boolean(next.isDeptHead ?? next.is_dept_head)) {
-            next = { ...next, isDeptHead: false, is_dept_head: false };
-          }
-          return next;
-        });
-      setJudges((prev) => clearOthers(prev));
-      setMentors((prev) => clearOthers(prev));
-      message.success(isDeptHead ? 'Đã đặt Trưởng ban' : 'Đã gỡ Trưởng ban');
-      await refreshAssignmentsOnly();
-    } catch (error) {
-      message.error(getTeamErrorMessage(error));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const resendInvitation = async (invitationId) => {
     if (!invitationId) {
       message.warning('Không có mã lời mời để gửi lại');
@@ -442,6 +409,23 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
     }
   };
 
+  const revokeInvitation = async (invitationId) => {
+    if (!invitationId) {
+      message.warning('Không có mã lời mời để thu hồi');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await peopleService.revokeInvitation(invitationId);
+      message.success('Đã thu hồi lời mời giám khảo');
+      await fetchBaseData({ silent: true });
+    } catch (error) {
+      message.error(getTeamErrorMessage(error) || 'Không thể thu hồi lời mời');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const isMentorBlockedForTrack = (mentorId, trackId) =>
     Boolean(judgeIdsByTrack.get(Number(trackId))?.has(Number(mentorId)));
 
@@ -453,6 +437,22 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
 
   const isAlreadyJudgeOnTrack = (judgeId, trackId) =>
     Boolean(judgeIdsByTrack.get(Number(trackId))?.has(Number(judgeId)));
+
+  const trackRoundId = (trackId) => {
+    const track = tracks.find((item) => Number(item.id) === Number(trackId));
+    return track?.roundId ?? track?.round_id ?? null;
+  };
+
+  const isJudgeOnOtherPrelimTrackInSameRound = (judgeId, trackId) => {
+    const roundId = trackRoundId(trackId);
+    if (!roundId || !judgeId) return false;
+    return judgeAssignments.some((row) => {
+      if (Number(row.person_id) !== Number(judgeId)) return false;
+      const otherTrackId = Number(row.track_id);
+      if (!Number.isFinite(otherTrackId) || otherTrackId === Number(trackId)) return false;
+      return Number(trackRoundId(otherTrackId)) === Number(roundId);
+    });
+  };
 
   const isAlreadyJudgeOnFinalRound = (judgeId, roundId) =>
     finalJudgeAssignments.some(
@@ -471,6 +471,9 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
   const getPrelimJudgeAssignBlockReason = (personId, trackId) => {
     if (!trackId || !personId) return null;
     if (isAlreadyJudgeOnTrack(personId, trackId)) return 'đã là giám khảo cùng bảng';
+    if (isJudgeOnOtherPrelimTrackInSameRound(personId, trackId)) {
+      return 'đã được phân vào bảng khác trong vòng này';
+    }
     if (isJudgeBlockedForTrack(personId, trackId)) return 'đang là mentor cùng bảng';
     return null;
   };
@@ -505,11 +508,12 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
     removeMentor,
     assignJudge,
     removeJudge,
-    patchUserDeptHead,
     resendInvitation,
+    revokeInvitation,
     mentorPool,
     prelimJudgePool,
     finalJudgePool,
+    getFinalJudgePoolForType,
     isMentorBlockedForTrack,
     isJudgeBlockedForTrack,
     getMentorAssignBlockReason,

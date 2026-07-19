@@ -2,8 +2,8 @@
  * Visual regression — primary happy pages (manual / nightly).
  */
 import { test, expect } from '@playwright/test';
-import { waitForBackendReady, waitForLoginToken, findHackathonBySlug } from './helpers/api.js';
-import { loginAs } from './helpers/uiAuth.js';
+import { waitForBackendReady, waitForLoginToken, findHackathonBySlug } from '../helpers/api.js';
+import { loginAs } from '../helpers/uiAuth.js';
 
 const COORD_EMAIL = process.env.E2E_COORD_EMAIL || 'coord@fpt.edu.vn';
 const COORD_PASSWORD = process.env.E2E_COORD_PASSWORD || 'Coordinator@dev1';

@@ -10,8 +10,10 @@ import {
 } from '@ant-design/icons';
 import { userService } from '../services/userService';
 import StatusBadge from '../../../shared/components/ui/StatusBadge';
+import CoordinatorHero from '../../../shared/components/ui/CoordinatorHero';
+import { tableCardStyle, whiteButtonStyle } from '../../../shared/theme/coordinatorTheme';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -26,10 +28,10 @@ const StudentCardImage = ({ userId }) => {
   const [loading, setLoading] = useState(false);
   const [hasCard, setHasCard] = useState(false);
   const [cloudinaryFailed, setCloudinaryFailed] = useState(false);
+  const [blobUrl, setBlobUrl] = useState(null);
 
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'drrd1a7jd';
   const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/student-cards/student-card-${userId}`;
-  const fallbackUrl = `/api/v1/users/${userId}/student-card`;
 
   useEffect(() => {
     let active = true;
@@ -40,7 +42,6 @@ const StudentCardImage = ({ userId }) => {
         if (active) {
           const path = detail?.studentCardImagePath;
           setHasCard(Boolean(path));
-          // If path is already a Cloudinary URL, reset failure state
           if (path?.startsWith('http')) {
             setCloudinaryFailed(false);
           }
@@ -55,14 +56,40 @@ const StudentCardImage = ({ userId }) => {
     return () => { active = false; };
   }, [userId]);
 
+  // Fallback: fetch blob via axios (Bearer) when Cloudinary fails
+  useEffect(() => {
+    if (!cloudinaryFailed || !hasCard) return undefined;
+    let active = true;
+    let objectUrl = null;
+    const loadBlob = async () => {
+      try {
+        const blob = await userService.getStudentCardBlob(userId);
+        objectUrl = URL.createObjectURL(blob);
+        if (active) setBlobUrl(objectUrl);
+      } catch (err) {
+        console.error('Failed to load student card blob:', err);
+        if (active) setBlobUrl(null);
+      }
+    };
+    loadBlob();
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [cloudinaryFailed, hasCard, userId]);
+
+  useEffect(() => () => {
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+  }, [blobUrl]);
+
   if (loading) return <Spin size="small" />;
   if (!hasCard) return <Text type="secondary">Chưa upload</Text>;
 
-  // Use fallback BE endpoint if Cloudinary failed
-  const displayUrl = cloudinaryFailed ? fallbackUrl : cloudinaryUrl;
+  const displayUrl = cloudinaryFailed ? blobUrl : cloudinaryUrl;
+  if (cloudinaryFailed && !blobUrl) return <Spin size="small" />;
 
   return (
-    <a href={cloudinaryFailed ? fallbackUrl : cloudinaryUrl} target="_blank" rel="noreferrer">
+    <a href={displayUrl} target="_blank" rel="noreferrer">
       <img
         src={displayUrl}
         alt="Thẻ sinh viên"
@@ -175,6 +202,9 @@ const UserApprovalPage = () => {
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('PENDING');
   const [searchText, setSearchText] = useState('');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   // Modals state
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -187,14 +217,16 @@ const UserApprovalPage = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Gọi API lấy danh sách user
-      const params = statusFilter === 'ALL' ? {} : { status: statusFilter };
+      const params = {
+        page,
+        size: pageSize,
+        ...(statusFilter === 'ALL' ? {} : { status: statusFilter }),
+        ...(searchText.trim() ? { q: searchText.trim() } : {}),
+      };
       const data = await userService.getUsers(params);
-      console.log('getUsers response data:', data);
-
       const parsedUsers = extractUserArray(data);
-      console.log('Parsed users list:', parsedUsers);
       setUsers(parsedUsers);
+      setTotal(Number(data?.totalElements ?? parsedUsers.length) || 0);
     } catch (error) {
       console.error('Fetch users error:', error);
       message.error('Không thể lấy danh sách người dùng từ hệ thống.');
@@ -205,7 +237,7 @@ const UserApprovalPage = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [statusFilter]);
+  }, [statusFilter, page, pageSize]);
 
   const handleApprove = async (userId) => {
     try {
@@ -249,17 +281,6 @@ const UserApprovalPage = () => {
       message.error(error?.message || error?.data?.message || 'Lỗi khi khôi phục tài khoản.');
     }
   };
-
-  // Lọc tìm kiếm Client-side bổ sung cho mượt mà
-  const filteredUsers = users.filter(user => {
-    const searchLower = searchText.toLowerCase();
-    return (
-      user.email?.toLowerCase().includes(searchLower) ||
-      user.fullName?.toLowerCase().includes(searchLower) ||
-      user.studentCode?.toLowerCase().includes(searchLower) ||
-      user.institution?.toLowerCase().includes(searchLower)
-    );
-  });
 
   const columns = [
     {
@@ -390,36 +411,35 @@ const UserApprovalPage = () => {
   ];
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
-      <Card
-        style={{
-          borderRadius: '24px',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)',
-          border: '1px solid #e5e7eb',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <Title level={2} style={{ margin: 0, background: 'linear-gradient(90deg, #0072ff, #00e5ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Duyệt tài khoản người dùng
-            </Title>
-            <Text type="secondary">Xem xét hồ sơ sinh viên, thông tin mã số và hình ảnh thẻ để kích hoạt tài khoản.</Text>
-          </div>
-          <Button
-            type="default"
-            icon={<SyncOutlined spin={loading} />}
-            onClick={fetchUsers}
-            style={{ borderRadius: '12px' }}
-          >
-            Tải lại
-          </Button>
-        </div>
+    <div className="coord-page" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
+      <CoordinatorHero
+        data-testid="user-approval-hero"
+        title="Duyệt tài khoản người dùng"
+        subtitle="Xem xét hồ sơ sinh viên, thông tin mã số và hình ảnh thẻ để kích hoạt tài khoản."
+        actions={
+          <>
+            <span />
+            <Button
+              type="default"
+              icon={<SyncOutlined spin={loading} />}
+              onClick={fetchUsers}
+              style={{ ...whiteButtonStyle, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+            >
+              Tải lại
+            </Button>
+          </>
+        }
+      />
 
+      <Card style={tableCardStyle}>
         {/* Filter bar */}
         <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
           <Select
             value={statusFilter}
-            onChange={(val) => setStatusFilter(val)}
+            onChange={(val) => {
+              setStatusFilter(val);
+              setPage(0);
+            }}
             style={{ width: '180px', height: '40px' }}
             dropdownStyle={{ borderRadius: '12px' }}
           >
@@ -434,17 +454,44 @@ const UserApprovalPage = () => {
             prefix={<SearchOutlined style={{ color: '#9ca3af' }} />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
+            onPressEnter={() => {
+              setPage(0);
+              fetchUsers();
+            }}
             style={{ maxWidth: '320px', height: '40px', borderRadius: '12px' }}
             allowClear
+            onClear={() => {
+              setSearchText('');
+              setPage(0);
+            }}
           />
+          <Button
+            type="default"
+            onClick={() => {
+              setPage(0);
+              fetchUsers();
+            }}
+            style={{ borderRadius: '12px', height: 40 }}
+          >
+            Tìm
+          </Button>
         </div>
 
         <Table
           columns={columns}
-          dataSource={filteredUsers}
+          dataSource={users}
           rowKey={(record) => record.userId || record.id}
           loading={loading}
-          pagination={{ pageSize: 10, showSizeChanger: true }}
+          pagination={{
+            current: page + 1,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            onChange: (nextPage, nextSize) => {
+              setPage(nextPage - 1);
+              setPageSize(nextSize);
+            },
+          }}
           locale={{
             emptyText: <Empty description="Không tìm thấy người dùng nào phù hợp" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           }}
@@ -496,7 +543,7 @@ const UserApprovalPage = () => {
       >
         <Form form={overrideForm} layout="vertical" onFinish={handleOverrideSubmit}>
           <div style={{ marginBottom: '16px' }}>
-            Bạn đang chuyển tài khoản <strong>{selectedUser?.email}</strong> từ REJECTED về lại PENDING (Chờ duyệt).
+            Bạn đang chuyển tài khoản <strong>{selectedUser?.email}</strong> từ trạng thái «Đã từ chối» về lại «Chờ phê duyệt».
           </div>
           <Form.Item
             name="overrideReason"

@@ -367,7 +367,7 @@ const FinalSubmissionForm = ({
                 </Tag>
               ) : isRejected ? (
                 <Tag color="error" icon={<CloseCircleOutlined />} style={{ fontWeight: 700, padding: '4px 10px', borderRadius: 8, fontSize: 13 }}>
-                  REJECTED
+                  BỊ TỪ CHỐI
                 </Tag>
               ) : isLocked ? (
                 <Tag color="warning" icon={<ClockCircleOutlined />} style={{ fontWeight: 700, padding: '4px 10px', borderRadius: 8, fontSize: 13 }}>
@@ -420,8 +420,8 @@ const FinalSubmissionForm = ({
       {/* ALERTS SECTION */}
       {isRejected && (
         <Alert
-          message="Bài nộp bị từ chối (REJECTED)"
-          description="Bài nộp Chung kết đã bị hệ thống từ chối do quá hạn (HARD_LOCK). Không thể nộp lại."
+          message="Bài nộp bị từ chối"
+          description="Bài nộp Chung kết đã bị hệ thống từ chối do quá hạn (khóa cứng thời hạn). Không thể nộp lại."
           type="error"
           showIcon
           style={{ borderRadius: 14, padding: '16px 20px', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}

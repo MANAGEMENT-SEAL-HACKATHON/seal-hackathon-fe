@@ -44,62 +44,46 @@ const getUserInfo = () => {
   }
 };
 
-const generateSHA1 = async (string) => {
-  const buffer = new TextEncoder().encode(string);
-  const hashBuffer = await crypto.subtle.digest('SHA-1', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return hashHex;
-};
-
 const StudentCardPreview = ({ userId }) => {
-  const [cloudinaryFailed, setCloudinaryFailed] = useState(false);
-  const [fallbackUrl, setFallbackUrl] = useState(null);
-  const [loadingFallback, setLoadingFallback] = useState(false);
+  const [cardUrl, setCardUrl] = useState(null);
+  const [loadingCard, setLoadingCard] = useState(false);
   const { token } = theme.useToken();
   const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
 
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'drrd1a7jd';
-  const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/student-cards/student-card-${userId}`;
-
   useEffect(() => {
-    if (!cloudinaryFailed || !userId) return undefined;
+    if (!userId) return undefined;
     let active = true;
-
-    const loadFallback = async () => {
-      setLoadingFallback(true);
+    const load = async () => {
+      setLoadingCard(true);
       try {
         const blob = await userService.getMyStudentCardBlob();
         if (!active || !blob) return;
-        setFallbackUrl(URL.createObjectURL(blob));
+        setCardUrl(URL.createObjectURL(blob));
       } catch (err) {
         console.error('Failed to load student card from backend:', err);
       } finally {
-        if (active) setLoadingFallback(false);
+        if (active) setLoadingCard(false);
       }
     };
-
-    loadFallback();
+    load();
     return () => {
       active = false;
     };
-  }, [cloudinaryFailed, userId]);
+  }, [userId]);
 
   useEffect(() => () => {
-    if (fallbackUrl) URL.revokeObjectURL(fallbackUrl);
-  }, [fallbackUrl]);
+    if (cardUrl) URL.revokeObjectURL(cardUrl);
+  }, [cardUrl]);
 
   if (!userId) return null;
 
-  const displayUrl = cloudinaryFailed ? fallbackUrl : cloudinaryUrl;
-
   return (
     <div style={{ marginTop: 16, textAlign: 'center' }}>
-      {loadingFallback && <Spin size="small" />}
-      {displayUrl ? (
+      {loadingCard && <Spin size="small" />}
+      {cardUrl ? (
         <div style={{ display: 'inline-block', position: 'relative', borderRadius: 16, overflow: 'hidden', border: `2px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`, boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
           <img
-            src={displayUrl}
+            src={cardUrl}
             alt="Ảnh thẻ sinh viên hiện tại"
             style={{
               maxWidth: '100%',
@@ -108,13 +92,10 @@ const StudentCardPreview = ({ userId }) => {
               display: 'block',
               background: isDark ? '#0f172a' : '#f8fafc',
             }}
-            onError={() => {
-              if (!cloudinaryFailed) setCloudinaryFailed(true);
-            }}
           />
         </div>
-      ) : cloudinaryFailed && !loadingFallback ? (
-        <Tag color="warning">Không tải được ảnh thẻ — vui lòng tải lên lại.</Tag>
+      ) : !loadingCard ? (
+        <Tag color="warning">Chưa có ảnh thẻ trên máy chủ — vui lòng tải lên.</Tag>
       ) : null}
     </div>
   );
@@ -141,7 +122,7 @@ const OnboardingPage = () => {
   // Early redirect for coordinators/admins who don't have profiles
   useEffect(() => {
     const initialUser = getUserInfo();
-    if (initialUser.role === 'COORDINATOR' || initialUser.role === 'ADMIN') {
+    if (['COORDINATOR', 'SUPERADMIN'].includes(initialUser.role)) {
       navigate(ROUTES.DASHBOARD, { replace: true });
     }
   }, [navigate]);
@@ -154,7 +135,7 @@ const OnboardingPage = () => {
         const freshUser = await userService.getMe();
         if (!active) return;
 
-        if (freshUser.role === 'COORDINATOR' || freshUser.role === 'ADMIN') {
+        if (['COORDINATOR', 'SUPERADMIN'].includes(freshUser.role)) {
           navigate(ROUTES.DASHBOARD, { replace: true });
           return;
         }
@@ -272,37 +253,7 @@ const OnboardingPage = () => {
         throw new Error('Không xác định được ID người dùng!');
       }
 
-      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-      const apiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;
-      const apiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
-
-      if (!cloudName || !apiKey || !apiSecret) {
-        throw new Error('Thiếu cấu hình Cloudinary trong environment!');
-      }
-
-      const publicId = `student-cards/student-card-${userId}`;
-      const timestamp = Math.round(new Date().getTime() / 1000);
-
-      const signatureString = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
-      const signature = await generateSHA1(signatureString);
-
-      const cloudinaryFormData = new FormData();
-      cloudinaryFormData.append('file', file);
-      cloudinaryFormData.append('api_key', apiKey);
-      cloudinaryFormData.append('timestamp', timestamp);
-      cloudinaryFormData.append('public_id', publicId);
-      cloudinaryFormData.append('signature', signature);
-
-      const cloudinaryResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-        method: 'POST',
-        body: cloudinaryFormData
-      });
-
-      if (!cloudinaryResponse.ok) {
-        const errorData = await cloudinaryResponse.json();
-        throw new Error(errorData?.error?.message || 'Không thể upload ảnh lên Cloudinary');
-      }
-
+      // Upload qua BE (MinIO/storage) — không ký Cloudinary trên client (CLOUD-01/02)
       await userService.uploadStudentCard(file);
 
       const updated = { ...getUserInfo(), studentCardUploaded: true };

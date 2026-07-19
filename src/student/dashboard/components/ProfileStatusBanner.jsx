@@ -33,7 +33,7 @@ const ProfileStatusBanner = ({ user }) => {
         bg: 'linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, rgba(239, 68, 68, 0.02) 100%)',
         border: 'rgba(239, 68, 68, 0.25)',
         title: 'Hồ sơ cần bổ sung thông tin FPTU',
-        description: 'Cập nhật đủ thông tin cá nhân và minh chứng sinh viên Đại học FPT để Coordinator có thể duyệt tài khoản của bạn.',
+        description: 'Cập nhật đủ thông tin cá nhân và minh chứng sinh viên Đại học FPT để Ban tổ chức có thể duyệt tài khoản của bạn.',
         action: 'Cập nhật hồ sơ',
       }
     : {
@@ -42,7 +42,7 @@ const ProfileStatusBanner = ({ user }) => {
         bg: 'linear-gradient(135deg, rgba(0, 82, 156, 0.06) 0%, rgba(0, 82, 156, 0.02) 100%)',
         border: 'rgba(0, 82, 156, 0.25)',
         title: 'Hồ sơ đang chờ xét duyệt',
-        description: 'Thông tin của bạn đã được ghi nhận. Coordinator FPTU sẽ kiểm tra và phê duyệt trong thời gian sớm nhất.',
+        description: 'Thông tin của bạn đã được ghi nhận. Ban tổ chức FPTU sẽ kiểm tra và phê duyệt trong thời gian sớm nhất.',
         action: 'Xem hồ sơ',
       };
 

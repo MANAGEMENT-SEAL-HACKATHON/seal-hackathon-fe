@@ -7,11 +7,14 @@ export const BE_DEV_SLUGS = [
   'seal-fall-2025-finished',
   'seal-gd3-prelim-open',
   'seal-gd4-advance-ready',
+  'seal-gd4-tiebreak-submission-time',
+  'seal-gd4-tiebreak-manual',
+  'seal-gd4-wildcard-gap',
   'seal-gd5-final-active',
   'seal-gd6-pending-confirm',
 ];
 
-export const EXPECTED_SLUG_COUNT = 6;
+export const EXPECTED_SLUG_COUNT = 9;
 
 /** Named exports for specs (plan DevSeedSlugs shape). */
 export const DevSeedSlugs = {
@@ -19,6 +22,9 @@ export const DevSeedSlugs = {
   FINISHED: 'seal-fall-2025-finished',
   GD3_PRELIM_OPEN: 'seal-gd3-prelim-open',
   GD4_ADVANCE_READY: 'seal-gd4-advance-ready',
+  GD4_TIEBREAK_SUBMISSION_TIME: 'seal-gd4-tiebreak-submission-time',
+  GD4_TIEBREAK_MANUAL: 'seal-gd4-tiebreak-manual',
+  GD4_WILDCARD_GAP: 'seal-gd4-wildcard-gap',
   GD5_FINAL_ACTIVE: 'seal-gd5-final-active',
   GD6_PENDING_CONFIRM: 'seal-gd6-pending-confirm',
 };

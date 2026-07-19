@@ -10,7 +10,7 @@ const REASON_META = {
   TOP_N: { color: "green", label: "Top N" },
   WILDCARD: { color: "blue", label: "Vé vớt" },
   OUT: { color: "default", label: "Loại" },
-  DQ: { color: "red", label: "DQ" },
+  DQ: { color: "red", label: "Bị loại kỷ luật" },
 };
 
 const RosterColumn = ({ title, color, items, emptyText }) => (
@@ -56,7 +56,7 @@ const RosterColumn = ({ title, color, items, emptyText }) => (
                 </Text>
               </div>
               <Tooltip title={item.reasonLabel || meta.label}>
-                <Tag color={meta.color}>{item.reasonCode || meta.label}</Tag>
+                <Tag color={meta.color}>{item.reasonLabel || meta.label}</Tag>
               </Tooltip>
             </div>
           );
@@ -95,7 +95,7 @@ const AdvanceRosterPanel = ({ roundId, isPublished }) => {
   const trackOptions = useMemo(() => {
     const map = new Map();
     items.forEach((item) => {
-      if (item.trackId != null) map.set(String(item.trackId), item.trackName || `Track #${item.trackId}`);
+      if (item.trackId != null) map.set(String(item.trackId), item.trackName || `Bảng #${item.trackId}`);
     });
     return [...map.entries()].map(([value, label]) => ({ value, label }));
   }, [items]);
@@ -148,7 +148,7 @@ const AdvanceRosterPanel = ({ roundId, isPublished }) => {
       <Alert
         showIcon
         type="error"
-        message="Không tải được danh sách CK & loại"
+        message="Không tải được danh sách Chung kết & bị loại"
         action={<Button size="small" onClick={load}>Thử lại</Button>}
       />
     );
@@ -179,14 +179,14 @@ const AdvanceRosterPanel = ({ roundId, isPublished }) => {
             Làm mới
           </Button>
           <Button type="primary" icon={<DownloadOutlined />} onClick={exportCsv} disabled={filtered.length === 0}>
-            Xuất CSV
+            Xuất tệp bảng
           </Button>
         </Space>
       </Space>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
-          <RosterColumn title="Vào Chung kết" color="#389e0d" items={advanced} emptyText="Chưa có đội vào CK" />
+          <RosterColumn title="Vào Chung kết" color="#389e0d" items={advanced} emptyText="Chưa có đội vào Chung kết" />
         </Col>
         <Col xs={24} md={12}>
           <RosterColumn title="Bị loại" color="#cf1322" items={eliminated} emptyText="Không có đội bị loại" />

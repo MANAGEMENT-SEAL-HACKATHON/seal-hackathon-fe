@@ -32,7 +32,7 @@ const StudentResultsIndexPage = () => {
     let cancelled = false;
     const fetchMyHackathons = async () => {
       try {
-        const teams = await studentTeamService.getMyTeams();
+        const teams = await studentTeamService.getMyTeams({ includeEliminated: true });
         
         // Lọc ra các hackathon unique kèm thông tin đội
         const uniqueHackathons = [];

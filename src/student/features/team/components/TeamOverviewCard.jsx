@@ -354,7 +354,6 @@ const TeamOverviewCard = ({ team, onConfirmFormation, actionLoading = false }) =
       {(team.isAdvanced ||
         team.isEliminatedFromFinal ||
         isPublished ||
-        team.isInFormationGracePeriod ||
         team.rejectionReason) && (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20, paddingTop: 18, borderTop: '1px solid rgba(255, 255, 255, 0.12)' }}>
           {team.isAdvanced && (
@@ -481,30 +480,6 @@ const TeamOverviewCard = ({ team, onConfirmFormation, actionLoading = false }) =
               ) : (
                 <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Đã công bố bảng xếp hạng.</Text>
               )}
-            </div>
-          )}
-
-          {team.isInFormationGracePeriod && (
-            <div
-              style={{
-                padding: '14px 18px',
-                borderRadius: 14,
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.3) 100%)',
-                border: '1px solid rgba(251, 191, 36, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14,
-              }}
-            >
-              <ClockCircleOutlined style={{ fontSize: 22, color: '#FDE68A' }} />
-              <div>
-                <Text style={{ color: '#FDE68A', fontWeight: 800, fontSize: 15, display: 'block' }}>
-                  Thời gian suy nghĩ 24 giờ
-                </Text>
-                <Text style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: 13, marginTop: 2, display: 'block' }}>
-                  Hackathon đã kết thúc đăng ký sớm. Hạn chốt xác nhận: {dayjs(team.formationGraceDeadlineAt).format('DD/MM/YYYY HH:mm')}.
-                </Text>
-              </div>
             </div>
           )}
 

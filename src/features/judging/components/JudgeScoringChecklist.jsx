@@ -10,7 +10,6 @@ const JudgeScoringChecklist = ({
   trackQueue = [],
   myScoredSubmissions = {},
   isFinal = false,
-  isCalibration = false,
   localTimerPhase,
   canSubmitFinalScore = false,
 }) => {
@@ -24,66 +23,40 @@ const JudgeScoringChecklist = ({
     (c) => currentScores[c.id] !== undefined && currentScores[c.id] !== null,
   ).length;
 
-  const timerReady = isCalibration
-    ? ['PRESENTATION', 'QA', 'ENDED'].includes(localTimerPhase)
-    : ['QA', 'ENDED'].includes(localTimerPhase);
+  const timerReady = ['QA', 'ENDED'].includes(localTimerPhase);
 
-  const items = isCalibration
-    ? [
-        {
-          key: 'calibration',
-          label: 'Chế độ hiệu chuẩn (mẫu thử)',
-          done: true,
-        },
-        {
-          key: 'timer',
-          label: timerReady ? 'Timer: đã chạy phiên mẫu' : 'Timer: chờ bắt đầu / Q&A',
-          done: timerReady,
-        },
-        ...criteria.map((c) => ({
-          key: `criteria-${c.id}`,
-          label: c.name || c.type,
-          done: currentScores[c.id] !== undefined && currentScores[c.id] !== null,
-        })),
-        {
-          key: 'submit',
-          label: hasScoredCurrentTeam ? 'Đã ghi điểm mẫu' : 'Chưa ghi điểm mẫu',
-          done: hasScoredCurrentTeam,
-          highlight: canSubmitFinalScore && !hasScoredCurrentTeam,
-        },
-      ]
-    : [
-        {
-          key: 'round',
-          label: `Vòng thi: ${isFinal ? 'Chung kết' : 'Sơ loại (1/2)'}`,
-          done: true,
-        },
-        {
-          key: 'progress',
-          label: `Tiến độ chấm: ${scoredTeams}/${totalTeams || 0} đội`,
-          done: totalTeams > 0 && scoredTeams === totalTeams,
-        },
-        {
-          key: 'timer',
-          label: timerReady ? 'Timer: sẵn sàng chốt điểm' : 'Timer: chờ Q&A / hết giờ',
-          done: timerReady,
-        },
-        ...criteria.map((c) => ({
-          key: `criteria-${c.id}`,
-          label: c.name || c.type,
-          done: currentScores[c.id] !== undefined && currentScores[c.id] !== null,
-        })),
-        {
-          key: 'submit',
-          label: hasScoredCurrentTeam ? 'Đã chốt điểm đội hiện tại' : 'Chưa chốt điểm đội hiện tại',
-          done: hasScoredCurrentTeam,
-          highlight: canSubmitFinalScore && !hasScoredCurrentTeam,
-        },
-      ];
+  const items = [
+    {
+      key: 'round',
+      label: `Vòng thi: ${isFinal ? 'Chung kết' : 'Sơ loại (1/2)'}`,
+      done: true,
+    },
+    {
+      key: 'progress',
+      label: `Tiến độ chấm: ${scoredTeams}/${totalTeams || 0} đội`,
+      done: totalTeams > 0 && scoredTeams === totalTeams,
+    },
+    {
+      key: 'timer',
+      label: timerReady ? 'Timer: sẵn sàng chốt điểm' : 'Timer: chờ Q&A / hết giờ',
+      done: timerReady,
+    },
+    ...criteria.map((c) => ({
+      key: `criteria-${c.id}`,
+      label: c.name || c.type,
+      done: currentScores[c.id] !== undefined && currentScores[c.id] !== null,
+    })),
+    {
+      key: 'submit',
+      label: hasScoredCurrentTeam ? 'Đã chốt điểm đội hiện tại' : 'Chưa chốt điểm đội hiện tại',
+      done: hasScoredCurrentTeam,
+      highlight: canSubmitFinalScore && !hasScoredCurrentTeam,
+    },
+  ];
 
   return (
     <Card
-      title={isCalibration ? 'Checklist hiệu chuẩn' : 'Checklist chấm thi'}
+      title="Checklist chấm thi"
       size="small"
       style={{
         borderRadius: 16,

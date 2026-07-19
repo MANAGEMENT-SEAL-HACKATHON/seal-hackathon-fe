@@ -53,6 +53,8 @@ const StudentDashboardPage = () => {
     user,
     activeHackathon,
     selectedTeam,
+    nextAction,
+    upcomingDeadlines,
     isLoading: isDashboardLoading,
     isTeamLoading,
     refreshHackathonAndTeam,
@@ -75,6 +77,32 @@ const StudentDashboardPage = () => {
     >
       {/* ─── Profile Status Banner (non-approved only) ─── */}
       <ProfileStatusBanner user={user} />
+
+      {nextAction ? (
+        <div
+          data-testid="student-next-action"
+          style={{
+            borderRadius: 16,
+            padding: '16px 20px',
+            background: 'linear-gradient(90deg, rgba(0,82,156,0.08), rgba(243,112,33,0.08))',
+            border: '1px solid rgba(0,82,156,0.15)',
+          }}
+        >
+          <Text strong style={{ color: FPT.blue }}>Hành động kế tiếp</Text>
+          <Title level={4} style={{ margin: '4px 0' }}>{nextAction.title}</Title>
+          <Text type="secondary">{nextAction.detail}</Text>
+          {upcomingDeadlines?.length > 0 ? (
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary">Sắp tới: </Text>
+              {upcomingDeadlines.slice(0, 3).map((e) => (
+                <Text key={`${e.name}-${e.start}`} style={{ marginRight: 12 }}>
+                  {e.name} ({new Date(e.start).toLocaleString('vi-VN')})
+                </Text>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* ─── HERO: FPT Official Blue & Orange Command Center ─── */}
       <motion.section

@@ -1,0 +1,54 @@
+name: FE PR CI
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main]
+
+jobs:
+  unit-build-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Unit tests + Cloudinary secret scan
+        run: npm run test:unit:all
+      - name: Production build
+        run: npm run build
+      - name: Ensure dist has no Cloudinary API secret key
+        run: |
+          if rg -n "VITE_CLOUDINARY_API_SECRET" dist; then
+            echo "Secret leaked into production bundle"
+            exit 1
+          fi
+          echo "dist clean"
+
+  e2e-readonly:
+    runs-on: ubuntu-latest
+    needs: [unit-build-security]
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Seed parity smoke (optional — continue on skip if BE unavailable)
+        run: npm run test:e2e:parity
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

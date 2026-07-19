@@ -62,7 +62,19 @@ const PersonAssignmentsModal = ({ person, open, onClose }) => {
                   {
                     title: 'Vai trò',
                     dataIndex: 'assignmentType',
-                    render: (v, r) => <Tag>{v ?? r.assignment_type ?? 'JUDGE'}</Tag>,
+                    render: (v, r) => {
+                      const raw = v ?? r.assignment_type ?? 'JUDGE';
+                      const map = {
+                        JUDGE: 'Giám khảo',
+                        MENTOR: 'Cố vấn',
+                        COORDINATOR: 'Điều phối',
+                        INTERNAL: 'Nội bộ',
+                        GUEST: 'Khách mời',
+                        HEAD: 'Trưởng ban',
+                      };
+                      const key = String(raw).toUpperCase();
+                      return <Tag>{map[key] || raw}</Tag>;
+                    },
                   },
                 ]
           }

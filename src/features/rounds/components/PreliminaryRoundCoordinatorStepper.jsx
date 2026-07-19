@@ -66,20 +66,20 @@ const PreliminaryRoundCoordinatorStepper = ({ round, hackathonId }) => {
             ),
           },
           {
-            title: 'Readiness',
+            title: 'Sẵn sàng chấm',
             description: <Link to={queueUrl}>Kiểm tra sẵn sàng</Link>,
           },
           {
-            title: 'Shuffle queue',
+            title: 'Xáo trộn hàng đợi',
             description: <Link to={queueUrl}>Xáo trộn hàng đợi</Link>,
           },
           {
-            title: 'Controller + Timer',
-            description: <Text type="secondary">Gán controller & bắt đầu timer trên queue</Text>,
+            title: 'Điều khiển & đồng hồ',
+            description: <Text type="secondary">Gán người điều khiển và bắt đầu đồng hồ trên hàng đợi</Text>,
           },
           {
             title: 'Khóa chấm',
-            description: <Link to={roundsUrl}>Lock scoring</Link>,
+            description: <Link to={roundsUrl}>Khóa chấm điểm</Link>,
           },
         ]}
       />

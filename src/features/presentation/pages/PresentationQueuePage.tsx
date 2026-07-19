@@ -23,12 +23,15 @@ import {
   PRELIMINARY_SUBMISSION_ERROR_MESSAGES,
 } from '../../submissions/constants/preliminarySubmissionErrors';
 import toast from 'react-hot-toast';
+import { ROUTES } from '../../../shared/constants/routes';
 import { usePresentationQueueSocket } from '../../../shared/hooks/usePresentationQueueSocket';
 
 // Import Components phụ
 import PresentationControllerCard from '../components/PresentationControllerCard';
 import PresentationReadinessPanel from '../components/PresentationReadinessPanel';
-import { countGradableSubmissions, isGradableSubmissionStatus } from '../utils/presentationSubmissionUtils';
+import { teamService } from '../../teams/services/teamService';
+import { buildSubmissionRoster } from '../../rounds/utils/submissionRoster';
+import { getSubmissionStatusMeta, isGradableSubmissionStatus } from '../utils/presentationSubmissionUtils';
 import {
   getEligibleTeamStatusLabel,
   getFinalParticipationCounts,
@@ -216,7 +219,7 @@ const PresentationQueuePage: React.FC = () => {
   const { serverNow } = useServerNow();
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
   const userRole = String(userInfo.role || '').toUpperCase();
-  const isCoordinator = ['COORDINATOR', 'ADMIN'].includes(userRole);
+  const isCoordinator = ['COORDINATOR', 'SUPERADMIN'].includes(userRole);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const roundIdFromUrl = searchParams.get('roundId');
@@ -224,6 +227,7 @@ const PresentationQueuePage: React.FC = () => {
 
   const [roundId, setRoundId] = useState<number | null>(roundIdFromUrl ? Number(roundIdFromUrl) : null);
   const [selectedTrackId, setSelectedTrackId] = useState<number | null>(trackIdFromUrl ? Number(trackIdFromUrl) : null);
+  const [resolveFailed, setResolveFailed] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [shuffleError, setShuffleError] = useState<string | null>(null);
   const [isDurationModalOpen, setIsDurationModalOpen] = useState(false);
@@ -234,7 +238,17 @@ const PresentationQueuePage: React.FC = () => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!roundIdFromUrl) personBApi.resolveActiveRoundId().then((id: number | null) => { if (id) setRoundId(id); });
+    if (roundIdFromUrl) {
+      setResolveFailed(false);
+      return;
+    }
+    setResolveFailed(false);
+    personBApi.resolveActiveRoundId()
+      .then((id: number | null) => {
+        if (id) setRoundId(id);
+        else setResolveFailed(true);
+      })
+      .catch(() => setResolveFailed(true));
   }, [roundIdFromUrl]);
 
   const { data: roundDetail } = useQuery<any>({
@@ -246,12 +260,34 @@ const PresentationQueuePage: React.FC = () => {
   const isFinalRound = Boolean(roundDetail?.isFinal || roundDetail?.is_final);
   const wsTrackId = !isFinalRound && selectedTrackId ? selectedTrackId : null;
 
+  // Client-side tick for presenting countdown (Coord live status)
+  const [liveCountdown, setLiveCountdown] = useState<{
+    submissionId: number | string;
+    remainingSeconds: number;
+    phase: string;
+    syncedAt: number;
+  } | null>(null);
+
   const { connected: queueSocketConnected } = usePresentationQueueSocket(
     roundId,
     () => {
       queryClient.invalidateQueries({ queryKey: ['presentationQueue', roundId, selectedTrackId] });
     },
     wsTrackId,
+    {
+      onTimerPhase: (payload: any) => {
+        if (!payload || payload.type !== 'TIMER_PHASE') return;
+        const subId = payload.submissionId;
+        const remaining = Number(payload.remainingSeconds ?? 0);
+        if (subId == null || !Number.isFinite(remaining)) return;
+        setLiveCountdown((prev) => ({
+          submissionId: subId,
+          remainingSeconds: remaining,
+          phase: payload.phase || prev?.phase || 'PRESENTING',
+          syncedAt: Date.now(),
+        }));
+      },
+    },
   );
 
   // ── QUERIES ──
@@ -282,6 +318,18 @@ const PresentationQueuePage: React.FC = () => {
     queryKey: ['roundSubmissions', roundId],
     queryFn: () => personBApi.getRoundSubmissions(roundId!),
     enabled: roundId !== null && isCoordinator,
+  });
+
+  const { data: hackathonTeams = [] } = useQuery<any[]>({
+    queryKey: ['hackathonTeamsForQueue', currentHackathonId, isFinalRound],
+    queryFn: async () => {
+      // TeamStatus không có ADVANCED — dùng ACTIVE (đội CK vẫn ACTIVE sau advance)
+      const data: any = await teamService.listByHackathon(currentHackathonId!, {
+        status: 'ACTIVE',
+      });
+      return Array.isArray(data) ? data : data?.items || [];
+    },
+    enabled: Boolean(currentHackathonId) && isCoordinator,
   });
 
   const { data: trackMentors = [] } = useQuery<any[]>({
@@ -320,8 +368,6 @@ const PresentationQueuePage: React.FC = () => {
 
   // ── BÓC TÁCH DỮ LIỆU ──
   const scoringLocked = Boolean(roundDetail?.scoringLocked || roundDetail?.scoring_locked);
-  const canShuffleQueue = canShuffleQueueGate(roundDetail, serverNow);
-  const shuffleDisabledTooltip = getShuffleQueueTooltip(roundDetail, serverNow);
   const hackathonName = hackathonDetail?.name || hackathonDetail?.title || 'SEAL Hackathon'; 
   const roundName = roundDetail?.name || (isFinalRound ? 'Vòng Chung Kết' : 'Vòng Sơ Loại');
 
@@ -346,6 +392,47 @@ const PresentationQueuePage: React.FC = () => {
   const teamsList = activeTrackData?.items || [];
   const isShuffled = Boolean(activeTrackData?.shuffled);
 
+  // Sync countdown from queue payload when presenting slot has timer.remainingSeconds
+  useEffect(() => {
+    const presenting = teamsList.find(
+      (t: any) => t.status === 'PRESENTING' || t.queueStatus === 'PRESENTING',
+    );
+    if (!presenting) {
+      setLiveCountdown(null);
+      return;
+    }
+    const remaining = Number(presenting.timer?.remainingSeconds);
+    if (!Number.isFinite(remaining)) return;
+    setLiveCountdown({
+      submissionId: presenting.submissionId,
+      remainingSeconds: remaining,
+      phase: presenting.timer?.phase || 'PRESENTING',
+      syncedAt: Date.now(),
+    });
+  }, [queueResponse, selectedTrackId]);
+
+  useEffect(() => {
+    if (!liveCountdown) return undefined;
+    const id = window.setInterval(() => {
+      setLiveCountdown((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          remainingSeconds: Math.max(0, prev.remainingSeconds - 1),
+          syncedAt: Date.now(),
+        };
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [Boolean(liveCountdown)]);
+
+  const formatCountdown = (totalSeconds: number) => {
+    const s = Math.max(0, Math.floor(totalSeconds || 0));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+  };
+
   const hasActiveOrDoneTeams = teamsList.some((t: any) =>
     ['PRESENTING', 'DONE', 'QA', 'PAUSED'].includes(t.status || t.queueStatus || t.timer?.phase)
   );
@@ -353,8 +440,47 @@ const PresentationQueuePage: React.FC = () => {
 
   const scopedSubmissions = useMemo(() => {
     if (isFinalRound || !selectedTrackId) return roundSubmissions;
-    return roundSubmissions.filter((s: any) => Number(s.track_id) === Number(selectedTrackId));
+    return roundSubmissions.filter((s: any) => Number(s.track_id ?? s.trackId) === Number(selectedTrackId));
   }, [roundSubmissions, selectedTrackId, isFinalRound]);
+
+  const prelimEligibleTeams = useMemo(() => {
+    if (isFinalRound) return [];
+    const roster = buildSubmissionRoster(hackathonTeams, roundSubmissions);
+    const filtered = selectedTrackId
+      ? roster.filter((r) => Number(r.trackId) === Number(selectedTrackId))
+      : roster;
+    return filtered.map((r) => ({
+      teamId: r.id,
+      teamName: r.name,
+      submissionStatus: r.submissionStatus,
+      submissionId: r.submissionId,
+      gradable: isGradableSubmissionStatus(r.submissionStatus),
+      statusMeta: getSubmissionStatusMeta(r.submissionStatus, {
+        latePolicy: roundDetail?.lateSubmissionPolicy || roundDetail?.late_submission_policy || 'ALLOW_LATE_PENDING',
+        windowClosed: isSubmissionClosed(roundDetail, serverNow),
+        isFinal: false,
+      }),
+    }));
+  }, [isFinalRound, hackathonTeams, roundSubmissions, selectedTrackId, roundDetail, serverNow]);
+
+  const latePendingCount = useMemo(() => {
+    if (isFinalRound) {
+      return scopedSubmissions.filter((s: any) => String(s.status || '').toUpperCase() === 'LATE_PENDING').length;
+    }
+    const fromRoster = prelimEligibleTeams.filter(
+      (t) => String(t.submissionStatus || '').toUpperCase() === 'LATE_PENDING',
+    ).length;
+    if (fromRoster > 0) return fromRoster;
+    // Fallback: submissions API may list LATE_PENDING before roster join catches up
+    return scopedSubmissions.filter((s: any) => String(s.status || '').toUpperCase() === 'LATE_PENDING').length;
+  }, [isFinalRound, scopedSubmissions, prelimEligibleTeams]);
+
+  const hasLatePending = latePendingCount > 0;
+  const canShuffleQueue = canShuffleQueueGate(roundDetail, serverNow, { hasLatePending });
+  const shuffleDisabledTooltip = getShuffleQueueTooltip(roundDetail, serverNow, {
+    hasLatePending,
+    latePendingCount,
+  });
 
   const finalParticipation = useMemo(
     () => (isFinalRound ? getFinalParticipationCounts(activeTrackData, scopedSubmissions) : null),
@@ -363,13 +489,14 @@ const PresentationQueuePage: React.FC = () => {
 
   const gradableTeamCount = isFinalRound
     ? (finalParticipation?.gradable ?? 0)
-    : countGradableSubmissions(scopedSubmissions);
+    : prelimEligibleTeams.filter((t) => t.gradable).length;
 
   const totalParticipatingCount = isFinalRound
     ? (finalParticipation?.participating ?? 0)
-    : scopedSubmissions.length;
+    : prelimEligibleTeams.length;
 
   const finalEligibleTeams = finalParticipation?.eligibleTeams ?? [];
+  const lotteryPreviewTeams = isFinalRound ? finalEligibleTeams : prelimEligibleTeams;
 
   const displayTeamCount = teamsList.length > 0 ? teamsList.length : gradableTeamCount;
   const displayTeamLabel = isFinalRound && !showQueueDirectly && totalParticipatingCount > 0
@@ -497,8 +624,22 @@ const PresentationQueuePage: React.FC = () => {
     return (
       <div style={{ padding: 100, textAlign: 'center' }}>
         <Title level={3} style={{ color: '#1e293b' }}>Không xác định được vòng thi</Title>
-        <Text type="secondary">Vui lòng quay lại trang Cấu hình và chọn "Mở hàng đợi" trên 1 vòng cụ thể.</Text>
-        <br/><br/><Button type="primary" onClick={() => navigate(-1)} style={{ background: PRIMARY_BLUE, marginTop: 16 }}>Quay lại</Button>
+        <Text type="secondary">
+          {resolveFailed || userRole === 'MENTOR'
+            ? 'Chọn vòng từ danh sách mentor'
+            : 'Vui lòng quay lại trang Cấu hình và chọn "Mở hàng đợi" trên 1 vòng cụ thể.'}
+        </Text>
+        <br /><br />
+        <Space>
+          {userRole === 'MENTOR' && (
+            <Button type="primary" onClick={() => navigate(ROUTES.MENTOR_ROUNDS)} style={{ background: PRIMARY_BLUE }}>
+              Đến danh sách mentor
+            </Button>
+          )}
+          <Button onClick={() => navigate(-1)} style={{ marginTop: userRole === 'MENTOR' ? 0 : 16 }}>
+            Quay lại
+          </Button>
+        </Space>
       </div>
     );
   }
@@ -524,14 +665,16 @@ const PresentationQueuePage: React.FC = () => {
                 Cài đặt Thời lượng
               </Button>
             )}
-            <Button
-              onClick={handleSyncDuration}
-              loading={syncDurationMutation.isPending}
-              size="large"
-              style={{ borderRadius: '8px', fontWeight: 600, borderColor: '#cbd5e1' }}
-            >
-              <RetweetOutlined /> Cập nhật Đồng bộ
-            </Button>
+            {isCoordinator && (
+              <Button
+                onClick={handleSyncDuration}
+                loading={syncDurationMutation.isPending}
+                size="large"
+                style={{ borderRadius: '8px', fontWeight: 600, borderColor: '#cbd5e1' }}
+              >
+                <RetweetOutlined /> Cập nhật Đồng bộ
+              </Button>
+            )}
           </Space>
         </div>
       </div>
@@ -595,26 +738,24 @@ const PresentationQueuePage: React.FC = () => {
                 <Text style={{ fontSize: 16, color: '#475569', display: 'block', maxWidth: 600, margin: '0 auto 24px', lineHeight: 1.6, textAlign: 'center' }}>
                   Hệ thống sẽ dùng thuật toán quay số để phân bổ các đội thi vào các khung giờ thuyết trình hoàn toàn ngẫu nhiên và minh bạch.
                 </Text>
-                {(isFinalRound ? finalEligibleTeams.length > 0 : scopedSubmissions.length > 0) && (
+                {(lotteryPreviewTeams.length > 0) && (
                   <div style={{ maxWidth: 640, margin: '0 auto 28px', background: '#f8fafc', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                     <div style={{ padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text strong style={{ color: '#475569', fontSize: 13 }}>ĐỘI SẼ VÀO HÀNG ĐỢI</Text>
+                      <Text strong style={{ color: '#475569', fontSize: 13 }}>
+                        {`ĐỘI SẼ VÀO HÀNG ĐỢI (${lotteryPreviewTeams.length} đội)`}
+                      </Text>
                       <Tag color="blue" style={{ margin: 0, fontWeight: 700 }}>
-                        {isFinalRound
-                          ? `${gradableTeamCount}/${totalParticipatingCount} sẵn sàng`
-                          : `${gradableTeamCount} / ${scopedSubmissions.length} đủ điều kiện`}
+                        {`${gradableTeamCount}/${totalParticipatingCount} sẵn sàng`}
                       </Tag>
                     </div>
-                    <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                      {(isFinalRound ? finalEligibleTeams : scopedSubmissions).map((entry: any) => {
-                        const gradable = isFinalRound
-                          ? entry.gradable
-                          : isGradableSubmissionStatus(entry.status);
-                        const teamName = isFinalRound ? entry.teamName : entry.team_name;
-                        const rowKey = isFinalRound ? entry.teamId : entry.id;
+                    <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+                      {lotteryPreviewTeams.map((entry: any) => {
+                        const gradable = Boolean(entry.gradable);
+                        const teamName = entry.teamName;
+                        const rowKey = entry.teamId;
                         const statusMeta = isFinalRound
                           ? getEligibleTeamStatusLabel(entry)
-                          : null;
+                          : entry.statusMeta;
                         return (
                           <div
                             key={rowKey}
@@ -719,7 +860,24 @@ const PresentationQueuePage: React.FC = () => {
                         </div>
                       </Space>
                       <div>
-                        {isActuallyLive && <Tag color="blue" icon={<PlayCircleOutlined />} style={{ padding: '8px 16px', borderRadius: 12, fontWeight: 800, fontSize: 14, border: `2px solid ${PRIMARY_BLUE}` }}>ĐANG TRÌNH BÀY</Tag>}
+                        {isActuallyLive && (
+                          <Tag
+                            color="blue"
+                            icon={<PlayCircleOutlined />}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: 12,
+                              fontWeight: 800,
+                              fontSize: 14,
+                              border: `2px solid ${PRIMARY_BLUE}`,
+                            }}
+                          >
+                            ĐANG TRÌNH BÀY
+                            {liveCountdown
+                              && String(liveCountdown.submissionId) === String(team.submissionId)
+                              && ` · ${liveCountdown.phase === 'QA' ? 'Q&A' : 'TT'} ${formatCountdown(liveCountdown.remainingSeconds)}`}
+                          </Tag>
+                        )}
                         {isPreparing && <Tag color="orange" icon={<LoadingOutlined />} style={{ padding: '8px 16px', borderRadius: 12, fontWeight: 800, fontSize: 14, border: `2px solid #f59e0b` }}>ĐANG CHUẨN BỊ</Tag>}
                         {isDone && <Text type="secondary" style={{ fontSize: 15, fontWeight: 600 }}><CheckCircleFilled style={{ color: '#94a3b8', marginRight: 6 }}/> Đã bảo vệ xong</Text>}
                         {team.status === 'WAITING' && <Text type="secondary" style={{ fontSize: 15, fontWeight: 600, color: '#64748b' }}><ClockCircleOutlined style={{ marginRight: 6 }}/> Chờ tới lượt</Text>}
@@ -732,13 +890,13 @@ const PresentationQueuePage: React.FC = () => {
           </Card>
         </Col>
 
-        {/* CỘT PHẢI: GÁN QUYỀN TRƯỞNG BAN & BÀI NỘP TRỄ */}
+        {/* CỘT PHẢI: PHÂN QUYỀN ĐỒNG HỒ THỜI GIAN & BÀI NỘP TRỄ */}
         <Col xs={24} lg={9} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {isCoordinator && roundId && (
             <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
               <div style={{ background: '#f8fafc', padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
-                 <Title level={4} style={{ margin: 0, color: '#0f172a', fontWeight: 900 }}>Ủy quyền điều phối timer</Title>
-                 <Text type="secondary" style={{ fontSize: 13, marginTop: 4, display: 'block', lineHeight: 1.6 }}>Người được chọn sẽ bấm timer và mở khóa form chấm điểm cho hội đồng. Coordinator có thể đổi người này bất cứ lúc nào.</Text>
+                 <Title level={4} style={{ margin: 0, color: '#0f172a', fontWeight: 900 }}>Phân quyền điều phối đồng hồ thời gian</Title>
+                 <Text type="secondary" style={{ fontSize: 13, marginTop: 4, display: 'block', lineHeight: 1.6 }}>Người được chọn sẽ điều khiển đồng hồ thời gian và mở khóa form chấm điểm cho hội đồng. Coordinator có thể đổi người này bất cứ lúc nào.</Text>
               </div>
               <div style={{ padding: 24 }}>
                  <PresentationControllerCard trackId={selectedTrackId as any} roundId={roundId as any} mode={isFinalRound ? 'round' : 'track'} canGrant={true} />
@@ -771,10 +929,14 @@ const PresentationQueuePage: React.FC = () => {
 
           {isCoordinator && roundId && !isFinalRound && (
              <PresentationReadinessPanel 
-                roundId={roundId as any} trackId={selectedTrackId as any} trackName={activeTrackData?.trackName} 
+                roundId={roundId as any} hackathonId={currentHackathonId as any}
+                trackId={selectedTrackId as any} trackName={activeTrackData?.trackName} 
                 canReviewLate={true}
                 latePolicy={roundDetail?.lateSubmissionPolicy || roundDetail?.late_submission_policy || 'ALLOW_LATE_PENDING'}
                 windowClosed={isSubmissionClosed(roundDetail, serverNow)}
+                eligibleTeams={prelimEligibleTeams}
+                participatingCount={totalParticipatingCount}
+                gradableCount={gradableTeamCount}
                 onReviewSuccess={() => refetchQueue()} 
              />
           )}

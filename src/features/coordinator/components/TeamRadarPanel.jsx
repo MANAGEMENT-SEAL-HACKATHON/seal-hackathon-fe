@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Alert, Button, Col, Row, Spin, Typography, theme } from 'antd';
 import { PlusOutlined, RadarChartOutlined } from '@ant-design/icons';
 import { useTeamRadar } from '../hooks/useTeamRadar';
@@ -7,16 +7,45 @@ import IncompleteTeamTable from './IncompleteTeamTable';
 import AdminCreateTeamModal from './AdminCreateTeamModal';
 import AdminAddMemberModal from './AdminAddMemberModal';
 import AdminMergeTeamModal from './AdminMergeTeamModal';
+import { trackService } from '../../tracks/services/trackService';
+import { resolveHackathonTeamSizeLimits } from '../../teams/utils/hackathonTeamSize';
 
 const { Title, Text } = Typography;
 
 const TeamRadarPanel = ({ hackathonId, onDataChanged }) => {
   const { token } = theme.useToken();
   const { orphans, incompleteTeams, loading, error, refetch } = useTeamRadar(hackathonId);
+  const [tracks, setTracks] = useState([]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [addMemberTeam, setAddMemberTeam] = useState(null);
   const [mergeTeam, setMergeTeam] = useState(null);
+
+  useEffect(() => {
+    if (!hackathonId) {
+      setTracks([]);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await trackService.listByHackathon(hackathonId);
+        if (!cancelled) {
+          setTracks(Array.isArray(res) ? res : res?.items || []);
+        }
+      } catch {
+        if (!cancelled) setTracks([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hackathonId]);
+
+  const { minTeamSize, maxTeamSize } = useMemo(
+    () => resolveHackathonTeamSizeLimits(tracks),
+    [tracks],
+  );
 
   const handleSuccess = async () => {
     await refetch();
@@ -41,13 +70,15 @@ const TeamRadarPanel = ({ hackathonId, onDataChanged }) => {
             Radar & Giải cứu đội thi
           </Title>
           <Text type="secondary">
-            Dò sinh viên mồ côi và đội thiếu người. Khi đủ 3 thành viên, hệ thống tự chuyển đội sang ACTIVE.
+            Dò sinh viên mồ côi và đội ngoài khoảng {minTeamSize}–{maxTeamSize} thành viên
+            (thiếu hoặc thừa người). Khi đủ điều kiện quy mô, đội sẵn sàng để Coordinator duyệt —
+            không tự chuyển sang ACTIVE.
           </Text>
         </div>
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          disabled={orphans.length < 3}
+          disabled={orphans.length < minTeamSize}
           onClick={() => setCreateOpen(true)}
         >
           Gom đội mới
@@ -86,7 +117,7 @@ const TeamRadarPanel = ({ hackathonId, onDataChanged }) => {
                 background: token.colorBgContainer,
               }}
             >
-              <Title level={5}>Đội thiếu người ({incompleteTeams.length})</Title>
+              <Title level={5}>Đội cần giải cứu ({incompleteTeams.length})</Title>
               <IncompleteTeamTable
                 teams={incompleteTeams}
                 loading={loading}
@@ -102,6 +133,8 @@ const TeamRadarPanel = ({ hackathonId, onDataChanged }) => {
         open={createOpen}
         hackathonId={hackathonId}
         orphans={orphans}
+        minTeamSize={minTeamSize}
+        maxTeamSize={maxTeamSize}
         onClose={() => setCreateOpen(false)}
         onSuccess={handleSuccess}
       />
@@ -116,6 +149,8 @@ const TeamRadarPanel = ({ hackathonId, onDataChanged }) => {
         open={Boolean(mergeTeam)}
         targetTeam={mergeTeam}
         incompleteTeams={incompleteTeams}
+        minTeamSize={minTeamSize}
+        maxTeamSize={maxTeamSize}
         onClose={() => setMergeTeam(null)}
         onSuccess={handleSuccess}
       />

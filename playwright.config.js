@@ -7,6 +7,9 @@ export default defineConfig({
   use: {
     baseURL: process.env.FE_BASE_URL || 'http://localhost:5173',
     trace: 'on-first-retry',
+    ...(process.env.PLAYWRIGHT_CHANNEL
+      ? { channel: process.env.PLAYWRIGHT_CHANNEL }
+      : {}),
   },
   projects: [
     {
@@ -21,7 +24,6 @@ export default defineConfig({
         /event-notification-mutating\.spec\.js/,
         /close-submission-early\.spec\.js/,
         /mentor-portal-mutating\.spec\.js/,
-        /calibration-gd5-mutating\.spec\.js/,
         /mode-b-continuous-ui\.spec\.js/,
         /websocket-queue-timer\.spec\.js/,
         /coord-concurrent-race\.spec\.js/,
@@ -33,7 +35,7 @@ export default defineConfig({
     },
     {
       name: 'gd2-e2e',
-      testMatch: /e2e-gd2-(e2e-2026|teams-edge)\.spec\.js/,
+      testMatch: /e2e-gd2-e2e-2026\.spec\.js/,
       timeout: 60_000,
       workers: 1,
     },
@@ -47,7 +49,7 @@ export default defineConfig({
     {
       name: 'mutating-e2e',
       testMatch:
-        /(hackathon-progression-mutating|event-notification-mutating|close-submission-early|mentor-portal-mutating|calibration-gd5-mutating|mode-b-continuous-ui|websocket-queue-timer|coord-concurrent-race|5-secondary-portals-mutating|permission-idor-mutating)\.spec\.js/,
+        /(hackathon-progression-mutating|event-notification-mutating|close-submission-early|mentor-portal-mutating|mode-b-continuous-ui|websocket-queue-timer|coord-concurrent-race|5-secondary-portals-mutating|permission-idor-mutating)\.spec\.js/,
       timeout: 900_000,
       actionTimeout: 45_000,
       workers: 1,

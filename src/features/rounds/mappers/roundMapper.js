@@ -32,27 +32,28 @@ export const mapRoundToFE = (beData) => {
   if (!beData) return null;
   return {
     ...beData,
-    exam_at: beData.examAt || beData.problemReleasedAt,
-    is_final: beData.isFinal,
-    round_type: beData.roundType,
-    late_submission_policy: beData.lateSubmissionPolicy,
-    submission_open: beData.submissionOpen,
-    submission_deadline: beData.submissionDeadline,
-    coding_duration_hours: beData.codingDurationHours,
-    problem_statement_url: beData.problemStatementUrl,
-    problem_statement_filename: beData.problemStatementFilename,
-    problem_released_at: beData.problemReleasedAt,
+    // Prefer camelCase API fields; keep existing snake_case if already mapped.
+    exam_at: beData.examAt ?? beData.exam_at ?? null,
+    is_final: beData.isFinal ?? beData.is_final,
+    round_type: beData.roundType ?? beData.round_type,
+    late_submission_policy: beData.lateSubmissionPolicy ?? beData.late_submission_policy,
+    submission_open: beData.submissionOpen ?? beData.submission_open,
+    submission_deadline: beData.submissionDeadline ?? beData.submission_deadline,
+    coding_duration_hours: beData.codingDurationHours ?? beData.coding_duration_hours,
+    problem_statement_url: beData.problemStatementUrl ?? beData.problem_statement_url,
+    problem_statement_filename: beData.problemStatementFilename ?? beData.problem_statement_filename,
+    problem_released_at: beData.problemReleasedAt ?? beData.problem_released_at,
     final_problem_migration_cleared_at:
       beData.finalProblemMigrationClearedAt ?? beData.final_problem_migration_cleared_at ?? null,
     final_problem_migration_banner_dismissed_at:
       beData.finalProblemMigrationBannerDismissedAt
       ?? beData.final_problem_migration_banner_dismissed_at
       ?? null,
-    top_n_advance: beData.topNAdvance,
-    wildcard_enabled: beData.wildcardEnabled,
-    min_teams_final: beData.minTeamsFinal,
-    tiebreak_rule: beData.tiebreakRule,
-    is_active: beData.isActive,
+    top_n_advance: beData.topNAdvance ?? beData.top_n_advance,
+    wildcard_enabled: beData.wildcardEnabled ?? beData.wildcard_enabled,
+    min_teams_final: beData.minTeamsFinal ?? beData.min_teams_final,
+    tiebreak_rule: beData.tiebreakRule ?? beData.tiebreak_rule,
+    is_active: beData.isActive ?? beData.is_active,
     scoring_locked: beData.scoringLocked ?? beData.scoring_locked,
     is_published: beData.isPublished ?? beData.is_published,
     submission_closed_early_at:
@@ -61,8 +62,9 @@ export const mapRoundToFE = (beData) => {
       beData.isPresentationShuffled ?? beData.is_presentation_shuffled ?? false,
     is_presentations_complete:
       beData.isPresentationsComplete ?? beData.is_presentations_complete ?? false,
-    default_presentation_minutes: beData.defaultPresentationMinutes ?? null,
-    default_qa_minutes: beData.defaultQaMinutes ?? null,
+    default_presentation_minutes:
+      beData.defaultPresentationMinutes ?? beData.default_presentation_minutes ?? null,
+    default_qa_minutes: beData.defaultQaMinutes ?? beData.default_qa_minutes ?? null,
   };
 };
 

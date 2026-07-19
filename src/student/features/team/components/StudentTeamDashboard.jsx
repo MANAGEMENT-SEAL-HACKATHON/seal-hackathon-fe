@@ -8,9 +8,11 @@ import { Space } from 'antd';
 import { motion } from 'framer-motion';
 import TeamMemberManager from './TeamMemberManager';
 import TeamOverviewCard from './TeamOverviewCard';
+import FormationGraceBanner from './FormationGraceBanner';
 import StudentFallTrackSelectCard from './StudentFallTrackSelectCard';
 import StudentRelotteryTrackCard from './StudentRelotteryTrackCard';
 import TeamMentorHistoryPanel from '../../../../features/teams/components/TeamMentorHistoryPanel';
+import TeamScoreBreakdownCard from './TeamScoreBreakdownCard';
 
 const StudentTeamDashboard = ({ 
   selectedTeam, 
@@ -42,6 +44,14 @@ const StudentTeamDashboard = ({
       }}
     >
       <Space direction="vertical" size={24} style={{ width: '100%' }}>
+        {/* 0. GRACE URGENCY — leader + member đều thấy trước mọi thứ */}
+        <FormationGraceBanner
+          team={selectedTeam}
+          onConfirmFormation={confirmTeamFormation}
+          actionLoading={isActionLoading}
+          onExpired={() => onTeamRefresh?.()}
+        />
+
         {/* 1. HERO TOURNAMENT BANNER STRIP (Full Width) */}
         <TeamOverviewCard
           team={selectedTeam}
@@ -89,7 +99,12 @@ const StudentTeamDashboard = ({
           }}
         />
 
-        {/* 4. MENTOR PROFILE CARD */}
+        {/* 4. ĐIỂM ĐỘI (sau công bố — giám khảo ẩn danh) */}
+        {selectedTeam?.id && (
+          <TeamScoreBreakdownCard teamId={selectedTeam.id ?? selectedTeam.teamId} />
+        )}
+
+        {/* 5. MENTOR PROFILE CARD */}
         {selectedTeam?.id && (
           <TeamMentorHistoryPanel
             teamId={selectedTeam.id}

@@ -44,4 +44,7 @@ export const peopleService = {
 
   resendInvitation: async (invitationId) =>
     axiosClient.post(`/api/v1/invitations/${invitationId}/resend`),
+
+  revokeInvitation: async (invitationId) =>
+    axiosClient.post(`/api/v1/invitations/${invitationId}/revoke`),
 };

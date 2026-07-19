@@ -26,14 +26,14 @@ const statusOptions = [
 const reviewFilterOptions = [
   { label: "Tất cả", value: "ALL" },
   { label: "Đủ điều kiện", value: "READY" },
-  { label: "Chờ leader xác nhận", value: "GRACE" },
+  { label: "Chờ trưởng nhóm xác nhận", value: "GRACE" },
   { label: "Cần xem lại", value: "BLOCKED" },
 ];
 
 const viewContent = {
   [TEAM_STATUS.PENDING]: {
     title: "Hàng chờ phê duyệt",
-    description: "Rà điều kiện đội trước khi chuyển sang ACTIVE.",
+    description: "Rà điều kiện đội trước khi chuyển sang đã duyệt.",
   },
   [TEAM_STATUS.ACTIVE]: {
     title: "Đội đã duyệt",
@@ -77,6 +77,7 @@ const ApprovalTable = ({ hackathonId }) => {
     teamId: null,
     teamName: "",
     reason: "",
+    isInGrace: false,
   });
   const [disbandModal, setDisbandModal] = useState({
     open: false,
@@ -98,26 +99,26 @@ const ApprovalTable = ({ hackathonId }) => {
     !team.hasPendingInvites &&
     !team.hasUnapprovedMembers &&
     team.formationSubmitted;
-  const canRejectTeam = (team) => canReviewTeam(team) && !isInFormationGrace(team);
+  const canRejectTeam = (team) => canReviewTeam(team);
   const canDisbandTeam = (team) =>
     (team.status === TEAM_STATUS.PENDING || team.status === TEAM_STATUS.ACTIVE) && !team.hasMentor;
 
   const getApproveBlockReason = (team) => {
-    if (!canReviewTeam(team)) return "Chỉ đội PENDING mới có thể được duyệt.";
+    if (!canReviewTeam(team)) return "Chỉ đội đang chờ duyệt mới có thể được duyệt.";
     if (team.isInvalidMemberCount) {
-      return `Đội phải có từ ${team.minTeamSize}-${team.maxTeamSize} thành viên ACCEPTED mới được duyệt.`;
+      return `Đội phải có từ ${team.minTeamSize}-${team.maxTeamSize} thành viên đã tham gia mới được duyệt.`;
     }
     if (team.hasPendingInvites) {
-      return "Đội vẫn còn lời mời PENDING, cần xử lý trước khi duyệt.";
+      return "Đội vẫn còn lời mời chờ phản hồi, cần xử lý trước khi duyệt.";
     }
     if (team.hasUnapprovedMembers) {
       return "Có thành viên chưa được duyệt tài khoản.";
     }
     if (!team.formationSubmitted) {
       if (isInFormationGrace(team)) {
-        return `Trưởng nhóm đang có 24h để xác nhận thành lập (đến ${dayjs(team.formationGraceDeadlineAt).format('DD/MM/YYYY HH:mm')}) — chưa cần duyệt.`;
+        return `Trưởng nhóm đang có 24h để xác nhận thành lập (đến ${dayjs(team.formationGraceDeadlineAt).format('DD/MM/YYYY HH:mm')}) — chưa duyệt được; có thể từ chối sớm để mở khóa bốc thăm.`;
       }
-      return "Trưởng nhóm chưa xác nhận thành lập đội — chỉ duyệt sau khi leader bấm xác nhận.";
+      return "Trưởng nhóm chưa xác nhận thành lập đội — chỉ duyệt sau khi trưởng nhóm bấm xác nhận.";
     }
     return "";
   };
@@ -154,7 +155,7 @@ const ApprovalTable = ({ hackathonId }) => {
     ? [
         { label: TEAM_STATUS_LABELS[selectedStatus], value: teams.length },
         { label: "Đủ điều kiện", value: readyCount },
-        { label: "Chờ leader xác nhận", value: graceCount },
+        { label: "Chờ trưởng nhóm xác nhận", value: graceCount },
         { label: "Cần xem lại", value: blockedCount },
       ]
     : [
@@ -191,7 +192,7 @@ const ApprovalTable = ({ hackathonId }) => {
     if (!rejectModal.reason.trim()) return;
     if (await handleReject(rejectModal.teamId, rejectModal.reason.trim())) {
       removeTeamFromSelection(rejectModal.teamId);
-      setRejectModal({ open: false, teamId: null, teamName: "", reason: "" });
+      setRejectModal({ open: false, teamId: null, teamName: "", reason: "", isInGrace: false });
     }
   };
 
@@ -200,7 +201,13 @@ const ApprovalTable = ({ hackathonId }) => {
   };
 
   const openRejectModal = (team) => {
-    setRejectModal({ open: true, teamId: team.id, teamName: team.teamName, reason: "" });
+    setRejectModal({
+      open: true,
+      teamId: team.id,
+      teamName: team.teamName,
+      reason: "",
+      isInGrace: isInFormationGrace(team),
+    });
   };
 
   const openDisbandModal = (team) => {
@@ -321,15 +328,16 @@ const ApprovalTable = ({ hackathonId }) => {
         open={rejectModal.open}
         width={isMobile ? "calc(100vw - 32px)" : 520}
         onOk={onConfirmReject}
-        onCancel={() => setRejectModal({ open: false, teamId: null, teamName: "", reason: "" })}
+        onCancel={() => setRejectModal({ open: false, teamId: null, teamName: "", reason: "", isInGrace: false })}
         confirmLoading={isActionLoading}
         okButtonProps={{ danger: true, disabled: !rejectModal.reason.trim() }}
-        okText="Từ chối"
+        okText={rejectModal.isInGrace ? "Từ chối sớm" : "Từ chối"}
         cancelText="Hủy"
       >
         <Text type="secondary">
-          Từ chối sẽ giải phóng toàn bộ thành viên để họ có thể lập đội mới hoặc tham gia đội khác.
-          Vui lòng ghi rõ lý do để sinh viên hiểu.
+          {rejectModal.isInGrace
+            ? "Từ chối sớm sẽ hủy thời gian chờ 24h, giải phóng thành viên và có thể mở khóa bốc thăm. Vui lòng ghi rõ lý do."
+            : "Từ chối sẽ giải phóng toàn bộ thành viên để họ có thể lập đội mới hoặc tham gia đội khác. Vui lòng ghi rõ lý do để sinh viên hiểu."}
         </Text>
         <Input.TextArea
           rows={4}
@@ -360,7 +368,7 @@ const ApprovalTable = ({ hackathonId }) => {
           {disbandModal.memberStats ? ` (${disbandModal.memberStats} thành viên)` : ""}.
         </Text>
         <Text type="secondary" style={{ display: "block", marginTop: 12 }}>
-          Hành động này xóa đội và giải phóng thành viên. Chỉ thực hiện khi đội chưa có dữ liệu
+          Hành động này giải tán đội (trạng thái REJECTED) và giải phóng thành viên. Chỉ thực hiện khi đội chưa có dữ liệu
           thi đấu bị ràng buộc. Thao tác không thể hoàn tác.
         </Text>
       </Modal>

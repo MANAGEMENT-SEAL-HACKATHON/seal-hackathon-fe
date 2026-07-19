@@ -13,20 +13,12 @@ export const M5 = {
     email: 'student.e2e.orphan1@fpt.edu.vn',
     password: process.env.E2E_STUDENT_PASSWORD || 'Student@dev1',
   },
-  pendingInvitee: {
-    email: 'student.gd2.pending@gmail.com',
-    password: process.env.E2E_STUDENT_PASSWORD || 'Student@dev1',
-  },
-  t02Leader: {
-    email: 'student.gd2.hn.leader02@fpt.edu.vn',
-    password: process.env.E2E_STUDENT_PASSWORD || 'Student@dev1',
-  },
   t01Leader: {
-    email: 'student.gd2.hcm.leader01@fpt.edu.vn',
+    email: 'student.e2e.t01.leader@fpt.edu.vn',
     password: process.env.E2E_STUDENT_PASSWORD || 'Student@dev1',
   },
-  poolBusy: {
-    email: 'student.gd2.pool.busy@gmail.com',
+  busyLeader: {
+    email: 'student.e2e.t02.leader@fpt.edu.vn',
     password: process.env.E2E_STUDENT_PASSWORD || 'Student@dev1',
   },
   profileStudent: {

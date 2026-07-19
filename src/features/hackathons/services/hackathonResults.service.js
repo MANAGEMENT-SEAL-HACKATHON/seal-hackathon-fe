@@ -33,8 +33,10 @@ export const hackathonResultsService = {
     return response.data;
   },
 
-  revokePrize: async (prizeId) => {
-    await axiosClient.delete(`/api/v1/prizes/${prizeId}`);
+  revokePrize: async (prizeId, { category, note }) => {
+    await axiosClient.delete(`/api/v1/prizes/${prizeId}`, {
+      data: { category, note },
+    });
   },
 
   createExportJob: async (hackathonId, payload = { type: 'CSV_RANKINGS' }) => {

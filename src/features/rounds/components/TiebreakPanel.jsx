@@ -14,9 +14,22 @@ const { Text, Title } = Typography;
 const { TextArea } = Input;
 
 const ruleLabels = {
-  SUBMISSION_TIME: "Nộp sớm / Submission Time",
-  PENALTY_SCORE: "Penalty",
-  COORDINATOR_DECISION: "Manual / Quyết định Ban tổ chức",
+  SUBMISSION_TIME: "Thời điểm nộp bài",
+  PENALTY_SCORE: "Điểm trừ phân xử",
+  COORDINATOR_DECISION: "Quyết định Ban tổ chức",
+};
+
+const reasonLabels = {
+  COORDINATOR_DECISION: "Quyết định Ban tổ chức",
+  DEEP_TIE: "Không tự phân định — cần phân xử thủ công",
+};
+
+const submissionStatusLabels = {
+  SUBMITTED: "Đã nộp",
+  ON_TIME: "Nộp đúng hạn",
+  LATE: "Nộp trễ",
+  LATE_PENDING: "Chờ duyệt nộp trễ",
+  DRAFT: "Nháp",
 };
 
 const formatSubmittedAt = (value) => {
@@ -36,7 +49,7 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
 
   if (error) {
     return (
-      <Alert showIcon type="error" message="Không tải được dữ liệu tiebreak" description={error.message} />
+      <Alert showIcon type="error" message="Không tải được dữ liệu đồng điểm" description={error.message} />
     );
   }
 
@@ -77,8 +90,9 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
   };
 
   const handleConfirmResolve = async () => {
+    if (isResolving) return;
     if (!resolveNote.trim()) {
-      message.error("Bắt buộc nhập ghi chú quyết định của BTC.");
+      message.error("Bắt buộc nhập ghi chú quyết định của Ban tổ chức.");
       return;
     }
     const payload = {
@@ -97,8 +111,8 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
       <Alert
         showIcon
         type="error"
-        message={`${items.length} trường hợp đồng điểm cần giải quyết trước khi chốt chuyển vòng`}
-        description="Nếu luật tự động không phân định được (Deep Tie) hoặc luật Manual — Ban tổ chức phải Reorder thứ hạng."
+        message={`${items.length} trường hợp đồng điểm cần giải quyết trước khi chốt chuyển vòng — thứ hạng hiện tại chỉ là tạm thời.`}
+        description="Nếu luật tự động không phân định được hoặc luật yêu cầu quyết định Ban tổ chức — cần sắp xếp lại thứ hạng thủ công."
       />
 
       {items.map((item) => {
@@ -129,7 +143,7 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
             ),
           },
           {
-            title: "Điểm bị trừ (Penalty)",
+            title: "Điểm trừ phân xử",
             dataIndex: "penaltyScore",
             align: "right",
             render: (value) => {
@@ -150,8 +164,8 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
           },
           {
             title: (
-              <Tooltip title="ON_TIME được ưu tiên hơn LATE dù nộp timestamp sớm hơn">
-                <span style={{ fontWeight: isSubmissionTime ? 800 : 500 }}>Submitted At</span>
+              <Tooltip title="Nộp đúng hạn được ưu tiên hơn nộp trễ dù thời điểm nộp sớm hơn">
+                <span style={{ fontWeight: isSubmissionTime ? 800 : 500 }}>Thời điểm nộp bài</span>
               </Tooltip>
             ),
             dataIndex: "submittedAt",
@@ -162,11 +176,11 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
             ),
           },
           {
-            title: <span style={{ fontWeight: isSubmissionTime ? 800 : 500 }}>Status</span>,
+            title: <span style={{ fontWeight: isSubmissionTime ? 800 : 500 }}>Trạng thái nộp</span>,
             dataIndex: "submissionStatus",
             render: (value) => (
               <Tag color={isSubmissionTime ? "processing" : "default"} style={{ fontWeight: isSubmissionTime ? 700 : 400 }}>
-                {value || "—"}
+                {submissionStatusLabels[value] || value || "—"}
               </Tag>
             ),
           },
@@ -188,7 +202,9 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
                 {item.escalationRequired || item.requiresManualReorder ? (
                   <>
                     <Tag color="error" icon={<ExclamationCircleOutlined />} style={{ fontWeight: 600 }}>
-                      {item.reason === "DEEP_TIE" ? "Deep Tie → Manual" : "Escalate BTC"}
+                      {item.reason === "DEEP_TIE"
+                        ? "Không tự phân định — phân xử thủ công"
+                        : "Cần Ban tổ chức phân xử"}
                     </Tag>
                     <Button type="primary" danger icon={<EditOutlined />} onClick={() => openResolveModal(item)}>
                       Phân xử ngay
@@ -218,7 +234,7 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
                 </Tag>
                 {item.reason && (
                   <Tag color="orange" bordered={false}>
-                    {item.reason}
+                    {reasonLabels[item.reason] || item.reason}
                   </Tag>
                 )}
                 <Text type="secondary">
@@ -237,17 +253,24 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
       <Modal
         title={
           <div>
-            <WarningOutlined style={{ color: "#faad14", marginRight: 8 }} /> Phân xử Đồng điểm: Bảng {selectedTiebreak?.groupLabel}
+            <WarningOutlined style={{ color: "#faad14", marginRight: 8 }} /> Phân xử đồng điểm: Bảng {selectedTiebreak?.groupLabel}
           </div>
         }
         open={resolveModalVisible}
-        onCancel={() => setResolveModalVisible(false)}
+        onCancel={() => !isResolving && setResolveModalVisible(false)}
         width={700}
         footer={[
-          <Button key="cancel" onClick={() => setResolveModalVisible(false)}>
+          <Button key="cancel" disabled={isResolving} onClick={() => setResolveModalVisible(false)}>
             Hủy
           </Button>,
-          <Button key="submit" type="primary" danger loading={isResolving} onClick={handleConfirmResolve}>
+          <Button
+            key="submit"
+            type="primary"
+            danger
+            loading={isResolving}
+            disabled={isResolving}
+            onClick={handleConfirmResolve}
+          >
             Xác nhận Phân xử
           </Button>,
         ]}
@@ -258,7 +281,7 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
           message="Hướng dẫn phân xử"
           description={
             <span>
-              Sắp xếp thứ hạng bằng mũi tên. Đội ở <b>vị trí số 1</b> thắng. Không dùng Approve/Reject (đó là Wild Card).
+              Sắp xếp thứ hạng bằng mũi tên. Đội ở <b>vị trí số 1</b> thắng.
             </span>
           }
           style={{ marginBottom: 16 }}
@@ -277,11 +300,11 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
                 marginBottom: 8,
               }}
               actions={[
-                <Button type="text" icon={<ArrowUpOutlined />} disabled={index === 0} onClick={() => moveTeam(index, "up")} />,
+                <Button type="text" icon={<ArrowUpOutlined />} disabled={index === 0 || isResolving} onClick={() => moveTeam(index, "up")} />,
                 <Button
                   type="text"
                   icon={<ArrowDownOutlined />}
-                  disabled={index === orderedTeams.length - 1}
+                  disabled={index === orderedTeams.length - 1 || isResolving}
                   onClick={() => moveTeam(index, "down")}
                 />,
               ]}
@@ -317,7 +340,7 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
               />
               <div style={{ textAlign: "right" }}>
                 <Tag color={index === 0 ? "success" : "error"} style={{ fontWeight: "bold", fontSize: 14, padding: "4px 12px" }}>
-                  {index === 0 ? "CHIẾN THẮNG" : "BỊ TRỪ PENALTY"}
+                  {index === 0 ? "CHIẾN THẮNG" : "BỊ TRỪ ĐIỂM"}
                 </Tag>
               </div>
             </List.Item>
@@ -325,11 +348,12 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
         />
 
         <div style={{ marginTop: 24 }}>
-          <Text strong>Ghi chú quyết định của BTC (Bắt buộc):</Text>
+          <Text strong>Ghi chú quyết định của Ban tổ chức (Bắt buộc):</Text>
           <TextArea
             rows={3}
             placeholder="Giải thích lý do đội xếp trên chiến thắng…"
             value={resolveNote}
+            disabled={isResolving}
             onChange={(e) => setResolveNote(e.target.value)}
             style={{ marginTop: 8 }}
           />

@@ -33,6 +33,7 @@ import { CriteriaFormModal } from "../components/CriteriaFormModal";
 import { CriteriaCloneModal } from "../components/CriteriaCloneModal";
 import { CriteriaBatchModal } from "../components/CriteriaBatchModal";
 import { STANDARD_SYSTEM_CRITERIA } from "../constants/standardCriteria";
+import { CriteriaTemplatePanel } from "../components/CriteriaTemplatePanel";
 
 const CRITERIA_TAB_HINT = (
   <HintList
@@ -69,6 +70,12 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
     handleSaveCriteria,
     handleBatchSaveCriteria,
     handleApplyStandardCriteria,
+    templates,
+    selectedTemplateId,
+    setSelectedTemplateId,
+    handleApplyTemplate,
+    saveTemplate,
+    deleteTemplate,
     deleteCriteria,
     updateRound,
   } = useCriteriaManagement(hackathonId, onUpdated);
@@ -211,6 +218,16 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
           setSelectedTrackId,
           updateRound,
         }}
+      />
+      <CriteriaTemplatePanel
+        templates={templates}
+        selectedTemplateId={selectedTemplateId}
+        onSelect={setSelectedTemplateId}
+        onSave={saveTemplate}
+        onDelete={deleteTemplate}
+        onApply={handleApplyTemplate}
+        canApply={canManage}
+        hasCriteria={currentCriteria.length > 0}
       />
       {!canManage ? (
         <Card style={{ textAlign: "center", padding: "80px 0" }}>

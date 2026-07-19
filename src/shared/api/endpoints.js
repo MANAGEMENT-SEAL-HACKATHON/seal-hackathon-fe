@@ -28,6 +28,7 @@ export const ENDPOINTS = {
     EVENTS: (hackathonId) => `/api/v1/hackathons/${hackathonId}/events`,
     LOTTERY: (hackathonId) => `/api/v1/hackathons/${hackathonId}/lottery`,
     CLOSE_REGISTRATION_EARLY: (id) => `/api/v1/hackathons/${id}/close-registration-early`,
+    CLONE: (id) => `/api/v1/hackathons/${id}/clone`,
   },
   TEAMS: {
     BASE: '/api/v1/teams',
@@ -106,6 +107,12 @@ export const ENDPOINTS = {
   },
   CRITERIA: {
     DETAIL: (id) => `/api/v1/criteria/${id}`,
+    TEMPLATES: '/api/v1/criteria-templates',
+    TEMPLATE_DETAIL: (id) => `/api/v1/criteria-templates/${id}`,
+    APPLY_TEMPLATE_TO_TRACK: (trackId, templateId) =>
+      `/api/v1/tracks/${trackId}/criteria/templates/${templateId}/apply`,
+    APPLY_TEMPLATE_TO_ROUND: (roundId, templateId) =>
+      `/api/v1/rounds/${roundId}/criteria/templates/${templateId}/apply`,
   },
   EVENTS: {
     DETAIL: (id) => `/api/v1/events/${id}`,
@@ -120,17 +127,18 @@ export const ENDPOINTS = {
     DETAIL: (userId) => `/api/v1/users/${userId}`,
     TEMP_JUDGES: '/api/v1/users/temp-judges',
     RESEND_INVITATION: (invitationId) => `/api/v1/invitations/${invitationId}/resend`,
+    REVOKE_INVITATION: (invitationId) => `/api/v1/invitations/${invitationId}/revoke`,
     JUDGE_ROUND_ASSIGNMENTS: (judgeId) => `/api/v1/users/${judgeId}/round-assignments`,
     MENTOR_TRACK_ASSIGNMENTS: (mentorId) => `/api/v1/users/${mentorId}/track-assignments`,
     PATCH: (userId) => `/api/v1/users/${userId}`,
   },
   EXPORT_JOBS: {
+    LIST_BY_HACKATHON: (hackathonId) => `/api/v1/hackathons/${hackathonId}/export-jobs`,
     DETAIL: (id) => `/api/v1/export-jobs/${id}`,
     DOWNLOAD: (id) => `/api/v1/export-jobs/${id}/download`,
   },
   JUDGE: {
     SUBMISSIONS: '/api/v1/me/judge/submissions',
-    CALIBRATION_SESSIONS: '/api/v1/me/judge/calibration-sessions',
   },
   PRESENTATION: {
     QUEUE: '/api/v1/presentation/queue',
@@ -148,15 +156,8 @@ export const ENDPOINTS = {
     CONTROLLER_HEARTBEAT: '/api/v1/presentation/controller/heartbeat',
     QUEUE_SKIP: '/api/v1/presentation/queue/skip',
   },
-  CALIBRATION: {
-    BASE: '/api/v1/calibration-sessions',
-    DETAIL: (id) => `/api/v1/calibration-sessions/${id}`,
-  },
   NOTIFICATIONS: {
     ME: '/api/v1/me/notifications',
     MARK_READ: '/api/v1/me/notifications/read',
-  },
-  SCORES: {
-    CALIBRATION: '/api/v1/scores/calibration',
   },
 };

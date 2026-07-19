@@ -21,7 +21,7 @@ const { TextArea } = Input;
 
 const OVERRIDE_CATEGORIES = [
   { value: "PROPOSED_TEAM_VIOLATION", label: "Đội đề xuất vi phạm quy chế" },
-  { value: "TRACK_QUOTA_ADJUST", label: "Điều chỉnh quota bảng" },
+  { value: "TRACK_QUOTA_ADJUST", label: "Điều chỉnh suất theo bảng" },
   { value: "SCORE_CORRECTED", label: "Sửa điểm sau khi khóa đề xuất" },
   { value: "OTHER", label: "Khác (bắt buộc ghi chú)" },
 ];
@@ -91,7 +91,7 @@ const WildcardPanel = ({
       <Alert
         showIcon
         type="error"
-        message="Không tải được danh sách Wild Card"
+        message="Không tải được danh sách Vé vớt"
         description={error.message}
       />
     );
@@ -104,14 +104,14 @@ const WildcardPanel = ({
           color={wildcard.config.roundEnabled ? "success" : "default"}
           style={{ fontWeight: 500, padding: "2px 10px" }}
         >
-          Round: {wildcard.config.roundEnabled ? "Đã bật" : "Đang tắt"}
+          Vòng: {wildcard.config.roundEnabled ? "Đã bật" : "Đang tắt"}
         </Tag>
         <Tag color="blue" bordered={false} style={{ fontWeight: 600, padding: "2px 10px" }}>
           {slots} suất vé vớt
         </Tag>
         {locked && (
           <Tag color="purple" style={{ fontWeight: 600, padding: "2px 10px" }}>
-            Đã xác nhận lúc {formatConfirmedAt(proposalConfirmedAt)} — sửa qua Override
+            Đã xác nhận lúc {formatConfirmedAt(proposalConfirmedAt)} — sửa qua Ghi đè
           </Tag>
         )}
       </Space>
@@ -131,10 +131,10 @@ const WildcardPanel = ({
         description={
           <Text type="secondary">
             {locked
-              ? "Thứ tự đề xuất không tự đổi khi điểm thay đổi. Muốn sửa đội → Override với category bắt buộc."
+              ? "Thứ tự đề xuất không tự đổi khi điểm thay đổi. Muốn sửa đội → dùng Ghi đè và chọn lý do bắt buộc."
               : enabled
-                ? `Sắp xếp: điểm ↓, nộp sớm ↑, teamId. Bấm «Xác nhận đề xuất» để duyệt ${slots} đội và khóa danh sách.`
-                : "Bật Wildcard trên Vòng Sơ loại và đảm bảo còn ghế (minTeamsFinal − topN × số bảng > 0)."}
+                ? `Sắp xếp: điểm giảm dần, nộp sớm hơn lên trước. Bấm «Xác nhận đề xuất» để duyệt ${slots} đội và khóa danh sách.`
+                : "Bật Vé vớt trên Vòng Sơ loại và đảm bảo còn ghế (tối đa đội Chung kết − Top N × số bảng > 0)."}
           </Text>
         }
         style={{ borderRadius: 8 }}
@@ -255,14 +255,14 @@ const WildcardPanel = ({
                 if (approved === true) {
                   return (
                     <Tag color="success" style={{ fontWeight: 600, padding: "4px 10px" }}>
-                      {item.isOverride ? "Duyệt (override)" : "Đã duyệt"}
+                      {item.isOverride ? "Duyệt (ghi đè)" : "Đã duyệt"}
                     </Tag>
                   );
                 }
                 if (approved === false) {
                   return (
                     <Tag color="error" style={{ fontWeight: 600, padding: "4px 10px" }}>
-                      {item.isOverride ? "Từ chối (override)" : "Từ chối"}
+                      {item.isOverride ? "Từ chối (ghi đè)" : "Từ chối"}
                     </Tag>
                   );
                 }
@@ -289,7 +289,7 @@ const WildcardPanel = ({
                           setNote("");
                         }}
                       >
-                        Override
+                        Ghi đè
                       </Button>
                     ),
                   },
@@ -340,10 +340,21 @@ const WildcardPanel = ({
               },
               { title: "Đội", dataIndex: "teamName" },
               {
-                title: "Category",
+                title: "Loại",
                 dataIndex: "category",
                 width: 180,
-                render: (v) => <Tag>{v}</Tag>,
+                render: (v) => {
+                  const map = {
+                    TECHNICAL: 'Kỹ thuật',
+                    SOFT: 'Kỹ năng mềm',
+                    OTHER: 'Khác',
+                    FORCE_MAJEURE: 'Bất khả kháng',
+                    TIEBREAK: 'Đồng điểm',
+                    MANUAL: 'Thủ công',
+                  };
+                  const key = String(v || '').toUpperCase();
+                  return <Tag>{map[key] || v}</Tag>;
+                },
               },
               {
                 title: "Trước → Sau",
@@ -376,8 +387,8 @@ const WildcardPanel = ({
 
       <Modal
         open={Boolean(overrideTarget)}
-        title={`Override — ${overrideTarget?.teamName || ""}`}
-        okText="Lưu override"
+        title={`Ghi đè — ${overrideTarget?.teamName || ""}`}
+        okText="Lưu ghi đè"
         okButtonProps={{ disabled: !canSubmitOverride }}
         confirmLoading={overridingReviewId === overrideTarget?.reviewId}
         onCancel={closeOverride}
@@ -392,12 +403,12 @@ const WildcardPanel = ({
                 ? "Đổi thành Từ chối vé vớt"
                 : "Đổi thành Duyệt vé vớt"
             }
-            description="Đề xuất đã khóa — mọi thay đổi phải có category. Điểm đổi sau lock không tự re-sort."
+            description="Đề xuất đã khóa — mọi thay đổi phải có lý do. Điểm đổi sau khi khóa không tự sắp xếp lại."
           />
-          <Text strong>Category</Text>
+          <Text strong>Lý do</Text>
           <Select
             style={{ width: "100%" }}
-            placeholder="Chọn lý do override"
+            placeholder="Chọn lý do ghi đè"
             options={OVERRIDE_CATEGORIES}
             value={category}
             onChange={setCategory}
@@ -419,7 +430,7 @@ const WildcardPanel = ({
             }
           />
           {otherNeedsNote && (
-            <Text type="danger">Category OTHER bắt buộc có ghi chú (WC-05).</Text>
+            <Text type="danger">Loại &quot;Khác&quot; bắt buộc có ghi chú.</Text>
           )}
         </Space>
       </Modal>

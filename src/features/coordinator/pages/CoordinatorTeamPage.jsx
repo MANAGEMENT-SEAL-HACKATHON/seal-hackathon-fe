@@ -7,8 +7,10 @@ import { useHackathonSelect } from "../hooks/useHackathonSelect";
 import ApprovalTable from "../components/ApprovalTable";
 import TeamRadarPanel from "../components/TeamRadarPanel";
 import { TAB_KEYS } from "../constants/team.constants";
+import { tableCardStyle } from "../../../shared/theme/coordinatorTheme";
+import CoordinatorHero from "../../../shared/components/ui/CoordinatorHero";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { useBreakpoint } = Grid;
 
 const CoordinatorTeamPage = () => {
@@ -54,110 +56,65 @@ const CoordinatorTeamPage = () => {
   }
 
   return (
-    <div style={pageStyle}>
+    <div className="coord-page" style={pageStyle}>
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.42, ease: "easeOut" }}
         style={shellStyle}
       >
-        <section
-          style={{
-            alignItems: isMobile ? "stretch" : "center",
-            background: token.colorBgContainer,
-            border: `1px solid ${token.colorBorderSecondary}`,
-            borderRadius: token.borderRadius,
-            boxShadow: token.boxShadowTertiary,
-            display: "flex",
-            flexDirection: isMobile ? "column" : "row",
-            gap: isMobile ? 18 : 24,
-            justifyContent: "space-between",
-            marginBottom: isMobile ? 16 : 20,
-            padding: isMobile ? 18 : "22px 24px",
-          }}
-        >
-          <div>
-            <Title
-              level={2}
-              style={{
-                alignItems: "center",
-                color: token.colorText,
-                display: "flex",
-                gap: 12,
-                letterSpacing: 0,
-                lineHeight: 1.2,
-                margin: 0,
-              }}
-            >
-              <span
-                style={{
-                  alignItems: "center",
-                  background: token.colorSuccessBg,
-                  borderRadius: token.borderRadius,
-                  color: token.colorSuccessText,
-                  display: "inline-flex",
-                  height: 40,
-                  justifyContent: "center",
-                  width: 40,
-                }}
-              >
-                <TeamOutlined />
-              </span>
+        <CoordinatorHero
+          data-testid="team-page-hero"
+          title={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+              <TeamOutlined style={{ fontSize: 26, color: "#4f46e5" }} />
               Quản lý đội thi
-            </Title>
-            <Text
-              style={{
-                color: token.colorTextSecondary,
-                display: "block",
-                fontSize: isMobile ? 14 : 15,
-                lineHeight: 1.55,
-                marginTop: 8,
-                maxWidth: 680,
-              }}
-            >
-              Phê duyệt đội nhanh, rõ điều kiện, và kiểm soát các trường hợp cần
-              xem lại trước khi đội bước vào vòng thi.
-            </Text>
-          </div>
-
-          {!presetHackathonId && (
-            <Space
-              direction="vertical"
-              size={6}
-              style={{
-                minWidth: isMobile ? 0 : 320,
-                width: isMobile ? "100%" : "auto",
-              }}
-            >
-              <Text style={{ color: token.colorText, fontWeight: 600 }}>
-                Sự kiện đang quản lý
-              </Text>
-              <Select
-                showSearch
-                placeholder="Chọn sự kiện Hackathon"
-                loading={isLoadingHackathons}
-                value={selectedHackathonId}
-                onChange={(value) => setSelectedHackathonId(value)}
-                style={{ width: "100%" }}
-                size="large"
-                suffixIcon={<SearchOutlined style={{ color: token.colorSuccess }} />}
-                filterOption={(input, option) =>
-                  (option?.label ?? "")
-                    .toLowerCase()
-                    .includes(input.toLowerCase())
-                }
-                options={hackathons.map((hackathon) => ({
-                  value: hackathon.id,
-                  label:
-                    hackathon.hackathonName ||
-                    hackathon.name ||
-                    `Hackathon #${hackathon.id}`,
-                }))}
-                dropdownStyle={{ borderRadius: token.borderRadius, padding: 8 }}
-              />
-            </Space>
-          )}
-        </section>
+            </span>
+          }
+          subtitle="Phê duyệt đội nhanh, rõ điều kiện, và kiểm soát các trường hợp cần xem lại trước khi đội bước vào vòng thi."
+          actions={
+            !presetHackathonId ? (
+              <>
+                <span />
+                <Space
+                  direction="vertical"
+                  size={6}
+                  style={{
+                    minWidth: isMobile ? 0 : 320,
+                    width: isMobile ? "100%" : "auto",
+                  }}
+                >
+                  <Text style={{ color: token.colorText, fontWeight: 600 }}>
+                    Sự kiện đang quản lý
+                  </Text>
+                  <Select
+                    showSearch
+                    placeholder="Chọn sự kiện Hackathon"
+                    loading={isLoadingHackathons}
+                    value={selectedHackathonId}
+                    onChange={(value) => setSelectedHackathonId(value)}
+                    style={{ width: "100%" }}
+                    size="large"
+                    suffixIcon={<SearchOutlined style={{ color: token.colorSuccess }} />}
+                    filterOption={(input, option) =>
+                      (option?.label ?? "")
+                        .toLowerCase()
+                        .includes(input.toLowerCase())
+                    }
+                    options={hackathons.map((hackathon) => ({
+                      value: hackathon.id,
+                      label:
+                        hackathon.hackathonName ||
+                        hackathon.name ||
+                        `Hackathon #${hackathon.id}`,
+                    }))}
+                    dropdownStyle={{ borderRadius: token.borderRadius, padding: 8 }}
+                  />
+                </Space>
+              </>
+            ) : null
+          }
+        />
 
         {!activeHackathonId && !isLoadingHackathons && (
           <motion.div
@@ -183,13 +140,7 @@ const CoordinatorTeamPage = () => {
           >
             <Card
               bordered={false}
-              style={{
-                background: token.colorBgContainer,
-                border: `1px solid ${token.colorBorderSecondary}`,
-                borderRadius: token.borderRadius,
-                boxShadow: token.boxShadowTertiary,
-                overflow: "hidden",
-              }}
+              style={{ ...tableCardStyle, overflow: "hidden" }}
               bodyStyle={{ padding: isMobile ? 12 : 24 }}
             >
               <Tabs

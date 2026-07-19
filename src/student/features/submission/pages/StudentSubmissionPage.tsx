@@ -208,9 +208,12 @@ const StudentSubmissionPage: React.FC = () => {
   const { token } = theme.useToken();
   const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
 
+  const selectedTeamId = selectedTeam?.id ?? selectedTeam?.teamId ?? null;
+
   const { data: submissionDataRaw, isLoading: isSubLoading, refetch: refetchSubmission } = useQuery<SubmissionStatusResponse>({
-    queryKey: ['studentSubmission', studentId],
-    queryFn: () => personBApi.getStudentSubmission(studentId),
+    queryKey: ['studentSubmission', studentId, selectedTeamId],
+    queryFn: () => personBApi.getStudentSubmission(studentId, selectedTeamId),
+    enabled: Boolean(selectedTeamId),
     retry: false,
     refetchOnWindowFocus: true,
   });
@@ -220,8 +223,21 @@ const StudentSubmissionPage: React.FC = () => {
     queryFn: () => personBApi.getCurrentDeadline(),
     retry: false,
     refetchOnWindowFocus: true,
-    // GĐ2: prelim chưa active → API trả empty (không còn 404 spam)
+    // Poll while window may still close early — avoid stale OPEN until F5
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (data?.closed_early_at) return false;
+      if (!data?.deadline) return 30_000;
+      return 10_000;
+    },
+    refetchIntervalInBackground: false,
   });
+
+  useEffect(() => {
+    if (deadlineData?.closed_early_at) {
+      void refetchSubmission();
+    }
+  }, [deadlineData?.closed_early_at, refetchSubmission]);
 
   useEffect(() => {
     const refreshWhenVisible = () => {
@@ -298,11 +314,16 @@ const StudentSubmissionPage: React.FC = () => {
   }, [submissionData, isEditing, reset]);
 
   const mutation = useMutation({
-    mutationFn: async (data: SubmissionRequest) => personBApi.submitStudentSubmission(studentId, data),
+    mutationFn: async (data: SubmissionRequest) =>
+      personBApi.submitStudentSubmission(studentId, {
+        ...data,
+        teamId: effectiveTeamId,
+        trackId: effectiveTeam?.trackId ?? effectiveTeam?.track_id,
+      }),
     onSuccess: (data) => {
       // G5-H: không toast thành công nếu đội ADVANCED/ELIMINATED (submit lẽ ra bị BE chặn)
       if (isPrelimReadOnly(effectiveTeam)) {
-        queryClient.setQueryData(['studentSubmission', studentId], data);
+        queryClient.setQueryData(['studentSubmission', studentId, selectedTeamId], data);
         setIsEditing(false);
         return;
       }
@@ -314,7 +335,7 @@ const StudentSubmissionPage: React.FC = () => {
       } else {
         toast.success('Lưu bài dự thi thành công!');
       }
-      queryClient.setQueryData(['studentSubmission', studentId], data);
+      queryClient.setQueryData(['studentSubmission', studentId, selectedTeamId], data);
       setIsEditing(false);
       refetchSubmission();
       void refetchDeadline();
@@ -633,9 +654,6 @@ const StudentSubmissionPage: React.FC = () => {
                             Xem đề thi và tài liệu hướng dẫn từ Ban tổ chức cho vòng đang chọn.
                           </Text>
                         </div>
-                        <Tag color="processing" style={{ borderRadius: 8, fontWeight: 700, padding: '6px 14px', fontSize: 13 }}>
-                          Bấm nút sổ xuống để thu gọn/mở rộng
-                        </Tag>
                       </div>
                     ),
                     children: (
@@ -712,9 +730,6 @@ const StudentSubmissionPage: React.FC = () => {
                             Nộp slide thuyết trình, mã nguồn và demo sản phẩm theo yêu cầu từng vòng thi.
                           </Text>
                         </div>
-                        <Tag color="processing" style={{ borderRadius: 8, fontWeight: 700, padding: '6px 14px', fontSize: 13 }}>
-                          Bấm nút sổ xuống để thu gọn/mở rộng
-                        </Tag>
                       </div>
                     ),
                     children: (
@@ -812,7 +827,7 @@ const StudentSubmissionPage: React.FC = () => {
                                         showIcon
                                         type="error"
                                         style={{ marginBottom: 16, borderRadius: 12 }}
-                                        message="Bài nộp bị từ chối (REJECTED)"
+                                        message="Bài nộp bị từ chối"
                                         description="Chính sách vòng thi không cho phép nộp lại sau khi bị từ chối."
                                       />
                                     )}
@@ -972,7 +987,7 @@ const StudentSubmissionPage: React.FC = () => {
           onCancel={closePdfModal}
           width={1100}
           style={{ top: 20 }}
-          footer={[<Button key="close" type="primary" size="large" onClick={closePdfModal} style={{ borderRadius: 8, fontWeight: 600 }}>Đóng Cửa Sổ</Button>]}
+          footer={null}
         >
           <div style={{ height: '75vh', width: '100%', position: 'relative', background: '#e2e8f0', borderRadius: 12, overflow: 'hidden', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.05)' }}>
             {isLoadingSlide ? (

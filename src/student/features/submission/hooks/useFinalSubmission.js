@@ -247,7 +247,7 @@ export const useFinalSubmission = (teamId, hackathonId) => {
 
       const submissionStatus = String(data?.status || '').toUpperCase();
       if (submissionStatus === 'REJECTED') {
-        message.error('Bài nộp đã bị từ chối (REJECTED) — đã quá hạn nộp Chung kết.');
+        message.error('Bài nộp đã bị từ chối — đã quá hạn nộp Chung kết.');
         await fetchSubmissionData({ silent: true });
         return false;
       }

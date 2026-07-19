@@ -1,3 +1,9 @@
+/**
+ * Preliminary results progression - revived on live seed seal-gd4-tiebreak-manual
+ * (prelim locked + unpublished + 1 unresolved COORDINATOR_DECISION tiebreak).
+ * The advance button must stay disabled while the tiebreak is unresolved.
+ * NOTE: Vietnamese UI text uses \uXXXX escapes (repo tooling writes ASCII only).
+ */
 import { test, expect } from '@playwright/test';
 import {
   findHackathonBySlug,
@@ -6,79 +12,76 @@ import {
   waitForLoginToken,
   waitForSeedSlug,
 } from './helpers/api.js';
-import { getTiebreak, isMutatingEnabled } from './helpers/progressionApiHelpers.js';
-test.skip(true, 'deprecated seed slug removed � see intentional-errors-catalog.md');
+import { getTiebreak } from './helpers/progressionApiHelpers.js';
+import { loginAs } from './helpers/uiAuth.js';
 
 const COORD_EMAIL = process.env.E2E_COORD_EMAIL || 'coord@fpt.edu.vn';
 const COORD_PASSWORD = process.env.E2E_COORD_PASSWORD || 'Coordinator@dev1';
-const TIEBREAK_SEED_SLUG = 'seal-gd4-tiebreak-gate';
+const TIEBREAK_SEED_SLUG = 'seal-gd4-tiebreak-manual';
 
-async function loginAsCoordinator(page) {
-  await page.goto('/login');
-  await page.getByPlaceholder('example@hackathon.com').fill(COORD_EMAIL);
-  await page.getByPlaceholder('••••••••').fill(COORD_PASSWORD);
-  await page.getByRole('button', { name: /Đăng nhập/i }).click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 20_000 });
-}
+// "Tiebreak|dong diem"
+const RE_TIEBREAK = /Tiebreak|\u0111\u1ED3ng \u0111i\u1EC3m/i;
+// "Chot chuyen vong"
+const RE_ADVANCE_BTN = /Ch\u1ED1t chuy\u1EC3n v\u00F2ng/i;
 
 test.describe('Preliminary results progression (read-only)', () => {
   test.beforeAll(async () => {
     const ready = await waitForBackendReady();
-    test.skip(!ready, 'BE dev server not reachable');
+    expect(ready, 'BE dev server not reachable').toBeTruthy();
     const token = await waitForLoginToken(COORD_EMAIL, COORD_PASSWORD);
     const hackathon = await waitForSeedSlug(TIEBREAK_SEED_SLUG, token);
-    test.skip(!hackathon, `Seed ${TIEBREAK_SEED_SLUG} not ready`);
+    expect(hackathon, `Seed ${TIEBREAK_SEED_SLUG} not ready`).toBeTruthy();
   });
 
   test('tiebreak seed blocks advance UI', async ({ page }) => {
     const token = await waitForLoginToken(COORD_EMAIL, COORD_PASSWORD);
     const hackathon = await findHackathonBySlug(TIEBREAK_SEED_SLUG, token);
-    test.skip(!hackathon, `Seed ${TIEBREAK_SEED_SLUG} not found`);
+    expect(hackathon, `Seed ${TIEBREAK_SEED_SLUG} not found`).toBeTruthy();
 
     const prelim = await findPrelimRound(hackathon.id, token);
-    test.skip(!prelim, 'No prelim round');
+    expect(prelim, 'No prelim round').toBeTruthy();
 
     const tiebreak = await getTiebreak(prelim.id, token);
     const items = Array.isArray(tiebreak) ? tiebreak : tiebreak?.items || [];
-    test.skip(items.length === 0, 'Seed has no tiebreak items');
+    expect(items.length, 'Seed must have tiebreak items').toBeGreaterThan(0);
 
-    await loginAsCoordinator(page);
+    await loginAs(page, { email: COORD_EMAIL, password: COORD_PASSWORD, role: 'coord' });
     await page.goto(`/hackathons/${hackathon.id}/rounds/${prelim.id}/results`);
-    await expect(page.getByText(/Tiebreak/i).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(RE_TIEBREAK).first()).toBeVisible({ timeout: 20_000 });
 
-    const advanceBtn = page.getByRole('button', { name: /Chốt chuyển vòng/i });
+    const advanceBtn = page.getByRole('button', { name: RE_ADVANCE_BTN });
     if (await advanceBtn.isVisible()) {
       await expect(advanceBtn).toBeDisabled();
     }
   });
 });
 
-test.describe('Preliminary results progression (mutating)', () => {
+test.describe('Preliminary results progression (reload persistence)', () => {
   test.beforeAll(async () => {
-    test.skip(!isMutatingEnabled(), 'Set E2E_MUTATING=1 to run mutating tests');
     const ready = await waitForBackendReady();
-    test.skip(!ready, 'BE dev server not reachable');
+    expect(ready, 'BE dev server not reachable').toBeTruthy();
     const token = await waitForLoginToken(COORD_EMAIL, COORD_PASSWORD);
     const hackathon = await waitForSeedSlug(TIEBREAK_SEED_SLUG, token);
-    test.skip(!hackathon, `Seed ${TIEBREAK_SEED_SLUG} not ready`);
+    expect(hackathon, `Seed ${TIEBREAK_SEED_SLUG} not ready`).toBeTruthy();
   });
 
-  test('tiebreak seed — advance button stays disabled after page reload', async ({ page }) => {
+  test('tiebreak seed - advance button stays disabled after page reload', async ({ page }) => {
     const token = await waitForLoginToken(COORD_EMAIL, COORD_PASSWORD);
     const hackathon = await findHackathonBySlug(TIEBREAK_SEED_SLUG, token);
-    test.skip(!hackathon, `Seed ${TIEBREAK_SEED_SLUG} not found`);
+    expect(hackathon, `Seed ${TIEBREAK_SEED_SLUG} not found`).toBeTruthy();
 
     const prelim = await findPrelimRound(hackathon.id, token);
-    test.skip(!prelim, 'No prelim round');
+    expect(prelim, 'No prelim round').toBeTruthy();
 
-    await loginAsCoordinator(page);
+    await loginAs(page, { email: COORD_EMAIL, password: COORD_PASSWORD, role: 'coord' });
     await page.goto(`/hackathons/${hackathon.id}/rounds/${prelim.id}/results`);
-    await expect(page.getByText(/Tiebreak/i).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(RE_TIEBREAK).first()).toBeVisible({ timeout: 20_000 });
 
-    const advanceBtn = page.getByRole('button', { name: /Chốt chuyển vòng/i });
+    const advanceBtn = page.getByRole('button', { name: RE_ADVANCE_BTN });
     if (await advanceBtn.isVisible()) {
       await expect(advanceBtn).toBeDisabled();
       await page.reload();
+      await expect(page.getByText(RE_TIEBREAK).first()).toBeVisible({ timeout: 20_000 });
       await expect(advanceBtn).toBeDisabled();
     }
   });

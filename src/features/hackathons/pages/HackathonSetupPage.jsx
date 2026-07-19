@@ -20,8 +20,8 @@ import HackathonGeneralConfig from '../components/HackathonGeneralConfig';
 import { useReadiness } from '../../review/hooks/useReadiness';
 import { reviewService } from '../../review/services/reviewService';
 
-import AnalyticsPage from '../../analytics/pages/AnalyticsPage';
 import FinalRoundConfigPage from '../../coordinator/pages/FinalRoundConfigPage';
+import EventContextBanner from '../components/EventContextBanner';
 
 const VALID_TABS = new Set([
   'general',
@@ -32,7 +32,6 @@ const VALID_TABS = new Set([
   'events',
   'lottery',
   'final-config',
-  'analytics',
 ]);
 
 const getValidTab = (tab) => (VALID_TABS.has(tab) ? tab : 'general');
@@ -223,11 +222,6 @@ const HackathonSetupPage = () => {
       label: 'Cấu hình Chung kết',
       children: null,
     },
-    {
-      key: 'analytics',
-      label: 'Phân tích & Dữ liệu',
-      children: activeTab === 'analytics' ? <AnalyticsPage hackathonId={hackathon.id} hackathon={hackathon} rounds={rounds} /> : null,
-    },
   ];
 
   const handleActivateHackathon = async () => {
@@ -247,7 +241,7 @@ const HackathonSetupPage = () => {
 
   const activateTooltip = (() => {
     if ((readinessHackathon?.status || hackathon.status) !== 'DRAFT') {
-      return 'Chỉ có thể kích hoạt khi trạng thái là DRAFT';
+      return 'Chỉ có thể kích hoạt khi sự kiện đang ở trạng thái Bản nháp';
     }
     if (!isReadyToActivate) {
       return (
@@ -437,13 +431,21 @@ const HackathonSetupPage = () => {
         }
       `}</style>
 
+      <div style={{ marginBottom: 16 }}>
+        <EventContextBanner
+          hackathon={hackathon}
+          hackathonId={hackathonId}
+          extra="Đổi sự kiện bằng bộ chọn trên thanh header — mọi tab Setup dùng chung ngữ cảnh này."
+        />
+      </div>
+
       <PageHeader
         title={hackathon.name}
         onBack={() => navigate(ROUTES.HACKATHONS)}
         subtitle={
           hackathon.status === 'DRAFT'
             ? 'Hoàn tất cấu hình rồi bấm «Xác nhận Kích hoạt» để mở đăng ký'
-            : undefined
+            : `Sự kiện: ${hackathon.name} — ${hackathon.status || ''}`
         }
         extra={
           hackathon.status === 'DRAFT' ? (

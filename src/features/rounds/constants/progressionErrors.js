@@ -19,14 +19,14 @@ export const PROGRESSION_ERROR_MESSAGES = {
     'Đội thi chưa được phân bảng trong vòng này. Hãy hoàn tất kết thúc đăng ký, khóa đội và bốc thăm trước.',
   PENDING_CONFIRM: 'Đang chờ chốt sổ điểm',
   SUBMISSION_ALREADY_CLOSED: 'Vòng thi đã khóa sổ, không thể nộp bài hay chỉnh sửa điểm.',
-  WILDCARD_PENDING: 'Còn vé vớt chưa duyệt/từ chối. Hoàn tất Wild Card trước khi chuyển vòng.',
+  WILDCARD_PENDING: 'Còn vé vớt chưa duyệt/từ chối. Hoàn tất vé vớt trước khi chuyển vòng.',
   WILDCARD_PROPOSAL_ALREADY_CONFIRMED:
     'Đề xuất vé vớt đã được xác nhận — không thể xác nhận lại. Sửa qua Override.',
   WILDCARD_PROPOSAL_NOT_CONFIRMED: 'Cần xác nhận đề xuất vé vớt trước khi chuyển vòng.',
   WILDCARD_PROPOSAL_NOT_LOCKED: 'Chỉ Override sau khi đã xác nhận đề xuất vé vớt.',
   WILDCARD_OVERRIDE_CATEGORY_INVALID:
     'Category override không hợp lệ. Chọn PROPOSED_TEAM_VIOLATION, TRACK_QUOTA_ADJUST, SCORE_CORRECTED hoặc OTHER.',
-  WILDCARD_OVERRIDE_NOTE_REQUIRED: 'Category OTHER bắt buộc nhập ghi chú (WC-05).',
+  WILDCARD_OVERRIDE_NOTE_REQUIRED: 'Loại "Khác" bắt buộc nhập ghi chú.',
 };
 
 export const extractProgressionErrorCode = (error) =>

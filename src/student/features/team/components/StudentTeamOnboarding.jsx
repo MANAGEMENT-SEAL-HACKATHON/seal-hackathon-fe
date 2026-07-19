@@ -83,7 +83,7 @@ const StudentTeamOnboarding = ({
             style={{ flex: 1 }}
           >
             <TeamCreateCard
-              hackathonId={hackathonId || 1}
+              hackathonId={hackathonId}
               hasTeams={Boolean(team)}
               onCreateTeam={createTeam}
               loading={teamLoading || isActionLoading}

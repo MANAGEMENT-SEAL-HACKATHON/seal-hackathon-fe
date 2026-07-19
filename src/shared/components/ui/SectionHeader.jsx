@@ -23,6 +23,7 @@ export const HintList = ({ items }) => (
  */
 const SectionHeader = ({ title, info, extra, level = 4, style }) => (
   <div
+    className="section-header"
     style={{
       marginBottom: 16,
       display: 'flex',

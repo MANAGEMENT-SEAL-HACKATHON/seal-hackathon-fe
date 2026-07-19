@@ -29,6 +29,10 @@ import { isRegistrationPeriodEnded } from '../utils/hackathonRegistrationRules';
 import FormLabelWithInfo from '../../../shared/components/ui/FormLabelWithInfo';
 import SectionHeader, { HintList } from '../../../shared/components/ui/SectionHeader';
 import { teamService } from '../../teams/services/teamService';
+import {
+  computeFillPercent,
+  fetchRegisteredParticipantCount,
+} from '../utils/hackathonRegistrationStats';
 
 const { Text, Title } = Typography;
 
@@ -75,6 +79,8 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
   const [bannerFileList, setBannerFileList] = useState([]);
   const [activeTeamCount, setActiveTeamCount] = useState(0);
   const [pendingTeamCount, setPendingTeamCount] = useState(0);
+  const [registeredParticipantCount, setRegisteredParticipantCount] = useState(null);
+  const [registrationStatsError, setRegistrationStatsError] = useState(null);
   const isDraft = hackathon?.status === 'DRAFT';
   const isOngoing = hackathon?.status === 'ONGOING';
   const canEditBanner = isDraft || isOngoing;
@@ -85,9 +91,10 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
   const registrationClosedUi = registrationEnded;
   const bannerSrc = resolveHackathonBannerUrl(hackathon);
   const maxParticipants = Number(hackathon?.max_participants ?? hackathon?.maxParticipants) || 0;
-  const fillPercent = maxParticipants > 0
-    ? Math.min(100, Math.round((activeTeamCount / maxParticipants) * 100))
-    : 0;
+  const fillPercent =
+    registeredParticipantCount != null
+      ? computeFillPercent(registeredParticipantCount, maxParticipants)
+      : 0;
 
   const statusPill = (() => {
     if (isDraft) return { label: 'Bản nháp', color: 'default' };
@@ -110,19 +117,26 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
     let cancelled = false;
     (async () => {
       try {
-        const [activeRes, pendingRes] = await Promise.all([
+        const [activeRes, pendingRes, registeredCount] = await Promise.all([
           teamService.listByHackathon(hackathon.id, { status: 'ACTIVE' }),
           teamService.listByHackathon(hackathon.id, { status: 'PENDING' }).catch(() => []),
+          fetchRegisteredParticipantCount(hackathon.id),
         ]);
         if (cancelled) return;
         const activeList = Array.isArray(activeRes) ? activeRes : activeRes?.items || [];
         const pendingList = Array.isArray(pendingRes) ? pendingRes : pendingRes?.items || [];
         setActiveTeamCount(activeList.length);
         setPendingTeamCount(pendingList.length);
-      } catch {
+        setRegisteredParticipantCount(registeredCount);
+        setRegistrationStatsError(null);
+      } catch (error) {
         if (!cancelled) {
           setActiveTeamCount(0);
           setPendingTeamCount(0);
+          setRegisteredParticipantCount(null);
+          setRegistrationStatsError(
+            error?.message || 'Không thể tải số người đã đăng ký',
+          );
         }
       }
     })();
@@ -187,7 +201,9 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
 
   const awaitingApprovalTeams = resultModal.data?.teamsAwaitingCoordinatorApproval ?? [];
   const gracePeriodTeams = resultModal.data?.teamsInFormationGracePeriod ?? [];
-  const hasCoordinatorAction = awaitingApprovalTeams.length > 0;
+  const pendingActionCount = awaitingApprovalTeams.length + gracePeriodTeams.length;
+  const hasPendingAfterClose = pendingActionCount > 0;
+  const teamsManageUrl = `${ROUTES.GLOBAL_TEAMS}?hackathonId=${hackathon?.id}&status=PENDING`;
 
   return (
     <div style={{ padding: '24px 0', animation: 'fadeInUp 0.4s ease-out both' }}>
@@ -222,11 +238,20 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
             <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Đang chờ duyệt</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: '#ea580c' }}>{pendingTeamCount}</div>
           </div>
-          <div style={{ minWidth: 140 }}>
+          <div style={{ minWidth: 160 }}>
             <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>
-              Lấp đầy {maxParticipants ? `(${activeTeamCount}/${maxParticipants})` : ''}
+              Người đã đăng ký
+              {maxParticipants && registeredParticipantCount != null
+                ? ` (${registeredParticipantCount}/${maxParticipants})`
+                : ''}
             </div>
-            <Progress percent={fillPercent} size="small" strokeColor="#6366f1" />
+            {registrationStatsError ? (
+              <Text type="danger" style={{ fontSize: 11 }}>
+                {registrationStatsError}
+              </Text>
+            ) : (
+              <Progress percent={fillPercent} size="small" strokeColor="#6366f1" />
+            )}
           </div>
         </div>
       </div>
@@ -387,7 +412,18 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
         open={resultModal.open}
         onCancel={() => setResultModal({ open: false, data: null })}
         footer={[
-          onGoToLottery ? (
+          hasPendingAfterClose ? (
+            <Button
+              key="teams"
+              type="primary"
+              onClick={() => {
+                setResultModal({ open: false, data: null });
+                navigate(teamsManageUrl);
+              }}
+            >
+              Xử lý {pendingActionCount} đội đang chờ
+            </Button>
+          ) : onGoToLottery ? (
             <Button
               key="lottery"
               type="primary"
@@ -397,18 +433,6 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
               }}
             >
               Bốc thăm & Khai mạc
-            </Button>
-          ) : null,
-          hasCoordinatorAction ? (
-            <Button
-              key="teams"
-              type="primary"
-              onClick={() => {
-                setResultModal({ open: false, data: null });
-                navigate(ROUTES.GLOBAL_TEAMS);
-              }}
-            >
-              Duyệt danh sách đội thi
             </Button>
           ) : null,
           <Button key="close" onClick={() => setResultModal({ open: false, data: null })}>
@@ -477,7 +501,9 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
                   Đội có thêm 24 giờ để xác nhận tham gia ({gracePeriodTeams.length})
                 </Title>
                 <Text type="secondary">
-                  Trưởng nhóm chưa xác nhận tham gia — hệ thống đã gửi thông báo nhắc nhở đến các thành viên. Sau 24 giờ sẽ tự động loại nếu nhóm không xác nhận (Ban tổ chức không cần can thiệp lúc này).
+                  Trưởng nhóm chưa xác nhận tham gia — đã gửi thông báo cho toàn đội. Các đội này
+                  <Text strong> chặn bốc thăm</Text> cho đến khi xác nhận / hết hạn tự động từ chối,
+                  hoặc Ban tổ chức <Text strong>từ chối sớm</Text> (kèm lý do) để mở khóa.
                 </Text>
                 <List
                   size="small"

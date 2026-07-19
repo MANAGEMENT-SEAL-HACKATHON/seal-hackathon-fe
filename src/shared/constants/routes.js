@@ -36,6 +36,7 @@ export const ROUTES = {
   MENTOR_HISTORY: '/mentor/history',
   STUDENT_ANNUAL_AWARDS: '/student/annual-awards',
   STUDENT_SUBMIT: '/student/submit',
+  STUDENT_EVENTS: '/student/events',
   COORDINATOR_LATE_SUBMISSIONS: '/coordinator/late-submissions',
   PRESENTATION_QUEUE: '/presentation/queue',
   COORDINATOR_ANALYTICS: '/coordinator/analytics',

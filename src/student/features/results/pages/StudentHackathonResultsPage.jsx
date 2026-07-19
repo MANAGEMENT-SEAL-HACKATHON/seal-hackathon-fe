@@ -81,7 +81,7 @@ const StudentHackathonResultsPage = () => {
   const [finalRankings, setFinalRankings] = useState([]);
   const [rankingError, setRankingError] = useState(null);
 
-  // Tab 2: Bảng điểm vòng thi (từ Journey của Student Team - KHÔNG dùng final round ở đây)
+  // Tab 2: Bảng điểm từng vòng từ Journey của đội.
   const [hackathonRounds, setHackathonRounds] = useState([]);
   const [selectedRoundId, setSelectedRoundId] = useState(null);
 
@@ -133,14 +133,12 @@ const StudentHackathonResultsPage = () => {
                 }))
                 .filter((r) => r.roundId);
               
-              // Theo đúng plan: Tab Bảng điểm vòng thi không dùng final round ở đây
-              const nonFinalRounds = allRounds.filter((r) => !r.isFinalRound);
-              const rList = nonFinalRounds.length > 0 ? nonFinalRounds : allRounds;
-              
-              setHackathonRounds(rList);
-              if (rList.length > 0 && (!selectedRoundId || !rList.some(r => Number(r.roundId) === Number(selectedRoundId)))) {
-                setSelectedRoundId(rList[0].roundId);
-              }
+              setHackathonRounds(allRounds);
+              setSelectedRoundId((currentRoundId) =>
+                allRounds.some((r) => Number(r.roundId) === Number(currentRoundId))
+                  ? currentRoundId
+                  : allRounds[0]?.roundId ?? null,
+              );
             }
           } catch {
             if (!cancelled) setHackathonRounds([]);
@@ -160,7 +158,7 @@ const StudentHackathonResultsPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [hackathonId, selectedRoundId]);
+  }, [hackathonId]);
 
   const fetchResults = useCallback(async () => {
     setLoading(true);
@@ -281,7 +279,7 @@ const StudentHackathonResultsPage = () => {
 
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, lineHeight: 1.6 }}>
               {activeMainTab === 'final_rankings' && 'Bảng vàng xếp hạng chính thức toàn đoàn sau vòng Chung kết. Dữ liệu được xác thực trực tiếp từ hệ thống chấm thi của Ban giám khảo.'}
-              {activeMainTab === 'round_scoreboards' && 'Tra cứu điểm số đã công bố, xếp hạng bảng đấu và trạng thái thi đấu qua từng chặng hành trình (không bao gồm Chung kết).'}
+              {activeMainTab === 'round_scoreboards' && 'Tra cứu bảng điểm đội đã công bố cho từng vòng thi trong hành trình, bao gồm cả Chung kết khi có kết quả.'}
               {activeMainTab === 'my_honors' && 'Danh hiệu cá nhân/đội tuyển xuất sắc và tải giấy chứng nhận điện tử hợp lệ (PDF) do Ban Tổ Chức cấp phát.'}
             </Text>
 
@@ -290,7 +288,7 @@ const StudentHackathonResultsPage = () => {
                 👑 BXH Chung Kết
               </span>
               <span style={{ background: 'rgba(255,255,255,0.15)', padding: '6px 14px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                📊 {hackathonRounds.length} Vòng thi sơ loại / bán kết
+                📊 {hackathonRounds.length} Vòng thi
               </span>
               <span style={{ background: 'rgba(255,255,255,0.15)', padding: '6px 14px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 🏆 Vinh danh & PDF
@@ -422,7 +420,7 @@ const StudentHackathonResultsPage = () => {
         <div>
           {hackathonRounds.length === 0 ? (
             <Card style={{ borderRadius: 24, padding: '60px 0', textAlign: 'center', background: isDark ? 'rgba(30, 41, 59, 0.4)' : '#f8fafc' }}>
-              <Empty description={<span style={{ fontSize: 16, fontWeight: 700 }}>Chưa có vòng thi sơ loại / bán kết nào được công bố trong hành trình của bạn</span>} />
+              <Empty description={<span style={{ fontSize: 16, fontWeight: 700 }}>Chưa có vòng thi nào trong hành trình của đội bạn</span>} />
             </Card>
           ) : (
             <>

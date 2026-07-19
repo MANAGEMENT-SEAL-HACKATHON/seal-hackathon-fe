@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Tabs, Card, Alert, Button, Modal, Tooltip, Input, List, Breadcrumb, Space, Tag, Typography } from 'antd';
 import { resolveStatusLabel } from '../../../shared/errors/resolveUserError';
+import { HACKATHON_STATUS_COLORS } from '../../../shared/constants/labels';
 import { useHackathonResults } from '../hooks/useHackathonResults';
 import TeamRankingTable from '../components/TeamRankingTable';
 import ChapterRankingTable from '../components/ChapterRankingTable';
@@ -155,7 +156,7 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
             <Space wrap>
               <Tag color="blue">Kết quả hackathon</Tag>
               {status && (
-                <Tag color={status === 'FINISHED' ? 'success' : status === 'PENDING_CONFIRM' ? 'warning' : 'default'}>
+                <Tag color={HACKATHON_STATUS_COLORS[String(status).toUpperCase()] || 'default'}>
                   {resolveStatusLabel(status)}
                 </Tag>
               )}
@@ -228,7 +229,7 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
           type="warning"
           showIcon
           message={<span style={{ fontWeight: 600 }}>Giai đoạn Chung kết đang diễn ra</span>}
-          description="BXH team có thể xem sớm. Trao giải và chốt sổ chỉ khả dụng khi hackathon chuyển PENDING_CONFIRM (sau khi khóa chấm CK)."
+          description="Bảng xếp hạng đội có thể xem sớm. Trao giải và chốt sổ chỉ khả dụng khi sự kiện chuyển sang Chờ chốt sổ (sau khi khóa chấm Chung kết)."
           style={{ marginBottom: 16, border: '1px solid #ffe58f', borderRadius: 8 }}
         />
       )}
@@ -238,7 +239,7 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
           type="info"
           showIcon
           message="Đang chờ công bố"
-          description="Cuộc thi đang ở trạng thái PENDING_CONFIRM. Hãy trao giải (tab Giải thưởng) rồi bấm Chốt sổ."
+          description="Cuộc thi đang ở trạng thái Chờ chốt sổ. Hãy trao giải (tab Giải thưởng) rồi bấm Chốt sổ."
           style={{ marginBottom: 16 }}
         />
       )}
@@ -248,7 +249,7 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
           type="success"
           showIcon
           message="Đã công bố kết quả"
-          description="Hackathon đã FINISHED. Sinh viên có thể xem bảng xếp hạng; Coordinator có thể xuất CSV."
+          description="Sự kiện đã kết thúc. Sinh viên có thể xem bảng xếp hạng; Ban tổ chức có thể xuất CSV."
           style={{ marginBottom: 16 }}
         />
       )}

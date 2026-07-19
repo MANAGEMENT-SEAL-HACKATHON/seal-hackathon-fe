@@ -71,7 +71,7 @@ const TeamActionButtons = ({
         title={
           canDisband
             ? "Thêm thao tác"
-            : "Chỉ đội PENDING hoặc ACTIVE (chưa có mentor) mới có thể giải tán"
+            : "Chỉ đội chờ duyệt hoặc đã duyệt (chưa có cố vấn) mới có thể giải tán"
         }
       >
         <Button
@@ -137,7 +137,7 @@ const TeamActionButtons = ({
         <Tooltip title={disabledReason}>
           <Popconfirm
             title="Duyệt đội thi này?"
-            description="Đội sẽ được chuyển sang trạng thái ACTIVE."
+            description="Đội sẽ được chuyển sang trạng thái đã duyệt."
             onConfirm={onApprove}
             okText="Duyệt"
             cancelText="Hủy"

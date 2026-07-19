@@ -3,7 +3,6 @@ import { Card, Steps, Typography } from 'antd';
 import { CheckCircleFilled } from '@ant-design/icons';
 import { ROUTES } from '../../../shared/constants/routes';
 import {
-  getProblemReleasedAt,
   isPresentationShuffled,
   isPresentationsComplete,
   isRoundActive,
@@ -28,21 +27,22 @@ const FinalRoundCoordinatorStepper = ({
   if (!hackathonId || !finalRoundId) return null;
 
   const active = finalRound ? isRoundActive(finalRound) : finalActive;
-  const released = finalRound ? Boolean(getProblemReleasedAt(finalRound)) : false;
   const closed = finalRound ? isSubmissionClosed(finalRound) : false;
   const shuffled = finalRound ? isPresentationShuffled(finalRound) : false;
   const presentationsDone = finalRound ? isPresentationsComplete(finalRound) : false;
   const locked = finalRound ? isScoringLocked(finalRound) : scoringLocked;
 
-  // 0 Đội đi tiếp | 1 Gán GK | 2 Kích hoạt | 3 Phát đề | 4 Close | 5 Shuffle | 6 Present | 7 Lock | 8 Trao giải
+  // 0 Đội đi tiếp | 1 Gán GK | 2 Kích hoạt | 3 Close | 4 Shuffle | 5 Present | 6 Lock | 7 Trao giải
+  // CK không có bước Phát đề — đề kế thừa bảng Sơ loại khi kích hoạt.
+  // current = milestone cao nhất đã đạt (index). locked → bước Khóa chấm (6),
+  // không nhảy thẳng 7 bỏ qua highlight step Khóa chấm.
   let current = 0;
   if (prelimRoundId) current = 1;
   if (active) current = 2;
-  if (released) current = 3;
-  if (closed) current = 4;
-  if (shuffled) current = 5;
-  if (presentationsDone) current = 6;
-  if (locked) current = 8;
+  if (closed) current = 3;
+  if (shuffled) current = 4;
+  if (presentationsDone) current = 5;
+  if (locked) current = 6;
 
   const prelimResultsUrl = prelimRoundId
     ? ROUTES.ROUND_RESULTS.replace(':hackathonId', String(hackathonId)).replace(
@@ -50,8 +50,6 @@ const FinalRoundCoordinatorStepper = ({
         String(prelimRoundId),
       )
     : null;
-  // G5-K: deep-link Wild Card review trên trang Kết quả Sơ loại
-  const wildcardReviewUrl = prelimResultsUrl ? `${prelimResultsUrl}?tab=wildcard` : null;
   const rosterUrl = prelimResultsUrl ? `${prelimResultsUrl}?tab=roster` : null;
   const queueUrl = `/presentation/queue?roundId=${finalRoundId}&from=final-config`;
   const peopleUrl = hackathonId ? `/hackathons/${hackathonId}/setup?tab=people` : ROUTES.HACKATHON_SETUP;
@@ -77,11 +75,6 @@ const FinalRoundCoordinatorStepper = ({
               Danh sách CK & Loại
             </Link>
           )}
-          {wildcardReviewUrl && (
-            <Link to={wildcardReviewUrl} style={linkStyle(current >= 0)}>
-              Duyệt vé vớt
-            </Link>
-          )}
         </span>
       ) : (
         <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>Chưa có kết quả</Text>
@@ -99,22 +92,16 @@ const FinalRoundCoordinatorStepper = ({
       title: 'Kích hoạt Vòng thi',
       desc: (
         <Text style={{ color: current >= 2 ? '#38bdf8' : 'rgba(255,255,255,0.3)', fontSize: '11px' }}>
-          Thực hiện tại trang này
+          {active
+            ? 'Đã kích hoạt — đề kế thừa bảng Sơ loại'
+            : 'Thực hiện tại trang này (cùng modal lịch như Sơ loại)'}
         </Text>
-      ),
-    },
-    {
-      title: 'Phát đề',
-      desc: (
-        <a href={roundsUrl} target="_blank" rel="noopener noreferrer" style={linkStyle(current >= 3)}>
-          {released ? 'Đã phát đề' : 'Quản lý vòng (tab mới)'}
-        </a>
       ),
     },
     {
       title: 'Kết thúc sớm / hết hạn',
       desc: (
-        <a href={roundsUrl} target="_blank" rel="noopener noreferrer" style={linkStyle(current >= 4)}>
+        <a href={roundsUrl} target="_blank" rel="noopener noreferrer" style={linkStyle(current >= 3)}>
           {closed ? 'Đã đóng vòng' : 'Quản lý vòng (tab mới)'}
         </a>
       ),
@@ -122,7 +109,7 @@ const FinalRoundCoordinatorStepper = ({
     {
       title: 'Xáo hàng đợi',
       desc: closed ? (
-        <a href={queueUrl} target="_blank" rel="noopener noreferrer" style={linkStyle(current >= 5)}>
+        <a href={queueUrl} target="_blank" rel="noopener noreferrer" style={linkStyle(current >= 4)}>
           {shuffled ? 'Đã xáo' : 'Hàng đợi thuyết trình'}
         </a>
       ) : (
@@ -132,7 +119,7 @@ const FinalRoundCoordinatorStepper = ({
     {
       title: 'Thuyết trình & chấm',
       desc: closed ? (
-        <a href={queueUrl} target="_blank" rel="noopener noreferrer" style={linkStyle(current >= 6)}>
+        <a href={queueUrl} target="_blank" rel="noopener noreferrer" style={linkStyle(current >= 5)}>
           {presentationsDone ? 'Đã hoàn tất' : 'Timer & chấm điểm'}
         </a>
       ) : (
@@ -142,7 +129,7 @@ const FinalRoundCoordinatorStepper = ({
     {
       title: 'Khóa chấm điểm',
       desc: (
-        <a href={roundsUrl} target="_blank" rel="noopener noreferrer" style={linkStyle(current >= 7)}>
+        <a href={roundsUrl} target="_blank" rel="noopener noreferrer" style={linkStyle(current >= 6)}>
           {locked ? 'Đã khóa điểm' : 'Khóa chấm (tab mới)'}
         </a>
       ),
@@ -150,7 +137,7 @@ const FinalRoundCoordinatorStepper = ({
     {
       title: 'Trao giải',
       desc: locked ? (
-        <Link to={resultsUrl} style={linkStyle(current >= 8)}>
+        <Link to={resultsUrl} style={linkStyle(current >= 7)}>
           Kết quả chung cuộc
         </Link>
       ) : (

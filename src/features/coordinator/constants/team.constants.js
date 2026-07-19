@@ -83,13 +83,12 @@ export const TEAM_ERROR_MESSAGES = {
   [TEAM_ERROR_CODES.TEAM_LOCKED]: 'Đội này đã bị khóa, không thể thay đổi thành viên hoặc thao tác thêm.',
   [TEAM_ERROR_CODES.TEAM_HAS_MENTOR]: 'Không thể giải tán đội đã được phân công Mentor.',
   [TEAM_ERROR_CODES.TEAM_ALREADY_ACTIVE]: 'Đội đã được duyệt, không thể thực hiện thao tác này.',
-  [TEAM_ERROR_CODES.TEAM_HAS_PENDING_MEMBERS]: 'Đội vẫn còn lời mời PENDING, cần xử lý trước khi duyệt.',
-  [TEAM_ERROR_CODES.USER_IN_ANOTHER_TEAM]: 'Có thành viên đã thuộc đội khác trong Hackathon này.',
-  [TEAM_ERROR_CODES.REGISTRATION_CLOSED]: 'Đã hết hạn đăng ký đội cho Hackathon này.',
-  [TEAM_ERROR_CODES.TEAM_HAS_PENDING_MEMBERS]: 'Đội vẫn còn lời mời PENDING, cần xử lý trước khi duyệt.',
+  [TEAM_ERROR_CODES.TEAM_HAS_PENDING_MEMBERS]: 'Đội vẫn còn lời mời chờ phản hồi, cần xử lý trước khi duyệt.',
+  [TEAM_ERROR_CODES.USER_IN_ANOTHER_TEAM]: 'Có thành viên đã thuộc đội khác trong sự kiện này.',
+  [TEAM_ERROR_CODES.REGISTRATION_CLOSED]: 'Đã hết hạn đăng ký đội cho sự kiện này.',
   [TEAM_ERROR_CODES.TEAM_FORMATION_NOT_SUBMITTED]:
-    'Trưởng nhóm chưa xác nhận thành lập đội. Chỉ duyệt sau khi leader bấm xác nhận.',
-  [TEAM_ERROR_CODES.HACKATHON_NOT_ONGOING]: 'Hackathon không ở trạng thái ONGOING.',
+    'Trưởng nhóm chưa xác nhận thành lập đội. Chỉ duyệt sau khi trưởng nhóm bấm xác nhận.',
+  [TEAM_ERROR_CODES.HACKATHON_NOT_ONGOING]: 'Sự kiện không đang diễn ra.',
   [TEAM_ERROR_CODES.FORBIDDEN]: 'Bạn không có quyền thực hiện thao tác này.',
 };
 

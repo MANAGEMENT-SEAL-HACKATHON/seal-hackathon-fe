@@ -3,6 +3,9 @@ import { Modal, notification } from 'antd';
 import { userService } from '../../../features/auth/services/userService';
 import { studentTeamService } from '../../features/team/services/studentTeam.service';
 import { studentHackathonService } from '../../features/hackathon/services/studentHackathon.service';
+import { roundService } from '../../../features/rounds/services/roundService';
+import { eventService } from '../../../features/events/services/eventService';
+import { mapRoundToFE } from '../../../features/rounds/mappers/roundMapper';
 
 const getStoredUser = () => {
   try {
@@ -30,6 +33,8 @@ export const useStudentDashboard = () => {
   const [user, setUser] = useState(getStoredUser);
   const [activeHackathon, setActiveHackathon] = useState(null);
   const [teams, setTeams] = useState([]);
+  const [nextAction, setNextAction] = useState(null);
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTeamLoading, setIsTeamLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -81,6 +86,8 @@ export const useStudentDashboard = () => {
     if (!isApprovedStudent(profile)) {
       setTeams([]);
       setActiveHackathon(null);
+      setNextAction(null);
+      setUpcomingDeadlines([]);
       return;
     }
 
@@ -105,6 +112,8 @@ export const useStudentDashboard = () => {
       if (!primaryHackathonId) {
         setActiveHackathon(null);
         setTeams([]);
+        setNextAction({ title: 'Đăng ký / tham gia sự kiện', detail: 'Chưa có hackathon đang gắn với đội của bạn.' });
+        setUpcomingDeadlines([]);
         return;
       }
 
@@ -113,6 +122,45 @@ export const useStudentDashboard = () => {
       setTeams(
         nextTeams.filter((team) => Number(team.hackathonId) === Number(primaryHackathonId))
       );
+
+      const [roundsRaw, eventsRaw] = await Promise.all([
+        roundService.listByHackathon(primaryHackathonId).catch(() => []),
+        eventService.listByHackathon(primaryHackathonId).catch(() => []),
+      ]);
+      const rounds = (Array.isArray(roundsRaw) ? roundsRaw : roundsRaw?.items || []).map(mapRoundToFE);
+      const activeRound =
+        rounds.find((r) => r.is_active && !r.submission_closed) ||
+        rounds.find((r) => r.is_active) ||
+        null;
+      const submitDeadline =
+        activeRound?.submission_deadline ||
+        activeRound?.submissionDeadline ||
+        activeRound?.end_time ||
+        null;
+      if (activeRound) {
+        setNextAction({
+          title: `Vòng đang mở: ${activeRound.name || activeRound.roundName}`,
+          detail: submitDeadline
+            ? `Hạn nộp: ${new Date(submitDeadline).toLocaleString('vi-VN')}`
+            : 'Theo dõi hạn nộp trong trang đội / vòng thi.',
+        });
+      } else {
+        setNextAction({
+          title: 'Chưa có vòng đang mở nộp bài',
+          detail: 'Theo dõi lịch trình sự kiện hoặc kết quả đã công bố.',
+        });
+      }
+
+      const now = Date.now();
+      const events = (Array.isArray(eventsRaw) ? eventsRaw : eventsRaw?.items || [])
+        .map((e) => ({
+          name: e.name || e.eventName || e.title,
+          start: e.startTime || e.startAt || e.start_time,
+        }))
+        .filter((e) => e.start && new Date(e.start).getTime() >= now - 3600_000)
+        .sort((a, b) => new Date(a.start) - new Date(b.start))
+        .slice(0, 5);
+      setUpcomingDeadlines(events);
     } catch {
       setTeams([]);
     } finally {
@@ -152,6 +200,8 @@ export const useStudentDashboard = () => {
     user,
     activeHackathon,
     selectedTeam: teams[0] || null,
+    nextAction,
+    upcomingDeadlines,
     isLoading,
     isTeamLoading,
     isRefreshing,

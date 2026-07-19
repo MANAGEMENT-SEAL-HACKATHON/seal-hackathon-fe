@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Alert, Grid, Select, Space, Spin, Typography, theme } from 'antd';
+import { Alert, Grid, Spin, theme } from 'antd';
 import { BarChart3 } from 'lucide-react';
-import { SearchOutlined } from '@ant-design/icons';
-import { useHackathonSelect } from '../hooks/useHackathonSelect';
+import { useHackathonScopeOptional } from '../../hackathons/context/HackathonScopeContext';
+import EventContextBanner from '../../hackathons/components/EventContextBanner';
 import { hackathonService } from '../../hackathons/services/hackathonService';
 import { roundService } from '../../rounds/services/roundService';
 import { mapHackathonToFE } from '../../hackathons/mappers/hackathonMapper';
 import { mapRoundToFE } from '../../rounds/mappers/roundMapper';
 import AnalyticsPage from '../../analytics/pages/AnalyticsPage';
+import CoordinatorHero from '../../../shared/components/ui/CoordinatorHero';
 
-const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
 const CoordinatorAnalyticsPage = () => {
@@ -19,18 +19,12 @@ const CoordinatorAnalyticsPage = () => {
   const isMobile = !screens.md;
   const { hackathonId: routeHackathonId } = useParams();
   const [searchParams] = useSearchParams();
-  const presetHackathonId = routeHackathonId || searchParams.get('hackathonId');
+  const scope = useHackathonScopeOptional();
+  const presetHackathonId =
+    routeHackathonId || searchParams.get('hackathonId') || scope?.hackathonId;
 
-  const {
-    hackathons,
-    selectedHackathonId,
-    setSelectedHackathonId,
-    isLoadingHackathons,
-  } = useHackathonSelect(presetHackathonId);
-
-  const activeHackathonId = presetHackathonId
-    ? Number(presetHackathonId)
-    : selectedHackathonId;
+  const activeHackathonId = presetHackathonId ? Number(presetHackathonId) : null;
+  const isLoadingHackathons = scope?.isLoadingHackathons;
 
   const [hackathon, setHackathon] = useState(null);
   const [rounds, setRounds] = useState([]);
@@ -98,84 +92,29 @@ const CoordinatorAnalyticsPage = () => {
   }
 
   return (
-    <div style={pageStyle}>
+    <div className="coord-page" style={pageStyle}>
       <div style={{ margin: '0 auto', maxWidth: 1400 }}>
-        <section
-          style={{
-            alignItems: isMobile ? 'stretch' : 'center',
-            background: token.colorBgContainer,
-            border: `1px solid ${token.colorBorderSecondary}`,
-            borderRadius: token.borderRadius,
-            boxShadow: token.boxShadowTertiary,
-            display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            gap: isMobile ? 18 : 24,
-            justifyContent: 'space-between',
-            marginBottom: isMobile ? 16 : 20,
-            padding: isMobile ? 18 : '22px 24px',
-          }}
-        >
-          <div>
-            <Title
-              level={2}
-              style={{
-                alignItems: 'center',
-                display: 'flex',
-                gap: 12,
-                margin: 0,
-              }}
-            >
-              <span
-                style={{
-                  alignItems: 'center',
-                  background: token.colorPrimaryBg,
-                  borderRadius: token.borderRadius,
-                  color: token.colorPrimary,
-                  display: 'inline-flex',
-                  height: 40,
-                  justifyContent: 'center',
-                  width: 40,
-                }}
-              >
-                <BarChart3 size={20} />
-              </span>
+        <CoordinatorHero
+          data-testid="analytics-hero"
+          title={
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+              <BarChart3 size={24} style={{ color: '#4f46e5' }} />
               Phân tích & dữ liệu
-            </Title>
-            <Text type="secondary" style={{ display: 'block', marginTop: 8, maxWidth: 680 }}>
-              RBL variance, tiến độ chấm và xuất báo cáo sau khi sự kiện kết thúc.
-            </Text>
-          </div>
+            </span>
+          }
+          subtitle="Phân bố điểm giữa giám khảo, tiến độ chấm và xuất báo cáo sau khi sự kiện kết thúc."
+        />
 
-          {!presetHackathonId && (
-            <Space direction="vertical" size={6} style={{ minWidth: isMobile ? 0 : 320, width: isMobile ? '100%' : 'auto' }}>
-              <Text strong>Sự kiện đang xem</Text>
-              <Select
-                showSearch
-                placeholder="Chọn sự kiện hackathon"
-                loading={isLoadingHackathons}
-                value={selectedHackathonId}
-                onChange={(value) => setSelectedHackathonId(value)}
-                style={{ width: '100%' }}
-                size="large"
-                suffixIcon={<SearchOutlined style={{ color: token.colorPrimary }} />}
-                filterOption={(input, option) =>
-                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                }
-                options={hackathons.map((h) => ({
-                  value: h.id,
-                  label: h.hackathonName || h.name || `Hackathon #${h.id}`,
-                }))}
-              />
-            </Space>
-          )}
-        </section>
+        <div style={{ marginBottom: 16 }}>
+          <EventContextBanner hackathon={hackathon} hackathonId={activeHackathonId} />
+        </div>
 
         {!activeHackathonId && !isLoadingHackathons && (
           <Alert
             type="info"
             showIcon
             message="Chưa chọn sự kiện hackathon"
-            description="Vui lòng chọn một sự kiện ở phía trên để xem phân tích dữ liệu."
+            description="Vui lòng chọn sự kiện trên thanh header để xem phân tích dữ liệu."
           />
         )}
 

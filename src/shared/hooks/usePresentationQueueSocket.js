@@ -31,7 +31,7 @@ export function usePresentationQueueSocket(roundId, onInvalidate, trackId = null
   const onFallbackPollRef = useRef(options.onFallbackPoll);
   const [connected, setConnected] = useState(false);
   const [syncFallback, setSyncFallback] = useState(false);
-  const lastMessageAtRef = useRef(Date.now());
+  const lastMessageAtRef = useRef(0);
   const fallbackIntervalRef = useRef(null);
   const silentCheckRef = useRef(null);
   const debounceTimerRef = useRef(null);
@@ -111,7 +111,7 @@ export function usePresentationQueueSocket(roundId, onInvalidate, trackId = null
         topics.forEach((topic) => {
           client.subscribe(topic, (frame) => {
             markMessage();
-            let body = null;
+            let body;
             try {
               body = frame?.body ? JSON.parse(frame.body) : null;
             } catch {
@@ -148,6 +148,8 @@ export function usePresentationQueueSocket(roundId, onInvalidate, trackId = null
 
     client.activate();
 
+    // Grace period: đừng coi là "im lặng" trước khi kịp connect lần đầu.
+    lastMessageAtRef.current = Date.now();
     silentCheckRef.current = setInterval(() => {
       const silentFor = Date.now() - lastMessageAtRef.current;
       if (silentFor >= SILENT_MS) {

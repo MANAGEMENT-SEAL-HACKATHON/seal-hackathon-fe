@@ -72,15 +72,73 @@ function roundIsScoringLocked(round) {
   return !!(round?.scoringLocked ?? round?.scoring_locked);
 }
 
-/** @type {Record<string, { status?: string, prelimActive?: boolean, prelimLocked?: boolean, finalActive?: boolean }>} */
+/** @type {Record<string, { status?: string, prelimActive?: boolean, prelimLocked?: boolean, finalActive?: boolean, chainFromGd4?: boolean }>} */
 const SLUG_EXPECTATIONS = {
   'seal-e2e-2026': { status: 'ONGOING', prelimActive: false },
   'seal-fall-2025-finished': { status: 'FINISHED' },
   'seal-gd3-prelim-open': { status: 'ONGOING', prelimActive: true },
-  'seal-gd4-advance-ready': { status: 'ONGOING', prelimLocked: true, finalActive: false },
-  'seal-gd5-final-active': { status: 'ONGOING', finalActive: true },
-  'seal-gd6-pending-confirm': { status: 'PENDING_CONFIRM', prelimLocked: true },
+  'seal-gd4-advance-ready': { status: 'ONGOING', prelimLocked: true, finalActive: false, chainFromGd4: true },
+  'seal-gd4-tiebreak-submission-time': { status: 'ONGOING', prelimLocked: true, finalActive: false, chainFromGd4: true },
+  'seal-gd4-tiebreak-manual': { status: 'ONGOING', prelimLocked: true, finalActive: false, chainFromGd4: true },
+  'seal-gd4-wildcard-gap': { status: 'ONGOING', prelimLocked: true, finalActive: false, chainFromGd4: true },
+  'seal-gd5-final-active': { status: 'ONGOING', finalActive: true, chainFromGd4: true },
+  'seal-gd6-pending-confirm': { status: 'PENDING_CONFIRM', prelimLocked: true, chainFromGd4: true },
 };
+
+const MILESTONE_EVENT_TYPES = ['KICKOFF', 'WORKSHOP', 'AWARDS'];
+
+/**
+ * GĐ4+ slugs must carry full chain: GĐ1 events, GĐ2 locked teams, GĐ3 prelim ranking (xem lại điểm SL).
+ * @param {{ id: number|string, slug: string, coordToken: string, rounds: any[] }} ctx
+ * @returns {Promise<ProbeResult>}
+ */
+async function probeHistoricalChain(ctx) {
+  const exp = SLUG_EXPECTATIONS[ctx.slug];
+  if (!exp?.chainFromGd4) {
+    return { pass: true };
+  }
+
+  const events = await apiRequest('GET', `/hackathons/${ctx.id}/events`, { token: ctx.coordToken });
+  const eventList = Array.isArray(events) ? events : events?.items || [];
+  const types = new Set(eventList.map((e) => e.type || e.eventType));
+  for (const type of MILESTONE_EVENT_TYPES) {
+    if (!types.has(type)) {
+      return { pass: false, reason: `GĐ1 thiếu event ${type} (slug chỉ test GĐ4 là sai)` };
+    }
+  }
+
+  const teams = await apiRequest('GET', `/teams?hackathonId=${ctx.id}`, { token: ctx.coordToken });
+  const teamList = Array.isArray(teams) ? teams : teams?.items || [];
+  if (teamList.length === 0) {
+    return { pass: false, reason: 'GĐ2 thiếu teams — không có nền lottery/đội' };
+  }
+  const unlocked = teamList.filter((t) => !(t.isLocked ?? t.is_locked));
+  if (unlocked.length > 0) {
+    return {
+      pass: false,
+      reason: `GĐ2: ${unlocked.length} đội chưa khóa — seed không đủ chuỗi trước GĐ4`,
+    };
+  }
+
+  const prelim = findPrelim(ctx.rounds);
+  if (!prelim) {
+    return { pass: false, reason: 'GĐ3 thiếu vòng Sơ loại' };
+  }
+  if (!roundIsScoringLocked(prelim)) {
+    return { pass: false, reason: 'GĐ3 prelim chưa khóa chấm — không xem lại điểm SL' };
+  }
+
+  const ranking = await apiRequest('GET', `/rounds/${prelim.id}/ranking`, { token: ctx.coordToken });
+  const rankList = Array.isArray(ranking) ? ranking : ranking?.items || [];
+  if (rankList.length === 0) {
+    return {
+      pass: false,
+      reason: 'GĐ3 ranking trống — user ở GĐ4 không xem lại điểm Sơ loại được',
+    };
+  }
+
+  return { pass: true, detail: `chain ok: ${eventList.length} events, ${teamList.length} teams, ${rankList.length} ranked` };
+}
 
 /**
  * @param {{ id: number|string, slug: string, coordToken: string, rounds: any[], hackathon: any }} ctx
@@ -163,7 +221,12 @@ export async function probeSlug(slug, coordToken, hackathonBySlug) {
     return { slug, ...base };
   }
 
-  return { slug, pass: true };
+  const chain = await probeHistoricalChain(ctx);
+  if (!chain.pass) {
+    return { slug, ...chain };
+  }
+
+  return { slug, pass: true, detail: chain.detail };
 }
 
 export async function runAllProbes() {

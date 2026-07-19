@@ -68,10 +68,6 @@ export const judgeService = {
     });
   },
 
-  submitCalibrationScore: async (payload) => {
-    return axiosClient.post('/api/v1/scores/calibration', payload);
-  },
-
   getPresentationScoringStatus: async (roundId, trackId) =>
     axiosClient.get('/api/v1/me/judge/presentation-scoring-status', {
       params: { roundId, ...(trackId ? { trackId } : {}) },

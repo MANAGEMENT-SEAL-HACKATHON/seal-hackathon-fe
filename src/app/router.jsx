@@ -48,6 +48,7 @@ import FinalRoundConfigPage from '../features/coordinator/pages/FinalRoundConfig
 import PresentationQueuePage from '../features/presentation/pages/PresentationQueuePage';
 import MentorHistoryPage from '../features/mentor/pages/MentorHistoryPage';
 import StudentAnnualAwardsPage from '../student/features/portal/pages/StudentAnnualAwardsPage';
+import StudentEventsPage from '../student/features/events/pages/StudentEventsPage';
 
 
 const TrackWrapper = () => {
@@ -121,9 +122,14 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to={ROUTES.LOGIN} state={{ rejected: true }} replace />;
   }
 
-  // Check allowed roles
+  // Check allowed roles. SUPERADMIN kế thừa mọi route mà COORDINATOR được vào
+  // (đăng nhập UI kiểu Coord để thao tác unlock-scoring), không cần liệt kê ở từng allowedRoles.
   if (allowedRoles && !allowedRoles.includes(userInfo.role)) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />;
+    const superadminInheritsCoord =
+      userInfo.role === 'SUPERADMIN' && allowedRoles.includes('COORDINATOR');
+    if (!superadminInheritsCoord) {
+      return <Navigate to={ROUTES.DASHBOARD} replace />;
+    }
   }
 
   return children;
@@ -233,6 +239,11 @@ const AppRouter = () => {
             <StudentAnnualAwardsPage />
           </ProtectedRoute>
         } />
+        <Route path={ROUTES.STUDENT_EVENTS} element={
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <StudentEventsPage />
+          </ProtectedRoute>
+        } />
         <Route path={ROUTES.STUDENT_TEAM} element={
           <ProtectedRoute allowedRoles={['STUDENT']}>
             <StudentTeamPage />
@@ -262,28 +273,32 @@ const AppRouter = () => {
         <Route path={ROUTES.PROFILE} element={<OnboardingPage />} />
         <Route path={ROUTES.HACKATHONS} element={<HackathonListPage />} />
         <Route path="/hackathons/:id/results" element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
             <HackathonResultsPage />
           </ProtectedRoute>
         } />
         <Route path="/hackathons/:hackathonId" element={<HackathonDetailRedirect />} />
-        <Route path={ROUTES.HACKATHON_CREATE} element={<CreateHackathonPage />} />
+        <Route path={ROUTES.HACKATHON_CREATE} element={
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
+            <CreateHackathonPage />
+          </ProtectedRoute>
+        } />
         <Route path={ROUTES.HACKATHON_SETUP} element={<HackathonSetupPage />} />
         <Route path={`${ROUTES.GLOBAL_TEAMS}/:hackathonId`} element={<CoordinatorTeamPage />} />
         <Route path={ROUTES.GLOBAL_TEAMS} element={<CoordinatorTeamPage />} />
         <Route path={ROUTES.USER_APPROVAL} element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
             <UserApprovalPage />
           </ProtectedRoute>
         } />
         <Route path={ROUTES.TEMP_JUDGES} element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
             <TempJudgesPage />
           </ProtectedRoute>
         } />
          {/* Routes inside JudgeDashboardPage */}
         <Route path={ROUTES.JUDGE_DASHBOARD} element={
-          <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR']}>
             <JudgeDashboardPage />
           </ProtectedRoute>
         } />
@@ -292,20 +307,20 @@ const AppRouter = () => {
         {/* THÊM ROUTE CHO PHÒNG CHẤM THI VÀO ĐÂY */}
         {/* ==================================================== */}
         <Route path="/judge/assignments" element={
-          <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR']}>
             <ScoringLobbyPage />
           </ProtectedRoute>
         } />
 
          {/* Routes inside LiveScoringPage */}
         <Route path={ROUTES.JUDGE_SCORING} element={
-          <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR']}>
             <LiveScoringPage />
           </ProtectedRoute>
         } />
         {/* Routes inside JudgeCriteriaViewPage */}
         <Route path={ROUTES.JUDGE_CRITERIA} element={
-          <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['JUDGE', 'TEMP_JUDGE', 'COORDINATOR']}>
             <JudgeCriteriaViewPage />
           </ProtectedRoute>
         } />
@@ -313,7 +328,7 @@ const AppRouter = () => {
         {/* Explicit routes for tracks and rounds */}
         <Route path={ROUTES.ROUNDS} element={<RoundWrapper />} />
         <Route path={ROUTES.ROUND_RESULTS} element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
             <div style={{ padding: 24 }}>
               <PreliminaryResultsPage />
             </div>
@@ -321,7 +336,7 @@ const AppRouter = () => {
         } />
         <Route path={ROUTES.CRITERIA} element={<CriteriaWrapper />} />
         <Route path={ROUTES.ROUND_RANKING_PREVIEW} element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
             <div style={{ padding: 24 }}>
               <RoundRankingPreviewPage />
             </div>
@@ -332,17 +347,17 @@ const AppRouter = () => {
 
         {/* Person B Routes */}
         <Route path={ROUTES.MENTOR_ROUNDS} element={
-          <ProtectedRoute allowedRoles={['MENTOR', 'COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['MENTOR', 'COORDINATOR']}>
             <MentorRoundsPage />
           </ProtectedRoute>
         } />
         <Route path={ROUTES.MENTOR_SUPPORT} element={
-          <ProtectedRoute allowedRoles={['MENTOR', 'COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['MENTOR', 'COORDINATOR']}>
             <MentorSupportPage />
           </ProtectedRoute>
         } />
         <Route path={ROUTES.MENTOR_HISTORY} element={
-          <ProtectedRoute allowedRoles={['MENTOR', 'COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['MENTOR', 'COORDINATOR']}>
             <MentorHistoryPage />
           </ProtectedRoute>
         } />
@@ -352,27 +367,27 @@ const AppRouter = () => {
           </ProtectedRoute>
         } />
         <Route path={ROUTES.COORDINATOR_LATE_SUBMISSIONS} element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
             <LateSubmissionReviewPage />
           </ProtectedRoute>
         } />
         <Route path={`${ROUTES.COORDINATOR_ANALYTICS}/:hackathonId`} element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
             <CoordinatorAnalyticsPage />
           </ProtectedRoute>
         } />
         <Route path={ROUTES.COORDINATOR_ANALYTICS} element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
             <CoordinatorAnalyticsPage />
           </ProtectedRoute>
         } />
         <Route path={ROUTES.COORDINATOR_FINAL_CONFIG} element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN']}>
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
             <FinalRoundConfigPage />
           </ProtectedRoute>
         } />
         <Route path={ROUTES.PRESENTATION_QUEUE} element={
-          <ProtectedRoute allowedRoles={['COORDINATOR', 'ADMIN', 'MENTOR', 'JUDGE', 'TEMP_JUDGE']}>
+          <ProtectedRoute allowedRoles={['COORDINATOR', 'MENTOR', 'JUDGE', 'TEMP_JUDGE']}>
             <PresentationQueuePage />
           </ProtectedRoute>
         } />

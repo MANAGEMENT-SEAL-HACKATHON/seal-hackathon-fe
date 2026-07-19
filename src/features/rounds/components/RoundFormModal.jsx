@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Modal, Form, Input, InputNumber, Row, Col, Select, DatePicker, Switch, Tooltip, Card, Typography } from 'antd';
+import { Modal, Form, Input, InputNumber, Row, Col, Select, DatePicker, Switch, Card, Typography } from 'antd';
 import dayjs from 'dayjs';
 import FormLabelWithInfo from '../../../shared/components/ui/FormLabelWithInfo';
 import { ROUND_TIEBREAK_RULE } from '../../../shared/constants/status';
@@ -62,7 +62,6 @@ const RoundFormModal = ({
   const codingDurationWatch = Form.useWatch('coding_duration_hours', form);
   const submissionOpenWatch = Form.useWatch('submission_open', form);
   const topNWatch = Form.useWatch('top_n_advance', form);
-  const minFinalWatch = Form.useWatch('min_teams_final', form);
   const hasPrelimRound = existingRounds.some(
     (r) =>
       r.id !== initialValues?.id &&
@@ -83,32 +82,12 @@ const RoundFormModal = ({
     () =>
       validateAdvancementConfig({
         topNAdvance: topNWatch,
-        minTeamsFinal: minFinalWatch,
+        minTeamsFinal: null,
         partitions,
         requirePartitions: advancementMode === 'confirm',
       }),
-    [topNWatch, minFinalWatch, partitions, advancementMode]
+    [topNWatch, partitions, advancementMode]
   );
-
-  const trackCount = advancementTracks?.length || partitions?.length || 0;
-  const wildcardSlotsPreview = useMemo(() => {
-    const topN = Number(topNWatch);
-    const minFinal = Number(minFinalWatch);
-    if (!Number.isFinite(topN) || !Number.isFinite(minFinal) || topN <= 0 || minFinal <= 0) {
-      return null;
-    }
-    // slots = minTeamsFinal − (topN × trackCount); trackCount=0 lúc mới tạo vòng
-    return minFinal - topN * trackCount;
-  }, [topNWatch, minFinalWatch, trackCount]);
-  const wildcardSlotsNonPositive =
-    wildcardSlotsPreview != null && wildcardSlotsPreview <= 0;
-
-  useEffect(() => {
-    if (!visible || isFinal || !wildcardSlotsNonPositive) return;
-    if (form.getFieldValue('wildcard_enabled')) {
-      form.setFieldsValue({ wildcard_enabled: false });
-    }
-  }, [visible, isFinal, wildcardSlotsNonPositive, form]);
 
   const usedRoundTypes = new Set(
     existingRounds
@@ -125,6 +104,8 @@ const RoundFormModal = ({
       if (initialValues) {
         form.setFieldsValue({
           ...initialValues,
+          // Phase 1: Wildcard removed from UI — always force off
+          wildcard_enabled: false,
           round_type:
             initialValues.round_type ||
             initialValues.roundType ||
@@ -184,6 +165,8 @@ const RoundFormModal = ({
       .then(values => {
         const formattedValues = {
           ...values,
+          // Phase 1: Wildcard removed — never send enabled
+          wildcard_enabled: false,
           is_final: values.round_type === 'FINAL',
           exam_at: values.exam_at?.format('YYYY-MM-DD HH:mm:ss'),
           submission_open: values.submission_open?.format('YYYY-MM-DD HH:mm:ss'),
@@ -435,119 +418,47 @@ const RoundFormModal = ({
             title="Cấu hình đi tiếp vào Chung kết"
             style={{ marginBottom: 16 }}
           >
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item
-                  name="top_n_advance"
-                  label={
-                    <FormLabelWithInfo
-                      label={
-                        advancementMode === 'estimate'
-                          ? 'Vào CK mỗi bảng (dự tính)'
-                          : 'Vào CK mỗi bảng'
-                      }
-                      info={getAdvancementFieldHint(advancementMode, advancementValidation, {
-                        partitions,
-                        topNAdvance: topNWatch,
-                      })}
-                    />
-                  }
-                  dependencies={['min_teams_final']}
-                  validateTrigger={['onChange', 'onBlur']}
-                  rules={[
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        if (advancementMode === 'estimate' && (value === undefined || value === null)) {
-                          return Promise.resolve();
-                        }
-                        const result = validateAdvancementConfig({
-                          topNAdvance: value,
-                          minTeamsFinal: getFieldValue('min_teams_final'),
-                          partitions,
-                          requirePartitions: advancementMode === 'confirm',
-                        });
-                        if (!result.valid) {
-                          return Promise.reject(new Error(result.errors[0]));
-                        }
-                        return Promise.resolve();
-                      },
-                    }),
-                  ]}
-                >
-                  <InputNumber
-                    min={1}
-                    style={{ width: '100%' }}
-                    placeholder={advancementMode === 'estimate' ? 'VD: 2' : 'Bắt buộc'}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="min_teams_final"
-                  label={
-                    advancementMode === 'estimate'
-                      ? 'Tối đa vào chung kết (dự tính)'
-                      : 'Tối đa vào chung kết'
-                  }
-                  dependencies={['top_n_advance']}
-                  validateTrigger={['onChange', 'onBlur']}
-                  rules={[
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        const topN = getFieldValue('top_n_advance');
-                        if (!value || !topN || advancementMode === 'estimate') {
-                          return Promise.resolve();
-                        }
-                        const result = validateAdvancementConfig({
-                          topNAdvance: topN,
-                          minTeamsFinal: value,
-                          partitions,
-                          requirePartitions: advancementMode === 'confirm',
-                        });
-                        if (!result.valid) {
-                          return Promise.reject(new Error(result.errors[0]));
-                        }
-                        return Promise.resolve();
-                      },
-                    }),
-                  ]}
-                >
-                  <InputNumber min={1} style={{ width: '100%' }} placeholder="VD: 6" />
-                </Form.Item>
-              </Col>
-            </Row>
+            <Form.Item name="wildcard_enabled" hidden valuePropName="checked" initialValue={false}>
+              <Switch />
+            </Form.Item>
 
             <Form.Item
-              name="wildcard_enabled"
-              label="Bật Wildcard (vé vớt)"
-              valuePropName="checked"
-              extra={
-                <div style={{ marginTop: 4 }}>
-                  {trackCount === 0 ? (
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      Tạo bảng đấu trước để tính ghế vé vớt chính xác. Công thức:
-                      Số ghế = [Tối đa đội CK] − ([Top N] × [Số lượng bảng]).
-                    </Text>
-                  ) : wildcardSlotsPreview != null ? (
-                    <Text
-                      type={wildcardSlotsNonPositive ? 'danger' : 'secondary'}
-                      style={{ fontSize: 12 }}
-                    >
-                      Số ghế vé vớt (Wildcard slots) = {minFinalWatch} − ({topNWatch} × {trackCount}) ={' '}
-                      <strong>{wildcardSlotsPreview}</strong>
-                      {wildcardSlotsNonPositive
-                        ? ' — Top N đã lấp đủ/vượt trần CK; không cần vé vớt.'
-                        : ''}
-                    </Text>
-                  ) : (
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      Số ghế vé vớt (Wildcard slots) = [Tối đa đội CK] − ([Top N] × [Số lượng bảng])
-                    </Text>
-                  )}
-                </div>
+              name="top_n_advance"
+              label={
+                <FormLabelWithInfo
+                  label="Vào chung kết mỗi bảng (dự tính)"
+                  info={getAdvancementFieldHint(advancementMode, advancementValidation, {
+                    partitions,
+                    topNAdvance: topNWatch,
+                  })}
+                />
               }
+              validateTrigger={['onChange', 'onBlur']}
+              rules={[
+                {
+                  validator(_, value) {
+                    if (advancementMode === 'estimate' && (value === undefined || value === null)) {
+                      return Promise.resolve();
+                    }
+                    const result = validateAdvancementConfig({
+                      topNAdvance: value,
+                      minTeamsFinal: null,
+                      partitions,
+                      requirePartitions: advancementMode === 'confirm',
+                    });
+                    if (!result.valid) {
+                      return Promise.reject(new Error(result.errors[0]));
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             >
-              <Switch disabled={wildcardSlotsNonPositive} />
+              <InputNumber
+                min={1}
+                style={{ width: '100%' }}
+                placeholder={advancementMode === 'estimate' ? 'VD: 2' : 'Bắt buộc'}
+              />
             </Form.Item>
 
             <Form.Item

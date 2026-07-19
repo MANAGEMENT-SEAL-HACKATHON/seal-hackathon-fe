@@ -11,6 +11,11 @@ export const analyticsService = {
     return axiosClient.get(`/api/v1/rounds/${roundId}/rbl/progress`);
   },
 
+  // GET /api/v1/hackathons/{id}/export-jobs
+  listExportJobs: async (hackathonId) => {
+    return axiosClient.get(`/api/v1/hackathons/${hackathonId}/export-jobs`);
+  },
+
   // POST /api/v1/hackathons/{id}/export-jobs
   createExportJob: async (hackathonId, payload = { type: 'CSV_SCORES' }) => {
     return axiosClient.post(`/api/v1/hackathons/${hackathonId}/export-jobs`, payload);

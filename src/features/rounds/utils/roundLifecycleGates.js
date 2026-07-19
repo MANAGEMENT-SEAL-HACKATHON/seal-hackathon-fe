@@ -40,9 +40,9 @@ export const hasReachedExam = (round, now = new Date()) => {
   return new Date(examAt).getTime() <= new Date(now).getTime();
 };
 
-/** Phát đề: chỉ cần Active + chưa release — không chờ examAt. */
+/** Phát đề: chỉ hiện khi Active + chưa release + đã tới examAt. */
 export const canReleaseProblem = (round) =>
-  isRoundActive(round) && !getProblemReleasedAt(round);
+  isRoundActive(round) && hasReachedExam(round) && !getProblemReleasedAt(round);
 
 export const canCloseEarly = (round, now = new Date()) =>
   isRoundActive(round) &&
@@ -62,14 +62,24 @@ export const isSubmissionClosed = (round, now = new Date()) => {
 export const canOpenPresentationQueue = (round, now = new Date()) =>
   isSubmissionClosed(round, now) && !isScoringLocked(round);
 
-/** Alias for presentation queue shuffle / open — same gate. */
-export const canShuffleQueue = (round, now = new Date()) =>
-  canOpenPresentationQueue(round, now);
+/** Alias for presentation queue shuffle / open — same base gate; optionally block on late-pending. */
+export const canShuffleQueue = (round, now = new Date(), options = {}) => {
+  if (!canOpenPresentationQueue(round, now)) return false;
+  if (options.hasLatePending) return false;
+  return true;
+};
 
-export const getShuffleQueueTooltip = (round, now = new Date()) => {
+export const getShuffleQueueTooltip = (round, now = new Date(), options = {}) => {
   if (isScoringLocked(round)) return 'Round đã khóa chấm — không xáo hàng đợi.';
   if (!isSubmissionClosed(round, now)) {
     return 'Chờ hết hạn nộp bài';
+  }
+  if (options.hasLatePending) {
+    const n = Number(options.latePendingCount);
+    if (Number.isFinite(n) && n > 0) {
+      return `Còn ${n} đội nộp trễ chưa xử lý — duyệt hoặc từ chối trước khi quay số.`;
+    }
+    return 'Còn đội «Nộp trễ — chờ duyệt» — duyệt hoặc từ chối trước khi quay số.';
   }
   return 'Xáo trộn hàng đợi thuyết trình';
 };
@@ -83,6 +93,7 @@ export const canLockScoring = (round, now = new Date()) =>
 export const getReleaseProblemTooltip = (round) => {
   if (!isRoundActive(round)) return 'Vòng thi chưa được kích hoạt.';
   if (getProblemReleasedAt(round)) return 'Đề bài đã được phát.';
+  if (!hasReachedExam(round)) return 'Chưa tới giờ thi — chưa thể phát đề.';
   return 'Phát đề bài';
 };
 

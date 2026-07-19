@@ -5,7 +5,15 @@ import { getTeamErrorMessage } from '../constants/team.constants';
 
 const { Text } = Typography;
 
-const AdminCreateTeamModal = ({ open, hackathonId, orphans, onClose, onSuccess }) => {
+const AdminCreateTeamModal = ({
+  open,
+  hackathonId,
+  orphans,
+  minTeamSize = 3,
+  maxTeamSize = 5,
+  onClose,
+  onSuccess,
+}) => {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -28,12 +36,16 @@ const AdminCreateTeamModal = ({ open, hackathonId, orphans, onClose, onSuccess }
       const leaderId = values.leaderId;
       const memberIds = selectedIds.filter((id) => id !== leaderId);
 
-      if (selectedIds.length < 3 || selectedIds.length > 5) {
-        message.error('Phải chọn từ 3 đến 5 sinh viên mồ côi');
+      if (selectedIds.length < minTeamSize || selectedIds.length > maxTeamSize) {
+        message.error(`Phải chọn từ ${minTeamSize} đến ${maxTeamSize} sinh viên mồ côi`);
         return;
       }
-      if (memberIds.length < 2 || memberIds.length > 4) {
-        message.error('Số thành viên (không kể nhóm trưởng) phải từ 2 đến 4');
+      const minMembers = minTeamSize - 1;
+      const maxMembers = maxTeamSize - 1;
+      if (memberIds.length < minMembers || memberIds.length > maxMembers) {
+        message.error(
+          `Số thành viên (không kể nhóm trưởng) phải từ ${minMembers} đến ${maxMembers}`,
+        );
         return;
       }
 
@@ -66,7 +78,7 @@ const AdminCreateTeamModal = ({ open, hackathonId, orphans, onClose, onSuccess }
       destroyOnClose
     >
       <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-        Chọn 3–5 sinh viên mồ côi, chỉ định nhóm trưởng và đặt tên đội.
+        Chọn {minTeamSize}–{maxTeamSize} sinh viên mồ côi, chỉ định nhóm trưởng và đặt tên đội.
       </Text>
       <Form form={form} layout="vertical">
         <Form.Item
@@ -75,7 +87,7 @@ const AdminCreateTeamModal = ({ open, hackathonId, orphans, onClose, onSuccess }
         >
           <Select
             mode="multiple"
-            placeholder="Chọn 3–5 sinh viên"
+            placeholder={`Chọn ${minTeamSize}–${maxTeamSize} sinh viên`}
             value={selectedIds}
             onChange={(ids) => {
               setSelectedIds(ids);

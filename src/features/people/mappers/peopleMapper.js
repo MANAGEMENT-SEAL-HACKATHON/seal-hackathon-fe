@@ -19,7 +19,7 @@ export const mapAssignmentToFE = (beData) => {
     track_id: beData.trackId,
     round_id: beData.roundId,
     type: beData.type, // 'MENTOR' hoặc 'JUDGE'
-    assignment_type: beData.assignmentType || 'NORMAL' // 'HEAD', 'NORMAL', 'CALIBRATION'
+    assignment_type: beData.assignmentType || 'NORMAL', // 'NORMAL' | 'FINAL_EXTERNAL' (legacy 'HEAD' display-only)
   };
 };
 

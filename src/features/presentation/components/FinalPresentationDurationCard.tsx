@@ -59,6 +59,8 @@ const FinalPresentationDurationCard: React.FC<Props> = ({ roundId, timerStarted 
       setSaving(true);
       await presentationService.updateDuration({
         roundId,
+        // Vòng Chung kết áp thời lượng toàn vòng — không theo track (đồng bộ PresentationQueuePage)
+        trackId: undefined,
         presentationMinutes: values.presentationMinutes,
         qaMinutes: values.qaMinutes,
       });

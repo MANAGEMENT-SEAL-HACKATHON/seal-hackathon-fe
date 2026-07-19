@@ -18,10 +18,12 @@ interface EligibleTeamItem {
   teamName: string;
   gradable: boolean;
   submissionStatus?: string | null;
+  submissionId?: number | null;
 }
 
 interface PresentationReadinessPanelProps {
   roundId: number | null;
+  hackathonId?: number | null;
   trackId?: number | null;
   trackName?: string;
   canReviewLate?: boolean;
@@ -36,6 +38,7 @@ interface PresentationReadinessPanelProps {
 
 const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
   roundId,
+  hackathonId,
   trackId,
   trackName,
   canReviewLate = false,
@@ -66,15 +69,28 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
     return submissions.filter((s) => s.track_id === trackId);
   }, [submissions, trackId]);
 
-  const gradableCount = isFinalRound
+  const useEligibleRoster = isFinalRound || eligibleTeams.length > 0;
+
+  const gradableCount = useEligibleRoster
     ? (gradableCountProp ?? eligibleTeams.filter((t) => t.gradable).length)
     : countGradableSubmissions(scopedSubmissions);
-  const totalParticipating = isFinalRound
+  const totalParticipating = useEligibleRoster
     ? (participatingCount ?? eligibleTeams.length)
     : scopedSubmissions.length;
-  const pendingLate = scopedSubmissions.filter((s) => s.status === 'LATE_PENDING');
+  const pendingLate = useEligibleRoster
+    ? eligibleTeams.filter((t) => String(t.submissionStatus || '').toUpperCase() === 'LATE_PENDING')
+    : scopedSubmissions.filter((s) => s.status === 'LATE_PENDING');
 
-  const finalBuckets = useMemo(() => {
+  const submissionIdByTeam = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const s of scopedSubmissions) {
+      const tid = Number(s.team_id);
+      if (Number.isFinite(tid) && s.id != null) map.set(tid, s.id);
+    }
+    return map;
+  }, [scopedSubmissions]);
+
+  const rosterBuckets = useMemo(() => {
     const b = {
       onTime: 0,
       notSubmitted: 0,
@@ -156,7 +172,7 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
           </Text>
           <Text type="secondary" style={{ fontSize: '12px' }}>
             {isFinalRound
-              ? 'Chỉ đội đã nộp bài đúng hạn (HARD_LOCK) mới vào hàng đợi khi bốc thăm.'
+              ? 'Vòng Chung kết khóa cứng thời hạn — chỉ đội nộp đúng hạn mới vào hàng đợi khi bốc thăm.'
               : (
                 <>
                   Chỉ bài <Text strong>đúng hạn / đã duyệt trễ</Text> mới vào hàng đợi khi xáo trộn.
@@ -165,13 +181,16 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
           </Text>
         </div>
         {!isFinalRound && (
-          <Link to={ROUTES.COORDINATOR_LATE_SUBMISSIONS} style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+          <Link
+            to={`${ROUTES.COORDINATOR_LATE_SUBMISSIONS}?roundId=${roundId}${trackId ? `&trackId=${trackId}` : ''}${hackathonId ? `&hackathonId=${hackathonId}` : ''}`}
+            style={{ fontSize: '12px', whiteSpace: 'nowrap' }}
+          >
             Màn duyệt trễ →
           </Link>
         )}
       </div>
 
-      {isLoading && !isFinalRound ? (
+      {isLoading && !useEligibleRoster ? (
         <div style={{ textAlign: 'center', padding: '16px 0' }}>
           <Spin size="small" />
         </div>
@@ -182,44 +201,63 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
           message="Chưa có đội vào vòng Chung kết"
           description="Cần chốt danh sách ADVANCED từ vòng Sơ loại trước."
         />
-      ) : isFinalRound ? (
+      ) : useEligibleRoster ? (
         <>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-            <Tag color="green">Vào queue: {finalBuckets.onTime}</Tag>
-            <Tag color="default">Tổng đội CK: {totalParticipating}</Tag>
-            {finalBuckets.notSubmitted > 0 && (
-              <Tag color="default">Chưa nộp: {finalBuckets.notSubmitted}</Tag>
+            <Tag color="green">Vào queue: {isFinalRound ? rosterBuckets.onTime : gradableCount}</Tag>
+            <Tag color="default">
+              {isFinalRound ? `Tổng đội CK: ${totalParticipating}` : `Tổng đội: ${totalParticipating}`}
+            </Tag>
+            {rosterBuckets.notSubmitted > 0 && (
+              <Tag color="default">Chưa nộp: {rosterBuckets.notSubmitted}</Tag>
             )}
-            {finalBuckets.lateRejected > 0 && (
-              <Tag color="error">Trễ từ chối: {finalBuckets.lateRejected}</Tag>
+            {rosterBuckets.lateRejected > 0 && (
+              <Tag color="error">Trễ từ chối: {rosterBuckets.lateRejected}</Tag>
             )}
-            {finalBuckets.latePending > 0 && (
-              <Tag color="orange">Trễ chờ duyệt: {finalBuckets.latePending}</Tag>
+            {rosterBuckets.latePending > 0 && (
+              <Tag color="orange">Trễ chờ duyệt: {rosterBuckets.latePending}</Tag>
             )}
-            {finalBuckets.lateApproved > 0 && (
-              <Tag color="purple">Trễ đã duyệt: {finalBuckets.lateApproved}</Tag>
+            {rosterBuckets.lateApproved > 0 && (
+              <Tag color="purple">Trễ đã duyệt: {rosterBuckets.lateApproved}</Tag>
             )}
           </div>
 
-          {finalBuckets.onTime < totalParticipating && (
+          {isFinalRound && rosterBuckets.onTime < totalParticipating && (
             <Alert
               type="warning"
               showIcon
               style={{ marginBottom: '12px' }}
-              message="Chỉ đội nộp đúng hạn (ON_TIME) mới vào hàng đợi khi bốc thăm (HARD_LOCK)"
-              description="Đội chưa nộp / trễ từ chối không vào queue. Trễ chờ duyệt / đã duyệt không tự vào HARD_LOCK queue."
+              message="Chỉ đội nộp đúng hạn mới vào hàng đợi khi bốc thăm (chung kết khóa cứng thời hạn)"
+              description="Đội chưa nộp hoặc bị từ chối sẽ không vào hàng đợi. Bài nộp trễ (kể cả đã duyệt) không tự vào hàng đợi."
+            />
+          )}
+
+          {!isFinalRound && gradableCount < totalParticipating && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: '12px' }}
+              message={`${totalParticipating - gradableCount} đội chưa đủ điều kiện xáo trộn`}
+              description="Duyệt bài nộp trễ đang chờ duyệt hoặc yêu cầu đội nộp trước khi xáo trộn."
             />
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {eligibleTeams.map((team) => {
               const meta = getSubmissionStatusMeta(team.submissionStatus ?? null, statusOpts);
+              const statusUpper = String(team.submissionStatus || '').toUpperCase();
+              const isPending = statusUpper === 'LATE_PENDING';
+              const submissionId =
+                team.submissionId != null
+                  ? Number(team.submissionId)
+                  : (submissionIdByTeam.get(Number(team.teamId)) ?? null);
               return (
                 <div
                   key={team.teamId}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
+                    flexWrap: 'wrap',
                     gap: '10px',
                     padding: '10px 12px',
                     border: '1px solid #F3F4F6',
@@ -227,18 +265,44 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
                     background: team.gradable ? '#F0FDF4' : '#FFFBEB',
                   }}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ flex: '1 1 120px', minWidth: 0 }}>
                     <Text strong style={{ fontSize: '13px', display: 'block' }}>
                       {team.teamName}
                     </Text>
                     <Text type="secondary" style={{ fontSize: '11px' }}>
                       Đội #{team.teamId}
+                      {submissionId != null ? ` · #${submissionId}` : ''}
                     </Text>
                   </div>
-                  <Tag color={meta.color}>{meta.label}</Tag>
-                  <Tag color={team.gradable ? 'success' : 'default'}>
+                  <Tag color={meta.color} style={{ margin: 0 }}>{meta.label}</Tag>
+                  <Tag color={team.gradable ? 'success' : 'default'} style={{ margin: 0 }}>
                     {team.gradable ? '✓ Queue' : '✗ Queue'}
                   </Tag>
+                  {isPending && canReviewLate && !isFinalRound && submissionId != null && (
+                    <Space size={4} wrap>
+                      <Button
+                        type="primary"
+                        size="small"
+                        loading={approveMutation.isPending}
+                        onClick={() => approveMutation.mutate(submissionId)}
+                      >
+                        Duyệt
+                      </Button>
+                      <Button
+                        size="small"
+                        danger
+                        loading={rejectMutation.isPending && rejectingId === submissionId}
+                        onClick={() => {
+                          const reason = window.prompt('Lý do từ chối (bắt buộc):');
+                          if (!reason?.trim()) return;
+                          setRejectingId(submissionId);
+                          rejectMutation.mutate({ submissionId, reason: reason.trim() });
+                        }}
+                      >
+                        Từ chối
+                      </Button>
+                    </Space>
+                  )}
                 </div>
               );
             })}
@@ -248,12 +312,8 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
         <Alert
           type="info"
           showIcon
-          message={isFinalRound ? 'Chưa có bài nộp Chung kết' : 'Chưa có bài nộp nào trên track này'}
-          description={
-            isFinalRound
-              ? 'Đội đã vào vòng CK nhưng chưa nộp bài sẽ không có trong hàng đợi.'
-              : 'Đội chưa nộp sẽ không xuất hiện khi xáo trộn.'
-          }
+          message="Chưa có bài nộp nào trên track này"
+          description="Đội chưa nộp sẽ không xuất hiện khi xáo trộn."
         />
       ) : (
         <>
@@ -271,11 +331,7 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
               showIcon
               style={{ marginBottom: '12px' }}
               message={`${scopedSubmissions.length - gradableCount} bài chưa đủ điều kiện xáo trộn`}
-              description={
-                isFinalRound
-                  ? 'Vòng CK không duyệt nộp trễ — yêu cầu đội nộp đúng hạn trước khi bốc thăm.'
-                  : 'Duyệt bài nộp trễ (LATE_PENDING) hoặc yêu cầu đội nộp lại trước khi xáo trộn.'
-              }
+              description="Duyệt bài nộp trễ đang chờ duyệt hoặc yêu cầu đội nộp lại trước khi xáo trộn."
             />
           )}
 
@@ -309,7 +365,7 @@ const PresentationReadinessPanel: React.FC<PresentationReadinessPanelProps> = ({
                   <Tag color={meta.gradable ? 'success' : 'default'}>
                     {meta.gradable ? '✓ Queue' : '✗ Queue'}
                   </Tag>
-                  {isPending && canReviewLate && !isFinalRound && (
+                  {isPending && canReviewLate && (
                     <Space size={4}>
                       <Button
                         type="primary"

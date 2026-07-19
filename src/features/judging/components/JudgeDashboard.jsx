@@ -21,7 +21,6 @@ import {
   ClockCircleOutlined, 
   ArrowRightOutlined, 
   FundProjectionScreenOutlined, 
-  BarChartOutlined, 
   TrophyOutlined, 
   CalendarOutlined,
   SearchOutlined, 
@@ -40,9 +39,7 @@ import {
 import { 
   judgeService 
 } from '../services/judgeService';
-import { calibrationService } from '../services/calibrationService';
 import ScoringCountdownCard from '../components/ScoringCountdownCard';
-import CalibrationSessionsPanel from '../components/CalibrationSessionsPanel';
 import LiveRecordIndicator from '../../../shared/components/ui/LiveRecordIndicator';
 
 const { 
@@ -83,7 +80,6 @@ const JudgeDashboard = ({ user }) => {
   const [searchText, setSearchText] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [hackathonFilter, setHackathonFilter] = useState('ALL');
-  const [calibrationAssignments, setCalibrationAssignments] = useState([]);
 
   // State phân trang
   const [currentPage, setCurrentPage] = useState(1);
@@ -103,7 +99,7 @@ const JudgeDashboard = ({ user }) => {
         const [tracksRes, finalsRes, scheduleRes] = await Promise.all([
           judgeService.getTrackAssignments().catch(() => []),
           judgeService.getFinalAssignments().catch(() => []),
-          judgeService.getScoringSchedule().catch(() => [])
+          judgeService.getScoringSchedule().catch(() => []),
         ]);
 
         const rawTracks = Array.isArray(tracksRes) ? tracksRes : tracksRes?.data || [];
@@ -208,7 +204,7 @@ const JudgeDashboard = ({ user }) => {
             id: 1, 
             title: 'Chưa có lịch trình được lên', 
             time: '--', 
-            type: 'CALIBRATION' 
+            type: 'SCORING' 
           }];
         }
 
@@ -217,7 +213,6 @@ const JudgeDashboard = ({ user }) => {
           stats: { 
             totalEvaluated: allAssignments.reduce((sum, item) => sum + (item.scoredTeams || 0), 0), 
             pendingEvaluations: allAssignments.reduce((sum, item) => sum + ((item.totalTeams || 0) - (item.scoredTeams || 0)), 0), 
-            calibrationScore: 100 
           },
           assignments: allAssignments,
           prelimExternalFiltered,
@@ -233,57 +228,6 @@ const JudgeDashboard = ({ user }) => {
 
     fetchDashboardData();
   }, []);
-
-  useEffect(() => {
-    const assignments = data.assignments || [];
-    if (!assignments.length) {
-      setCalibrationAssignments([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    const resolveCalibrationAssignments = async () => {
-      const found = [];
-      const seen = new Set();
-
-      for (const assignment of assignments) {
-        const key = `${assignment.roundId}:${assignment.isFinal ? 'final' : assignment.trackId ?? 't'}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        try {
-          const listTrackId = assignment.isFinal ? null : assignment.trackId;
-          const response = await calibrationService.listForJudge(assignment.roundId, listTrackId);
-          const items = Array.isArray(response) ? response : response?.items || response?.data || [];
-          const hasOpen = items.some((session) => {
-            const status = String(session.status || session.sessionStatus || '').toUpperCase();
-            return status === 'OPEN' || status === 'ACTIVE';
-          });
-          if (hasOpen) {
-            found.push({
-              ...assignment,
-              trackLabel:
-                assignment.trackName ||
-                assignment.track_name ||
-                items.find((s) => s.trackName || s.track_name)?.trackName ||
-                items.find((s) => s.trackName || s.track_name)?.track_name,
-            });
-          }
-        } catch {
-          // try next
-        }
-      }
-
-      if (!cancelled) {
-        setCalibrationAssignments(found);
-      }
-    };
-
-    resolveCalibrationAssignments();
-    return () => {
-      cancelled = true;
-    };
-  }, [data.assignments]);
 
   if (loading) {
     return (
@@ -414,7 +358,7 @@ const JudgeDashboard = ({ user }) => {
   
   if (activeHackathonsCount === 1) {
     const task = activeAssignmentsForWelcome[0];
-    const roleName = task.role?.includes('HEAD') ? 'Giám Khảo Trưởng' : 'Giám Khảo';
+    const roleName = 'Giám khảo';
     dynamicWelcomeMessage = `Hiện tại, bạn đang được phân công làm ${roleName} ${task.roundName} cho bảng đấu "${task.trackName}" thuộc sự kiện ${task.hackathonName}. Vui lòng chọn phòng chấm thi bên dưới để bắt đầu.`;
   } else if (activeHackathonsCount > 1) {
     dynamicWelcomeMessage = `Hiện tại, bạn đang có ${activeHackathonsCount} sự kiện đang diễn ra cần xử lý đánh giá. Vui lòng chọn một sự kiện trong danh sách bên dưới để tiếp tục công việc.`;
@@ -526,7 +470,7 @@ const JudgeDashboard = ({ user }) => {
           >
             <Text>
               Đã ẩn {data.prelimExternalFiltered} phân công EXTERNAL khỏi vòng sơ loại
-              (rule: prelim = INTERNAL HEAD/NORMAL; CK = EXTERNAL FINAL_EXTERNAL + INTERNAL HEAD).
+              (rule: sơ loại = INTERNAL NORMAL; CK = EXTERNAL FINAL_EXTERNAL + INTERNAL NORMAL).
             </Text>
           </Card>
         )}
@@ -598,40 +542,30 @@ const JudgeDashboard = ({ user }) => {
               />
             </Card>
           </Col>
-          <Col 
-            xs={24} 
-            sm={8}
-          >
-            <Card 
-              style={{ 
-                borderRadius: 16 
-              }}
-            >
-              <Statistic 
-                title={
-                  <span 
-                    style={{ 
-                      fontWeight: 600, 
-                      color: '#64748b' 
-                    }}
-                  >
-                    Độ Lệch Chuẩn (RBL)
-                  </span>
-                } 
-                value={data.stats?.calibrationScore || 0} 
-                suffix="/100" 
-                prefix={
-                  <BarChartOutlined 
-                    style={{
-                      color: '#3b82f6'
-                    }}
-                  />
-                } 
-              />
-            </Card>
-          </Col>
         </Row>
       </motion.div>
+
+      <Card
+        data-testid="judge-next-action"
+        style={{ borderRadius: 16, marginBottom: 24, borderColor: '#bfdbfe' }}
+      >
+        <Text strong style={{ color: '#1d4ed8' }}>Việc cần làm tiếp</Text>
+        <Paragraph style={{ margin: '8px 0 0' }}>
+          {(data.stats?.pendingEvaluations || 0) > 0
+            ? `Còn ${data.stats.pendingEvaluations} bài/đội chờ chấm. Vào Phòng chấm thi để tiếp tục.`
+            : 'Không còn bài chờ chấm trên các nhiệm vụ hiện tại.'}
+        </Paragraph>
+        {data.upcomingEvents?.[0]?.time && data.upcomingEvents[0].time !== '--' ? (
+          <Text type="secondary">
+            Lịch chấm gần nhất: {data.upcomingEvents[0].title} — {data.upcomingEvents[0].time}
+          </Text>
+        ) : null}
+        <div style={{ marginTop: 12 }}>
+          <Button type="primary" onClick={() => navigate('/judge/assignments')}>
+            Mở phòng chấm
+          </Button>
+        </div>
+      </Card>
 
       {/* BỐ CỤC CHIA 2 CỘT */}
       <Row gutter={[24, 24]}>
@@ -928,7 +862,7 @@ const JudgeDashboard = ({ user }) => {
           </motion.div>
         </Col>
 
-        {/* CỘT PHẢI: ĐỒNG HỒ VÀ CALIBRATION */}
+        {/* CỘT PHẢI: ĐỒNG HỒ */}
         <Col 
           xs={24} 
           lg={8}
@@ -951,16 +885,6 @@ const JudgeDashboard = ({ user }) => {
                 });
               }}
             />
-            {calibrationAssignments.map((assignment) => (
-              <CalibrationSessionsPanel
-                key={`${assignment.roundId}-${assignment.trackId ?? 'final'}-${assignment.assignmentId ?? assignment.id}`}
-                roundId={assignment.roundId}
-                isFinal={Boolean(assignment.isFinal)}
-                assignmentId={assignment.assignmentId ?? assignment.id}
-                trackId={assignment.isFinal ? null : assignment.trackId}
-                trackLabel={assignment.trackLabel}
-              />
-            ))}
             <Card 
               title={
                 <strong 
@@ -995,7 +919,7 @@ const JudgeDashboard = ({ user }) => {
                         width: 12, 
                         height: 12, 
                         borderRadius: '50%', 
-                        background: event.type === 'CALIBRATION' ? '#f59e0b' : '#3b82f6', 
+                        background: event.type === 'WORKSHOP' || event.type === 'BRIEFING' ? '#f59e0b' : '#3b82f6', 
                         marginTop: 4 
                       }} 
                     />

@@ -29,6 +29,9 @@ export const mapHackathonToFE = (beData) => {
     individual_ranking_enabled: beData.individualRankingEnabled,
     banner_url: beData.bannerUrl,
     max_participants: beData.maxParticipants,
+    cloned_from_hackathon_id: beData.clonedFromHackathonId,
+    cloned_from_hackathon_name: beData.clonedFromHackathonName,
+    cloned_at: beData.clonedAt,
   };
 };
 

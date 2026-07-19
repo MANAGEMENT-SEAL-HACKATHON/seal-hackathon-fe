@@ -13,7 +13,15 @@ const IncompleteTeamTable = ({ teams, loading, onAddMember, onMerge }) => {
     {
       title: 'Thành viên',
       key: 'memberCount',
-      render: (_, record) => `${record.memberCount}/${record.maxMembers}`,
+      render: (_, record) => {
+        const overMax = record.memberCount > record.maxMembers;
+        return (
+          <Text type={overMax ? 'danger' : undefined}>
+            {record.memberCount}/{record.maxMembers}
+            {overMax ? ' (thừa)' : ''}
+          </Text>
+        );
+      },
     },
     {
       title: 'Nhóm trưởng',
@@ -25,6 +33,7 @@ const IncompleteTeamTable = ({ teams, loading, onAddMember, onMerge }) => {
       key: 'actions',
       render: (_, record) => {
         const isFull = record.memberCount >= record.maxMembers;
+        const overMax = record.memberCount > record.maxMembers;
         const isLocked = record.isLocked;
 
         return (
@@ -39,10 +48,10 @@ const IncompleteTeamTable = ({ teams, loading, onAddMember, onMerge }) => {
             </Button>
             <Button
               size="small"
-              disabled={isLocked}
+              disabled={isLocked || overMax}
               onClick={() => onMerge(record)}
             >
-              Gộp đội
+              {overMax ? 'Thừa người — không gộp' : 'Gộp đội'}
             </Button>
           </Space>
         );
@@ -58,7 +67,7 @@ const IncompleteTeamTable = ({ teams, loading, onAddMember, onMerge }) => {
       columns={columns}
       dataSource={teams}
       pagination={{ pageSize: 8, showSizeChanger: false }}
-      locale={{ emptyText: 'Không có đội thiếu người' }}
+      locale={{ emptyText: 'Không có đội cần giải cứu' }}
     />
   );
 };

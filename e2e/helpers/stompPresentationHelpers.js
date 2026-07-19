@@ -79,7 +79,7 @@ export function subscribePresentationQueue(client, { roundId, trackId = null, me
 
   const subs = topics.map((destination) =>
     client.subscribe(destination, (frame) => {
-      let body = null;
+      let body;
       try {
         body = JSON.parse(frame.body);
       } catch {

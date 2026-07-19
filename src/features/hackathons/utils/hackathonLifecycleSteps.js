@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { isRegistrationPeriodEnded } from './hackathonRegistrationRules';
+import { isRegistrationPeriodEnded } from './hackathonRegistrationRules.js';
 
 /** Mirror BE RoundPhaseResolver */
 export function resolveRoundPhase(round) {
@@ -43,6 +43,12 @@ export function isRegistrationAndTeamsLocked(hackathon, activeTeams = []) {
   if (!isRegistrationPeriodEnded(hackathon)) return false;
   if (!activeTeams.length) return false;
   return activeTeams.every((t) => t.is_locked ?? t.isLocked);
+}
+
+/** Display short-circuit: once event is PENDING_CONFIRM/FINISHED, GĐ2/GĐ4 are past. */
+export function isPastKickoffPhases(hackathon) {
+  const status = String(hackathon?.status || '').toUpperCase();
+  return status === 'PENDING_CONFIRM' || status === 'FINISHED';
 }
 
 export function hasAdvancedTeam(activeTeams = [], rounds = []) {
@@ -239,16 +245,21 @@ export const EVENT_PHASES = [
     key: 'gd2',
     title: 'GĐ2 · Đóng ĐK & phân bảng',
     group: 'kickoff',
+    // Display short-circuit when PENDING_CONFIRM/FINISHED — live checks remain for ONGOING.
     isComplete: (ctx) =>
-      allPrelims(ctx.rounds, (r) => r.is_active ?? r.isActive)
-      && isLotteryAssignmentComplete(ctx.activeTeams),
+      isPastKickoffPhases(ctx.hackathon)
+      || (allPrelims(ctx.rounds, (r) => r.is_active ?? r.isActive)
+        && isLotteryAssignmentComplete(ctx.activeTeams)),
     subSteps: [
       { key: 'gd2-close-reg', title: 'Đóng đăng ký & khóa đội', completionMode: 'auto', tab: 'general',
-        isComplete: (ctx) => isRegistrationAndTeamsLocked(ctx.hackathon, ctx.activeTeams) },
+        isComplete: (ctx) => isPastKickoffPhases(ctx.hackathon)
+          || isRegistrationAndTeamsLocked(ctx.hackathon, ctx.activeTeams) },
       { key: 'gd2-lottery', title: 'Bốc thăm chia bảng', completionMode: 'auto', tab: 'lottery',
-        isComplete: (ctx) => isLotteryAssignmentComplete(ctx.activeTeams) },
+        isComplete: (ctx) => isPastKickoffPhases(ctx.hackathon)
+          || isLotteryAssignmentComplete(ctx.activeTeams) },
       { key: 'gd2-activate', title: 'Kích hoạt vòng Sơ loại', completionMode: 'auto', tab: 'rounds',
-        isComplete: (ctx) => allPrelims(ctx.rounds, (r) => r.is_active ?? r.isActive) },
+        isComplete: (ctx) => isPastKickoffPhases(ctx.hackathon)
+          || allPrelims(ctx.rounds, (r) => r.is_active ?? r.isActive) },
     ],
   },
   {
@@ -289,14 +300,18 @@ export const EVENT_PHASES = [
     key: 'gd4',
     title: 'GĐ4 · Công bố & chuyển vòng',
     group: 'advance',
+    // Display short-circuit when PENDING_CONFIRM/FINISHED — live checks remain for ONGOING.
     isComplete: (ctx) =>
-      allPrelims(ctx.rounds, (r) => r.is_published ?? r.isPublished)
-      && hasAdvancedTeam(ctx.activeTeams, ctx.rounds),
+      isPastKickoffPhases(ctx.hackathon)
+      || (allPrelims(ctx.rounds, (r) => r.is_published ?? r.isPublished)
+        && hasAdvancedTeam(ctx.activeTeams, ctx.rounds)),
     subSteps: [
       { key: 'gd4-publish', title: 'Công bố điểm Sơ loại', completionMode: 'auto', tab: 'rounds',
-        isComplete: (ctx) => allPrelims(ctx.rounds, (r) => r.is_published ?? r.isPublished) },
+        isComplete: (ctx) => isPastKickoffPhases(ctx.hackathon)
+          || allPrelims(ctx.rounds, (r) => r.is_published ?? r.isPublished) },
       { key: 'gd4-advance', title: 'Chuyển đội vào Chung kết', completionMode: 'auto', route: 'final-config',
-        isComplete: (ctx) => hasAdvancedTeam(ctx.activeTeams, ctx.rounds) },
+        isComplete: (ctx) => isPastKickoffPhases(ctx.hackathon)
+          || hasAdvancedTeam(ctx.activeTeams, ctx.rounds) },
     ],
   },
   {

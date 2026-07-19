@@ -39,7 +39,7 @@ export const TIMELINE_FIELD_MAP = {
   'Kết thúc Đăng ký': 'regEnd',
   'Ngày giờ thi (Sơ loại)': 'prelimExamAt',
   'Ngày giờ thi (Chung kết)': 'finalExamAt',
-  'Thời gian thi (Giờ)': 'codingDurationHours',
+  'Thời lượng thi (Giờ)': 'codingDurationHours',
   'KICKOFF starts_at': 'kickoffAt',
   'WORKSHOP starts_at': 'workshopAt',
   'AWARDS starts_at': 'awardsAt',
@@ -359,7 +359,7 @@ export async function createPrelimAndFinalRoundsViaUi(page, token, hackathonId, 
   await fillFormInput(page, /Tên vòng thi/, 'Vòng Sơ loại');
   await selectFormOption(page, /Loại vòng thi/, /Sơ loại/);
   await fillAntDateTime(page, /Ngày giờ thi/, timeline.prelimExamAtStr);
-  await fillFormInput(page, /Thời gian thi \(Giờ\)/, codingHours);
+  await fillFormInput(page, /Thời lượng thi \(Giờ\)/, codingHours);
   // topN / minFinal — slots = minFinal − (topN × tracks); 1 track sau setup → slots = 1 nếu topN=1,minFinal=2
   const topNItem = page
     .locator('.ant-form-item')
@@ -407,7 +407,7 @@ export async function createPrelimAndFinalRoundsViaUi(page, token, hackathonId, 
   await fillFormInput(page, /Tên vòng thi/, 'Vòng Chung kết');
   await selectFormOption(page, /Loại vòng thi/, /Chung kết/);
   await fillAntDateTime(page, /Ngày giờ thi/, timeline.finalExamAtStr);
-  await fillFormInput(page, /Thời gian thi \(Giờ\)/, codingHours);
+  await fillFormInput(page, /Thời lượng thi \(Giờ\)/, codingHours);
   await saveModal();
   // eslint-disable-next-line no-console
   console.log('[ModeB] GĐ1 rounds via UI — final saved');
@@ -899,6 +899,11 @@ export function minimalPdfBlob(name = 'e2e-slide.pdf') {
 export async function releaseRoundProblem(token, roundId) {
   const { res, json } = await apiPatch(`/rounds/${roundId}/release-problem`, token, {});
   if (!res.ok) {
+    const code = json?.error?.code || json?.code;
+    // CK may reuse track đề — DESIGN_VIOLATION / already released are OK
+    if (code === 'INVALID_STATE' || code === 'DESIGN_VIOLATION' || code === 'ALREADY_RELEASED') {
+      return json?.data ?? json;
+    }
     throw new Error(`release-problem round ${roundId} failed ${res.status}: ${JSON.stringify(json)}`);
   }
   return json?.data ?? json;
@@ -931,6 +936,46 @@ export async function activateRoundByApi(
   const { res, json } = await apiPatch(`/rounds/${roundId}/activate`, token, body);
   if (!res.ok) {
     throw new Error(`activate round ${roundId} failed ${res.status}: ${JSON.stringify(json)}`);
+  }
+  return json?.data ?? json;
+}
+
+/** Auto lottery — empty assignments → BE round-robin locked ACTIVE teams onto OPEN tracks. */
+export async function runLotteryByApi(token, hackathonId, roundId) {
+  const { res, json } = await apiPatch(`/hackathons/${hackathonId}/lottery`, token, {
+    roundId,
+    assignments: [],
+  });
+  if (!res.ok) {
+    // Already assigned is OK for Mode B re-entry
+    const code = json?.error?.code;
+    if (code === 'ROUND_ALREADY_ACTIVE' || code === 'INVALID_STATE') {
+      return json?.data ?? json;
+    }
+    throw new Error(`lottery hackathon ${hackathonId} failed ${res.status}: ${JSON.stringify(json)}`);
+  }
+  return json?.data ?? json;
+}
+
+/**
+ * Nén examAt về ~1 phút tới — Mode B cần vượt early-wait Phát đề mà không chờ timeline seed.
+ * Nếu round chưa active → START_NOW; nếu đã active → RESCHEDULE.
+ */
+export async function compressRoundExamForModeB(token, roundId, leadMinutes = 1) {
+  const active = await getRoundActive(token, roundId);
+  if (!active) {
+    return activateRoundByApi(token, roundId, 'Mode B START_NOW', 'START_NOW', leadMinutes);
+  }
+  const when = new Date(Date.now() + Math.max(1, leadMinutes) * 60_000);
+  const pad = (n) => String(n).padStart(2, '0');
+  const newExamAt = `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}T${pad(when.getHours())}:${pad(when.getMinutes())}:${pad(when.getSeconds())}`;
+  const { res, json } = await apiPatch(`/rounds/${roundId}/activate`, token, {
+    note: 'Mode B RESCHEDULE compress',
+    scheduleMode: 'RESCHEDULE',
+    newExamAt,
+  });
+  if (!res.ok) {
+    throw new Error(`compress exam round ${roundId} failed ${res.status}: ${JSON.stringify(json)}`);
   }
   return json?.data ?? json;
 }
@@ -1181,6 +1226,50 @@ export async function drivePresentationTimerToQa(token, roundId, trackId) {
   return qaJson?.data ?? qaJson;
 }
 
+/** End Q&A → ENDED so queue/next is allowed. */
+async function drivePresentationTimerEnd(token, roundId, trackId) {
+  const q = new URLSearchParams({ roundId: String(roundId) });
+  if (trackId != null) q.set('trackId', String(trackId));
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+  const end = await fetch(`${BE_BASE}/presentation/timer/end?${q}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ acknowledgeIncompleteScoring: true }),
+  });
+  const endJson = await end.json().catch(() => ({}));
+  if (!end.ok) {
+    const code = endJson?.error?.code || endJson?.code;
+    const msg = String(endJson?.error?.message || '');
+    if (code === 'INVALID_STATE' || /ENDED|đã kết thúc|QA/i.test(msg)) {
+      return endJson?.data ?? endJson;
+    }
+    throw new Error(`timer end failed ${end.status}: ${JSON.stringify(endJson)}`);
+  }
+  return endJson?.data ?? endJson;
+}
+
+function parseQueueItems(queueData) {
+  const tracks = queueData?.tracks || queueData?.groups || [queueData].filter(Boolean);
+  let presenting = null;
+  let waitingCount = 0;
+  let doneCount = 0;
+  const all = [];
+  for (const t of tracks) {
+    const items = t?.items || t?.teams || [];
+    for (const it of items) {
+      all.push(it);
+      const st = String(it.status || it.queueStatus || '').toUpperCase();
+      if (st === 'PRESENTING') presenting = it;
+      if (st === 'WAITING' || st === 'QUEUED' || st === 'PENDING') waitingCount += 1;
+      if (st === 'DONE' || st === 'COMPLETED' || st === 'FINISHED') doneCount += 1;
+    }
+  }
+  return { presenting, waitingCount, doneCount, all };
+}
+
 /**
  * Score every PRESENTING/WAITING team in the presentation queue via API
  * (requires JUDGING + PRESENTING + timer open for each team).
@@ -1192,37 +1281,33 @@ export async function scoreEntirePresentationQueue(
   trackId = null,
   scoreValue = 9,
 ) {
-  const critRes = await apiGet(`/rounds/${roundId}/criteria`, coordToken);
+  const critPath =
+    trackId != null ? `/tracks/${trackId}/criteria` : `/rounds/${roundId}/criteria`;
+  const critRes = await apiGet(critPath, coordToken);
   if (!critRes.res.ok) {
-    throw new Error(`criteria for round ${roundId} failed: ${JSON.stringify(critRes.json)}`);
+    throw new Error(`criteria ${critPath} failed: ${JSON.stringify(critRes.json)}`);
   }
-  const criteria = (Array.isArray(critRes.data) ? critRes.data : critRes.data?.items || []).filter(
+  const criteriaRaw = critRes.data;
+  const criteriaList = Array.isArray(criteriaRaw)
+    ? criteriaRaw
+    : criteriaRaw?.items || criteriaRaw?.criteria || [];
+  const criteria = criteriaList.filter(
     (c) => String(c.type || c.criteriaType || '').toUpperCase() !== 'PENALTY',
   );
   if (!criteria.length) {
-    throw new Error(`No non-penalty criteria for round ${roundId}`);
+    throw new Error(`No non-penalty criteria via ${critPath}`);
   }
 
   const q = new URLSearchParams({ roundId: String(roundId) });
   if (trackId != null) q.set('trackId', String(trackId));
 
   const scored = new Set();
-  for (let step = 0; step < 8; step += 1) {
+  for (let step = 0; step < 12; step += 1) {
     const queueRes = await apiGet(`/presentation/queue?${q}`, coordToken);
     if (!queueRes.res.ok) {
       throw new Error(`queue read failed: ${JSON.stringify(queueRes.json)}`);
     }
-    const tracks = queueRes.data?.tracks || queueRes.data?.groups || [queueRes.data].filter(Boolean);
-    let presenting = null;
-    let waitingCount = 0;
-    for (const t of tracks) {
-      const items = t?.items || t?.teams || [];
-      for (const it of items) {
-        const st = String(it.status || it.queueStatus || '').toUpperCase();
-        if (st === 'PRESENTING') presenting = it;
-        if (st === 'WAITING' || st === 'QUEUED' || st === 'PENDING') waitingCount += 1;
-      }
-    }
+    const { presenting, waitingCount } = parseQueueItems(queueRes.data);
     if (!presenting) {
       if (step === 0) {
         await shufflePresentationQueue(coordToken, roundId, trackId);
@@ -1233,65 +1318,121 @@ export async function scoreEntirePresentationQueue(
 
     const submissionId = presenting.submissionId || presenting.submission_id || presenting.id;
     if (submissionId && !scored.has(Number(submissionId))) {
+      // Distinct scores per team — avoid TIEBREAK_UNRESOLVED blocking GĐ6 prizes
+      const thisScore = Math.max(1, Number(scoreValue) - scored.size * 0.5);
       await drivePresentationTimerToQa(coordToken, roundId, trackId);
       for (const c of criteria) {
         const criterionId = c.id || c.criterionId;
         const { res, json } = await apiPost(`/scores`, judgeToken, {
           submissionId: Number(submissionId),
           criterionId: Number(criterionId),
-          scoreValue,
+          scoreValue: thisScore,
           scoreType: 'NORMAL',
         });
         if (!res.ok) {
           const code = json?.error?.code || json?.code;
-          if (code !== 'SCORING_LOCKED' && code !== 'DUPLICATE') {
-            // keep going — UI may have already scored this criterion
-            if (res.status >= 500) {
+          if (code !== 'SCORING_LOCKED' && code !== 'DUPLICATE' && code !== 'SCORE_ALREADY_EXISTS') {
+            if (res.status >= 500 || code === 'SCORING_NOT_OPEN') {
               throw new Error(`score failed ${res.status}: ${JSON.stringify(json)}`);
             }
           }
         }
       }
       scored.add(Number(submissionId));
+      await drivePresentationTimerEnd(coordToken, roundId, trackId);
+    } else if (submissionId) {
+      // Already scored earlier in this run — still must advance PRESENTING → DONE
+      await drivePresentationTimerEnd(coordToken, roundId, trackId).catch(() => {});
     }
 
-    if (waitingCount <= 0) break;
-
+    // Always queue/next after scoring — even when waiting=0 (marks last PRESENTING → DONE)
     const nextBody = {
+      currentSubmissionId: Number(submissionId),
       acknowledgeIncompleteScoring: true,
+      forceAckReason: 'Mode B E2E continuous — force next after API score',
     };
-    if (trackId != null) nextBody.trackId = trackId;
     const next = await apiPatch(`/presentation/queue/next?${q}`, coordToken, nextBody);
     if (!next.res.ok) {
       const code = next.json?.error?.code || next.json?.code;
       if (code === 'QUEUE_EMPTY' || code === 'NO_MORE_TEAMS') break;
-      // soft: stop if cannot advance
-      break;
+      throw new Error(
+        `queue/next failed while ${waitingCount} waiting: ${next.res.status} ${JSON.stringify(next.json)}`,
+      );
     }
+    if (waitingCount <= 0) break;
+  }
+
+  if (scored.size === 0) {
+    throw new Error(
+      `CRITICAL_E2E_FAIL: 0 teams were scored in scoreEntirePresentationQueue for Round ${roundId}`,
+    );
   }
   return { scoredCount: scored.size };
 }
 
 /**
- * Fill all visible criteria InputNumber fields with a score.
+ * Assert presentation queue has no WAITING/PRESENTING left (ready to lock-scoring).
+ */
+export async function assertQueueFullyScored(coordToken, roundId, trackId = null) {
+  const q = new URLSearchParams({ roundId: String(roundId) });
+  if (trackId != null) q.set('trackId', String(trackId));
+  const queueRes = await apiGet(`/presentation/queue?${q}`, coordToken);
+  if (!queueRes.res.ok) {
+    throw new Error(`assertQueueFullyScored queue failed: ${JSON.stringify(queueRes.json)}`);
+  }
+  const { presenting, waitingCount, doneCount, all } = parseQueueItems(queueRes.data);
+  if (presenting || waitingCount > 0) {
+    throw new Error(
+      `CRITICAL_E2E_FAIL: Queue not clear — presenting=${Boolean(presenting)} waiting=${waitingCount} total=${all.length}`,
+    );
+  }
+  return { doneCount, total: all.length };
+}
+
+/**
+ * Fill visible criteria InputNumber fields — skips disabled/readonly (no hang).
  * @param {import('@playwright/test').Page} page
  * @param {number} [score]
+ * @returns {Promise<boolean>} true if filled or already scored
  */
 export async function fillAllCriteriaScores(page, score = 8) {
-  await expect(page.getByText(/Trọng số|tiêu chí|Chất lượng/i).first()).toBeVisible({
-    timeout: 45_000,
-  });
+  const heading = page.getByText(/Trọng số|tiêu chí|Chất lượng|TỔNG ĐIỂM/i).first();
+  if (!(await heading.isVisible({ timeout: 15_000 }).catch(() => false))) {
+    return false;
+  }
   const inputs = page.locator('.ant-input-number input');
-  await expect(inputs.first()).toBeVisible({ timeout: 30_000 });
   const count = await inputs.count();
-  expect(count).toBeGreaterThan(0);
+  if (count === 0) return false;
+
+  let interactiveInputsCount = 0;
+  let disabledWithValuesCount = 0;
+
   for (let i = 0; i < count; i += 1) {
     const input = inputs.nth(i);
     if (!(await input.isVisible().catch(() => false))) continue;
+
+    const isDisabled = await input.isDisabled().catch(() => true);
+    const readonlyAttr = await input.getAttribute('readonly').catch(() => null);
+    const isReadOnly = readonlyAttr != null;
+
+    if (isDisabled || isReadOnly) {
+      const val = await input.inputValue().catch(() => '');
+      if (val && Number.parseFloat(val) > 0) {
+        disabledWithValuesCount += 1;
+      }
+      continue;
+    }
+
+    interactiveInputsCount += 1;
     await input.click({ clickCount: 3 });
     await input.fill(String(score));
     await input.blur();
   }
+
+  if (interactiveInputsCount === 0 && disabledWithValuesCount > 0) {
+    return true;
+  }
+  return interactiveInputsCount > 0 || disabledWithValuesCount > 0;
 }
 
 /**

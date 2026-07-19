@@ -169,14 +169,15 @@ export function useHackathonResults(hackathonId) {
     }
   };
 
-  const handleRevokePrize = async (prizeId) => {
+  const handleRevokePrize = async (prizeId, { category, note } = {}) => {
     try {
-      await hackathonResultsService.revokePrize(prizeId);
+      await hackathonResultsService.revokePrize(prizeId, { category, note });
       message.success('Đã thu hồi giải thưởng.');
       await fetchData();
     } catch (error) {
       const { message: msg } = resolveProgressionError(error, 'Lỗi khi thu hồi giải thưởng.');
       message.error(msg);
+      throw error;
     }
   };
 
@@ -185,7 +186,7 @@ export function useHackathonResults(hackathonId) {
   const awardsBlockers = awardsReadiness?.blockers || [];
 
   const confirmDisabledReason = useMemo(() => {
-    if (status !== 'PENDING_CONFIRM') return 'Hackathon chưa ở trạng thái PENDING_CONFIRM.';
+    if (status !== 'PENDING_CONFIRM') return 'Hackathon chưa ở trạng thái «Chờ chốt sổ».';
     if (prizes.length === 0) return 'Cần ghi nhận ít nhất một giải thưởng.';
     if (awardsReadiness && !awardsReady && awardsBlockers.length > 0) {
       return awardsBlockers[0]?.message || 'AWARDS readiness chưa đạt.';

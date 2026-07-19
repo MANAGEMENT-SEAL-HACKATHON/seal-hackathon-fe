@@ -171,7 +171,7 @@ const MentorRoundsPage: React.FC = () => {
                   }}
                 >
                   <span style={{ fontWeight: 600, color: '#111827' }}>
-                    {item.trackName ?? item.track_name ?? `Track #${item.trackId ?? item.track_id}`}
+                    {item.trackName ?? item.track_name ?? `Hạng mục #${item.trackId ?? item.track_id}`}
                   </span>
                 </div>
               ))}

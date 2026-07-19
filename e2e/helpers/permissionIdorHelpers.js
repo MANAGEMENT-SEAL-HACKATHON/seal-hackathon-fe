@@ -159,7 +159,15 @@ export async function resolveForeignTargets(coordToken) {
       pick('seal-gd3-scoring-gate'),
     ]);
 
-  return { prelimOpen, scoringLive, teamsEdge, lateReview, judgeEdge, scoringGate };
+  // Dedicated scoring-live slug may be purged — fall back to prelim-open for IDOR probes.
+  return {
+    prelimOpen,
+    scoringLive: scoringLive || prelimOpen,
+    teamsEdge: teamsEdge || prelimOpen,
+    lateReview: lateReview || prelimOpen,
+    judgeEdge,
+    scoringGate: scoringGate || prelimOpen,
+  };
 }
 
 /**

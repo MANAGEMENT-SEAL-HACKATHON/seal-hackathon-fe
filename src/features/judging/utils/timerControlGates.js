@@ -3,18 +3,17 @@
  * Kept separate from the hook so Node unit tests do not need React DOM.
  */
 
-export function canEarlyEndQa({ isCalibration, hasPresentationQueue, localTimerPhase, localRemainingSeconds }) {
-  if (isCalibration || !hasPresentationQueue) return false;
+export function canEarlyEndQa({ hasPresentationQueue, localTimerPhase, localRemainingSeconds }) {
+  if (!hasPresentationQueue) return false;
   return localTimerPhase === 'QA' && localRemainingSeconds > 0;
 }
 
 export function canCallNextTeam({
-  isCalibration,
   hasPresentationQueue,
   localTimerPhase,
   presentationScoringStatus,
 }) {
-  if (isCalibration || !hasPresentationQueue) return false;
+  if (!hasPresentationQueue) return false;
   if (localTimerPhase !== 'ENDED') return false;
   const status = presentationScoringStatus;
   if (!status) return false;

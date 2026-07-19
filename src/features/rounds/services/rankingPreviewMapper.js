@@ -70,7 +70,7 @@ const getGroupInfo = (item = {}) => {
   if (trackId !== undefined && trackId !== null && `${trackId}`.trim()) {
     return {
       key: `track-${trackId}`,
-      label: `Track #${trackId}`,
+      label: `Hạng mục #${trackId}`,
       sortValue: `track-${trackId}`,
     };
   }

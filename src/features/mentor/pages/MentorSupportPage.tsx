@@ -157,7 +157,13 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, groupNumber, onViewSubmission
           textTransform: 'uppercase',
           ...getStatusStyles(team.status)
         }}>
-          {team.status || 'ACTIVE'}
+          {({
+            PENDING: 'Chờ duyệt',
+            ACTIVE: 'Đã duyệt',
+            REJECTED: 'Bị từ chối',
+            ELIMINATED: 'Bị loại',
+            INACTIVE: 'Không hoạt động',
+          } as Record<string, string>)[String(team.status || 'ACTIVE').toUpperCase()] || 'Đã duyệt'}
         </span>
         {onViewSubmission && (
           <Button type="link" size="small" style={{ padding: 0, marginTop: 8 }} onClick={() => onViewSubmission(team)}>

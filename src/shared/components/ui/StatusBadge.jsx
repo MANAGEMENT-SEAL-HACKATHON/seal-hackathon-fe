@@ -1,28 +1,41 @@
 import { Tag } from 'antd';
 import LiveRecordIndicator from './LiveRecordIndicator';
+import {
+  HACKATHON_STATUS_COLORS,
+  HACKATHON_STATUS_LABELS,
+  labelOf,
+} from '../../constants/labels';
 import './LiveRecordIndicator.css';
 
+const HACKATHON_KEYS = new Set([
+  'DRAFT',
+  'ONGOING',
+  'ACTIVE',
+  'PENDING_CONFIRM',
+  'FINISHED',
+  'COMPLETED',
+  'CLOSED',
+  'INACTIVE',
+]);
+
 const StatusBadge = ({ status }) => {
-  const getStatusConfig = (status) => {
-    switch (status?.toUpperCase()) {
-      case 'DRAFT':
-        return { color: 'warning', text: 'Nháp', bold: true };
+  const key = String(status || '').toUpperCase();
+
+  const getStatusConfig = (statusKey) => {
+    if (HACKATHON_KEYS.has(statusKey) && HACKATHON_STATUS_COLORS[statusKey]) {
+      return {
+        color: HACKATHON_STATUS_COLORS[statusKey],
+        text: labelOf(HACKATHON_STATUS_LABELS, statusKey, statusKey),
+        live: statusKey === 'ONGOING' || statusKey === 'ACTIVE',
+        bold: statusKey === 'DRAFT' || statusKey === 'ONGOING' || statusKey === 'ACTIVE',
+      };
+    }
+
+    switch (statusKey) {
       case 'PUBLISHED':
         return { color: 'blue', text: 'Đã công bố' };
-      case 'ONGOING':
-        return { color: 'error', text: 'Đang diễn ra', live: true, bold: true };
-      case 'FINISHED':
-        return { color: 'orange', text: 'Đã hoàn thành' };
-      case 'PENDING_CONFIRM':
-        return { color: 'gold', text: 'Chờ chốt sổ' };
       case 'OPEN':
         return { color: 'green', text: 'Mở' };
-      case 'CLOSED':
-        return { color: 'red', text: 'Đóng' };
-      case 'ACTIVE':
-        return { color: 'green', text: 'Đang hoạt động' };
-      case 'INACTIVE':
-        return { color: 'default', text: 'Ngưng hoạt động' };
       case 'PENDING':
         return { color: 'gold', text: 'Chờ duyệt' };
       case 'APPROVED':
@@ -36,7 +49,7 @@ const StatusBadge = ({ status }) => {
     }
   };
 
-  const { color, text, bold, live } = getStatusConfig(status);
+  const { color, text, bold, live } = getStatusConfig(key);
 
   return (
     <Tag

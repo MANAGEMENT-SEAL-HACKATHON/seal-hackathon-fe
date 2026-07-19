@@ -1,4 +1,7 @@
 import dayjs from 'dayjs';
+import { classifyPendingTeams, formatPendingTeamsGateReason } from './pendingTeamBuckets.js';
+
+export { classifyPendingTeams, formatPendingTeamsGateReason };
 
 export const isRegistrationClosedEarly = (hackathon) =>
   Boolean(hackathon?.registration_closed_early_at ?? hackathon?.registrationClosedEarlyAt);
@@ -24,7 +27,18 @@ export const canRunLottery = (hackathon) => {
   return dayjs().startOf('day').isAfter(dayjs(regEnd).startOf('day'));
 };
 
-export const getLotteryGateReason = (hackathon, activeTeams = [], selectedRound = null) => {
+/**
+ * @param {object} hackathon
+ * @param {Array} activeTeams
+ * @param {object|null} selectedRound
+ * @param {Array} [pendingTeams] — đội PENDING (awaiting / grace / blocked)
+ */
+export const getLotteryGateReason = (
+  hackathon,
+  activeTeams = [],
+  selectedRound = null,
+  pendingTeams = [],
+) => {
   if (selectedRound && (selectedRound.is_active || selectedRound.isActive)) {
     return 'Vòng thi đã được kích hoạt, không thể bốc thăm lại.';
   }
@@ -40,6 +54,11 @@ export const getLotteryGateReason = (hackathon, activeTeams = [], selectedRound 
 
   if (!canRunLottery(hackathon)) {
     return 'Khóa đội và bốc thăm chỉ từ ngày hôm sau khi kết thúc đăng ký (hoặc dùng «Kết thúc đăng ký sớm»).';
+  }
+
+  const pendingBuckets = classifyPendingTeams(pendingTeams);
+  if (pendingBuckets.total > 0) {
+    return formatPendingTeamsGateReason(pendingBuckets);
   }
 
   if (activeTeams.length === 0) {

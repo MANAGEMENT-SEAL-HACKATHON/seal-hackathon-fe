@@ -70,6 +70,16 @@ export const userService = {
   },
 
   /**
+   * Coordinator: download student card image as blob (Bearer auth).
+   * GET /api/v1/users/{userId}/student-card
+   */
+  getStudentCardBlob: async (userId) => {
+    return axiosClient.get(`${ENDPOINTS.USERS.DETAIL(userId)}/student-card`, {
+      responseType: 'blob',
+    });
+  },
+
+  /**
    * Create temporary judge guest.
    * POST /api/v1/users/temp-judges
    * @param {object} payload - { email, name, institution, hackathonId }
@@ -79,11 +89,11 @@ export const userService = {
   },
 
   /**
-   * List temporary judges.
+   * List temporary judges (server-side page/size).
    * GET /api/v1/users/temp-judges
    */
-  getTempJudges: async () => {
-    return axiosClient.get(ENDPOINTS.USERS.TEMP_JUDGES);
+  getTempJudges: async (params = {}) => {
+    return axiosClient.get(ENDPOINTS.USERS.TEMP_JUDGES, { params });
   },
 
   /**
@@ -92,6 +102,10 @@ export const userService = {
    */
   resendInvitation: async (invitationId) => {
     return axiosClient.post(ENDPOINTS.USERS.RESEND_INVITATION(invitationId));
+  },
+
+  revokeInvitation: async (invitationId) => {
+    return axiosClient.post(ENDPOINTS.USERS.REVOKE_INVITATION(invitationId));
   },
 
   /**

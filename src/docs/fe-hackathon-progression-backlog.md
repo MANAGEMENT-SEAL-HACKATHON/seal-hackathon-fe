@@ -28,7 +28,7 @@
 |-----|------------|---------|
 | FinalRoundConfig + readiness | ✅ | |
 | `FinalRoundCoordinatorStepper` | ✅ | Final config + RoundManagement |
-| Calibration CK | ✅ | `CalibrationSessionManager` |
+| ~~Calibration CK~~ | ❌ GỠ FE | UI Calibration đã purge — BE `rbl_calibration_*` C.b vẫn tồn tại |
 | Student final submit | ✅ | `useFinalSubmission` + progression errors |
 | Post-lock → đóng giải handoff | ✅ | `RoundManagementPage` modal |
 | E2E smoke | ✅ | `e2e/final-round-smoke.spec.js` |

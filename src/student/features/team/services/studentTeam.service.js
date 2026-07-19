@@ -25,8 +25,8 @@ export const studentTeamService = {
 
   getRegisteredHackathon: async () => studentHackathonService.getPrimaryRegisteredHackathon(),
 
-  getMyTeams: async () => {
-    const res = await axiosClient.get(MY_TEAMS_ENDPOINT);
+  getMyTeams: async (params = {}) => {
+    const res = await axiosClient.get(MY_TEAMS_ENDPOINT, { params });
     const teamSummaries = unwrapList(res);
 
     const teams = await Promise.all(
