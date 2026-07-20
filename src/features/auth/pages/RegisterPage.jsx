@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Form, Input, Button, message, Modal, Radio, Select } from 'antd';
+import { Form, Input, Button, message, Modal } from 'antd';
 import {
   MailOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone,
-  ArrowRightOutlined, GithubOutlined, IdcardOutlined, BankOutlined,
+  ArrowRightOutlined, GithubOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { GoogleSocialButton } from '../components/GoogleSocialButton';
@@ -19,13 +19,6 @@ const REGISTER_ERROR_MESSAGES = {
   VALIDATION_FAILED: 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin!',
 };
 
-const CHAPTERS = [
-  { id: 1, name: 'FPT Hà Nội' },
-  { id: 2, name: 'FPT Hồ Chí Minh' },
-  { id: 3, name: 'FPT Đà Nẵng' },
-  { id: 4, name: 'FPT Cần Thơ' },
-];
-
 const resolveRegisterError = (error) => {
   const code = error?.code || error?.data?.error?.code;
   return REGISTER_ERROR_MESSAGES[code] || error?.message || 'Có lỗi xảy ra khi đăng ký. Vui lòng thử lại!';
@@ -40,7 +33,6 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
-  const userType = Form.useWatch('userType', form) || 'INTERNAL';
 
   // ── OAuth Google (register page also supports social login) ──────────────
   const runGoogleOAuthLogin = async (tokenValue, existingAccountPassword) => {
@@ -111,15 +103,11 @@ const RegisterPage = () => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
+      // NEW simplified payload: only email + password + confirmPassword
       await authService.register({
         email: values.email,
         password: values.password,
         confirmPassword: values.confirmPassword,
-        userType: values.userType,
-        studentCode: values.studentCode,
-        ...(values.userType === 'INTERNAL'
-          ? { chapterId: values.chapterId }
-          : { institution: values.institution }),
       });
       message.success('Đăng ký thành công! Kiểm tra email để xác thực tài khoản trước khi đăng nhập.');
       navigate(ROUTES.LOGIN);
@@ -230,8 +218,8 @@ const RegisterPage = () => {
             color: '#1e40af',
             lineHeight: 1.5,
           }}>
-            Chọn đúng đối tượng và khai báo thông tin sinh viên. Sau khi đăng ký,
-            kiểm tra email để xác thực tài khoản và chờ Coordinator duyệt.
+            <strong>Quy trình mới:</strong> Đăng ký chỉ cần Email + Mật khẩu.
+            Kiểm tra email để xác thực tài khoản, sau đó đăng nhập và hoàn thiện hồ sơ để chờ Coordinator duyệt.
           </div>
 
           <Form
@@ -240,59 +228,7 @@ const RegisterPage = () => {
             layout="vertical"
             onFinish={onFinish}
             requiredMark={false}
-            initialValues={{ userType: 'INTERNAL', chapterId: 1 }}
           >
-            <Form.Item
-              label={<span style={{ color: '#4b5563', fontSize: '12px', fontWeight: '600' }}>ĐỐI TƯỢNG</span>}
-              name="userType"
-              rules={[{ required: true, message: 'Vui lòng chọn đối tượng!' }]}
-            >
-              <Radio.Group data-testid="register-user-type" buttonStyle="solid" style={{ width: '100%', display: 'flex' }}>
-                <Radio.Button value="INTERNAL" style={{ flex: 1, textAlign: 'center' }}>Sinh viên FPT</Radio.Button>
-                <Radio.Button value="EXTERNAL" style={{ flex: 1, textAlign: 'center' }}>Sinh viên ngoài FPT</Radio.Button>
-              </Radio.Group>
-            </Form.Item>
-
-            {userType === 'INTERNAL' ? (
-              <Form.Item
-                label={<span style={{ color: '#4b5563', fontSize: '12px', fontWeight: '600' }}>CƠ SỞ</span>}
-                name="chapterId"
-                rules={[{ required: true, message: 'Vui lòng chọn cơ sở!' }]}
-              >
-                <Select
-                  data-testid="register-chapter-id"
-                  style={{ height: 48 }}
-                  options={CHAPTERS.map((chapter) => ({ value: chapter.id, label: chapter.name }))}
-                />
-              </Form.Item>
-            ) : (
-              <Form.Item
-                label={<span style={{ color: '#4b5563', fontSize: '12px', fontWeight: '600' }}>TRƯỜNG / TỔ CHỨC</span>}
-                name="institution"
-                rules={[{ required: true, message: 'Vui lòng nhập trường / tổ chức!' }]}
-              >
-                <Input
-                  data-testid="register-institution"
-                  prefix={<BankOutlined style={{ color: '#0072ff', marginRight: 8 }} />}
-                  placeholder="Đại học Bách Khoa..."
-                  style={{ height: 48, borderRadius: 16 }}
-                />
-              </Form.Item>
-            )}
-
-            <Form.Item
-              label={<span style={{ color: '#4b5563', fontSize: '12px', fontWeight: '600' }}>MÃ SINH VIÊN</span>}
-              name="studentCode"
-              rules={[{ required: true, message: 'Vui lòng nhập mã sinh viên!' }]}
-            >
-              <Input
-                data-testid="register-student-code"
-                prefix={<IdcardOutlined style={{ color: '#0072ff', marginRight: 8 }} />}
-                placeholder={userType === 'INTERNAL' ? 'SE123456' : 'Mã sinh viên trường bạn'}
-                style={{ height: 48, borderRadius: 16 }}
-              />
-            </Form.Item>
-
             <Form.Item
               label={<span style={{ color: '#4b5563', fontSize: '12px', fontWeight: '600', letterSpacing: '0.5px' }}>EMAIL</span>}
               name="email"
@@ -361,7 +297,6 @@ const RegisterPage = () => {
                 type="primary"
                 htmlType="submit"
                 loading={loading}
-                data-testid="register-submit"
                 style={{
                   width: '100%', height: '48px', borderRadius: '16px', fontSize: '16px',
                   fontWeight: 'bold', border: 'none',
