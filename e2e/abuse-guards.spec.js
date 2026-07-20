@@ -46,10 +46,7 @@ test.describe('Abuse guards P1', () => {
 
   test('register duplicate email -> ACCOUNT_DUPLICATE_EMAIL', async ({ page }) => {
     await page.goto('/register', { waitUntil: 'networkidle' });
-    // Ant Radio.Button — click label text (input itself is not visible)
-    await page.getByText(/Sinh vi\u00ean ngo\u00e0i FPT/i).click();
-    await page.getByPlaceholder(/\u0110\u1ea1i h\u1ecdc B\u00e1ch Khoa/i).fill('Probe University');
-    await page.getByPlaceholder(/M\u00e3 sinh vi\u00ean/i).fill('PROBE-DUP-UI');
+    // Form rút gọn: chỉ Email + Mật khẩu + Xác nhận mật khẩu
     await page.getByPlaceholder('example@fpt.edu.vn').fill(COORD_EMAIL);
     const pw = page.locator('input[type="password"]');
     await pw.nth(0).fill('ProbeDup@12345');

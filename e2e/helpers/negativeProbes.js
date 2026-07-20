@@ -202,17 +202,12 @@ const NEGATIVE_PROBES = {
   },
 
   async 'duplicate-email'() {
-    // userType là @NotNull ở bean validation — thiếu nó sẽ ra VALIDATION_FAILED
-    // trước khi service kịp check trùng email.
+    // Register rút gọn: chỉ email + password + confirmPassword
     await apiRequest('POST', '/auth/register', {
       body: {
-        fullName: 'Probe Duplicate',
         email: COORD_EMAIL,
         password: 'ProbeDup@12345',
         confirmPassword: 'ProbeDup@12345',
-        userType: 'EXTERNAL',
-        studentCode: 'PROBE-DUP-01',
-        institution: 'Probe University',
       },
       expectErrorCode: 'ACCOUNT_DUPLICATE_EMAIL',
     });
