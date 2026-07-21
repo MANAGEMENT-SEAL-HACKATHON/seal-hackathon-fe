@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Tabs, Card, Alert, Button, Modal, Tooltip, Input, List, Breadcrumb, Space, Tag, Typography } from 'antd';
+import { ArrowLeft } from 'lucide-react';
 import { resolveStatusLabel } from '../../../shared/errors/resolveUserError';
 import { HACKATHON_STATUS_COLORS } from '../../../shared/constants/labels';
 import { useHackathonResults } from '../hooks/useHackathonResults';
@@ -10,12 +11,14 @@ import IndividualRankingTable from '../components/IndividualRankingTable';
 import PrizeListPanel from '../components/PrizeListPanel';
 import HackathonClosureStepper from '../components/HackathonClosureStepper';
 import { Trophy, Medal, User, Gift, Download } from 'lucide-react';
+import { whiteButtonStyle } from '../../../shared/theme/coordinatorTheme';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
 const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
   const params = useParams();
+  const navigate = useNavigate();
   const id = propHackathonId || params.id || params.hackathonId;
   const [confirmNote, setConfirmNote] = useState('Ban tổ chức xác nhận chốt điểm');
 
@@ -131,8 +134,16 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
   });
 
   return (
-    <div className="hackathon-results-page" style={{ padding: 24 }}>
+    <div className="hackathon-results-page coord-page" style={{ padding: 24 }}>
       <Space direction="vertical" size={18} style={{ width: '100%' }}>
+        <Button
+          type="link"
+          icon={<ArrowLeft size={16} />}
+          onClick={() => navigate(`/hackathons/${id}/setup`)}
+          style={{ padding: 0, color: '#475569', fontWeight: 600, width: 'fit-content' }}
+        >
+          Quay lại Cấu hình sự kiện
+        </Button>
         <Breadcrumb
           items={[
             { title: <Link to="/hackathons">Hackathons</Link> },
@@ -165,13 +176,13 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
             <Title level={2} style={{ margin: 0 }}>
               Kết quả & Bảng xếp hạng
             </Title>
-            <Text type="secondary">
-              Bảng điểm chung cuộc, tổng kết điểm thi đua các cơ sở và danh sách trao giải.
+            <Text style={{ color: '#475569' }}>
+              BXH chung cuộc và trao giải.
             </Text>
           </Space>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <Button onClick={refresh}>Làm mới dữ liệu</Button>
+            <Button onClick={refresh} style={whiteButtonStyle}>Làm mới</Button>
           {canExport && (
             <Button
               type="default"
@@ -180,8 +191,9 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
               icon={<Download size={18} />}
               loading={exporting}
               onClick={handleExportRankings}
+              style={whiteButtonStyle}
             >
-              Xuất CSV xếp hạng
+              Xuất CSV
             </Button>
           )}
           {status === 'PENDING_CONFIRM' && canConfirm && (

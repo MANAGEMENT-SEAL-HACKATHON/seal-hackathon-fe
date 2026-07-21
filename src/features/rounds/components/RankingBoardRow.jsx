@@ -50,7 +50,7 @@ const RankingBoardRow = ({
         #{item.rank || "-"}
       </Text>
 
-      <Text strong delete={item.isEliminated} ellipsis style={{ fontSize: 15 }}>
+      <Text strong delete={item.isEliminated} ellipsis={{ tooltip: item.teamName }} style={{ fontSize: 15 }}>
         {item.teamName}
       </Text>
 

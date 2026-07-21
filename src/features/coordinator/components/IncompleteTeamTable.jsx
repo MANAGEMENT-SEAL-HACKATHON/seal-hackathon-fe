@@ -66,7 +66,7 @@ const IncompleteTeamTable = ({ teams, loading, onAddMember, onMerge }) => {
       loading={loading}
       columns={columns}
       dataSource={teams}
-      pagination={{ pageSize: 8, showSizeChanger: false }}
+      pagination={{ pageSize: 10, showSizeChanger: false }}
       locale={{ emptyText: 'Không có đội cần giải cứu' }}
     />
   );

@@ -21,6 +21,7 @@ import {
   EditOutlined,
   CheckCircleFilled,
 } from '@ant-design/icons';
+import { shouldWarnQaScoringDeadline } from '../utils/timerControlGates';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -37,6 +38,7 @@ const JudgeScoringWorkspace = ({ logic }) => {
     isSubmitting,
     canScore,
     localTimerPhase,
+    localRemainingSeconds,
     canSubmitFinalScore,
     hasScoredCurrentTeam,
     myScoredSubmissions,
@@ -48,6 +50,14 @@ const JudgeScoringWorkspace = ({ logic }) => {
     hasPresentationQueue,
     isController,
   } = logic;
+
+  const warnQaDeadline = shouldWarnQaScoringDeadline({
+    localTimerPhase,
+    localRemainingSeconds,
+    hasScoredCurrentTeam,
+    qaMinutes: activeSlot?.timer?.qaMinutes ?? activeSlot?.timer?.qa_minutes ?? 3,
+  });
+  const qaMinutesLeft = Math.max(0, Math.ceil((Number(localRemainingSeconds) || 0) / 60));
 
   if (scoringLocked) {
     return (
@@ -153,13 +163,27 @@ const JudgeScoringWorkspace = ({ logic }) => {
       criterion.score_levels ??
       criterion.levels ??
       [];
+    const weight = criterion.weight ?? criterion.Weight;
+    const maxScore = criterion.maxScore ?? criterion.max_score ?? 10;
+    const weightPct =
+      weight != null && Number.isFinite(Number(weight))
+        ? `${(Number(weight) * 100).toFixed(0)}%`
+        : null;
     return {
       key: String(criterion.id),
-      label: `${index + 1}. ${criterion.name}`,
+      label: (
+        <Space wrap size={[8, 4]}>
+          <Text strong>
+            {index + 1}. {criterion.name}
+          </Text>
+          {weightPct && <Tag color="blue">Trọng số {weightPct}</Tag>}
+          <Tag>Thang điểm 0–{maxScore}</Tag>
+        </Space>
+      ),
       children: (
         <Space direction="vertical" size={8} style={{ width: '100%' }}>
-          <Paragraph style={{ margin: 0 }}>
-            {criterion.description || criterion.Description || 'Chưa có mô tả tiêu chí.'}
+          <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+            {criterion.description || criterion.Description || 'Chưa có mô tả tiêu chí. Coord có thể bổ sung tại màn Quản lý tiêu chí.'}
           </Paragraph>
           {Array.isArray(levels) && levels.length > 0 && (
             <div>
@@ -220,14 +244,14 @@ const JudgeScoringWorkspace = ({ logic }) => {
                     type="info"
                     showIcon
                     message="Luồng điều phối: Thuyết trình → Q&A → Đội tiếp theo"
-                    description="Bắt đầu thời gian thuyết trình, chuyển sang Q&A, chờ giám khảo chốt đủ điểm rồi mới gọi đội tiếp theo."
+                    description="Kết thúc sớm Q&A chỉ khi mọi GK đã chốt. Hết giờ tự nhiên: ghi nhận điểm tới đâu (thiếu tiêu chí / thiếu GK cũng được) rồi gọi đội tiếp — không đợi hoài."
                   />
                 ) : (
                   <Alert
                     type="info"
                     showIcon
                     message="Chấm tuyệt đối theo rubric"
-                    description="Nhập đủ điểm từng tiêu chí và chốt điểm khi sang Q&A hoặc hết giờ. Giữ chuẩn tiêu chí cố định, không so sánh tương đối với đội trước."
+                    description="Nhập đủ điểm từng tiêu chí và bấm HOÀN TẤT & CHỐT SỔ ĐIỂM trong Q&A. Khi còn khoảng 1/3 thời gian Q&A sẽ có cảnh báo nếu bạn chưa chốt."
                   />
                 )}
                 <Collapse size="small" items={rubricItems} />
@@ -236,6 +260,17 @@ const JudgeScoringWorkspace = ({ logic }) => {
           },
         ]}
       />
+      {warnQaDeadline && (
+        <Alert
+          type="warning"
+          showIcon
+          banner
+          data-testid="qa-scoring-deadline-warn"
+          style={{ marginBottom: 16 }}
+          message={`Còn ~1/3 thời gian Q&A (~${qaMinutesLeft} phút) — bạn chưa chốt điểm đội này`}
+          description="Hãy nhập đủ tiêu chí (nếu còn thiếu) và bấm HOÀN TẤT & CHỐT SỔ ĐIỂM. Hết giờ hệ thống sẽ ghi nhận điểm đã có; thiếu cũng được nhưng nên chốt sớm để công bằng."
+        />
+      )}
       {isSetup && !hasScoredCurrentTeam && (
         <div
           style={{

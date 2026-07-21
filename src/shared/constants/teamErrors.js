@@ -28,6 +28,10 @@ export const TEAM_ERROR_MESSAGES = {
   // Lỗi phân công Giám khảo (Judge Panel & Cross-Validation)
   CONFLICT_MENTOR_JUDGE_SAME_ROUND_TRACK: 'Một người không thể vừa là mentor vừa là giám khảo của cùng một bảng đấu.',
   CONFLICT_SAME_TRACK: 'Người này đã có vai trò xung đột trên bảng đấu này.',
+  PERSONNEL_ONE_TRACK_PER_ROUND:
+    'Mỗi người chỉ được làm Mentor một bảng trong cùng vòng Sơ loại (vẫn được làm Judge ở bảng khác).',
+  MENTOR_ASSIGN_DUPLICATE: 'Mentor này đã được phân công vào bảng đấu này rồi.',
+  JUDGE_ASSIGN_DUPLICATE: 'Giám khảo này đã được phân công vào bảng khác trong cùng vòng rồi.',
   JUDGE_ALREADY_ASSIGNED_TO_TRACK: 'Giám khảo này đã được phân công vào hạng mục này rồi.',
   INTERNAL_JUDGE_NOT_ALLOWED_IN_FINAL: 'Giảng viên nội bộ không được phép chấm thi tại Vòng Chung kết.',
   ROUND_HAS_SCORES: 'Không thể gỡ phân công vì Giám khảo đã có điểm chấm thực tế trong vòng này.',

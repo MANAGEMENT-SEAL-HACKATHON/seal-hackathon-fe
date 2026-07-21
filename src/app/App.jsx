@@ -43,10 +43,13 @@ const AppContent = () => {
         algorithm: darkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
           colorPrimary: '#1677ff',
-          borderRadius: 6,
+          borderRadius: 10,
           fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial',
         },
         components: {
+          Button: {
+            borderRadius: 10,
+          },
           Layout: {
             headerBg: darkMode ? '#141414' : '#ffffff',
             siderBg: darkMode ? '#141414' : '#ffffff',

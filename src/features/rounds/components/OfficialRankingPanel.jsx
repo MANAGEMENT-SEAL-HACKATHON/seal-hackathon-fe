@@ -177,7 +177,7 @@ const OfficialRankingPanel = ({
           columns={columns}
           dataSource={items}
           loading={isLoading}
-          pagination={false}
+          pagination={{ pageSize: 10, showSizeChanger: false }}
           locale={{ emptyText: <Empty description="Chưa có kết quả chính thức." /> }}
           scroll={{ x: 720 }}
           size="middle"

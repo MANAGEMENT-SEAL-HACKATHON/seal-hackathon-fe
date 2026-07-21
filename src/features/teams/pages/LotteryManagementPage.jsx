@@ -40,6 +40,7 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
   const {
     rounds, tracks, activeTeams, pendingBuckets, hackathon, isLoading,
     selectedRoundId, setSelectedRoundId, lotteryGate,
+    unlockedActiveTeams, awaitingAutoLock,
     handleAssignTopic, handleRunAutoLottery, handleChangeTrack
   } = useLotteryManagement(hackathonId, onUpdated);
 
@@ -90,7 +91,15 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
       width: 110,
       render: (_, record) => {
         const locked = record.isLocked ?? record.is_locked;
-        return locked ? <Tag color="red">Đã khóa</Tag> : <Tag color="default">Chưa khóa</Tag>;
+        if (locked) return <Tag color="red">Đã khóa</Tag>;
+        if (closedEarly || !regStillOpen) {
+          return (
+            <Tooltip title="Đăng ký đã đóng — hệ thống đang khóa đội (thường dưới 1 phút). Trang sẽ tự cập nhật.">
+              <Tag color="processing">Đang khóa…</Tag>
+            </Tooltip>
+          );
+        }
+        return <Tag color="default">Chưa khóa</Tag>;
       },
     },
     { 
@@ -215,6 +224,15 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
                     </Button>
                   </Space>
                 }
+              />
+            ) : null}
+            {awaitingAutoLock ? (
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 16, borderRadius: 8 }}
+                message={`Đang khóa ${unlockedActiveTeams.length} đội ACTIVE…`}
+                description="Đăng ký đã đóng. Trang tự làm mới mỗi 5 giây. (Sau bản vá: duyệt đội sẽ khóa ngay — không còn chờ cron ~1 phút.)"
               />
             ) : null}
             {noApprovedTeams ? (

@@ -30,6 +30,8 @@ const CoordinatorHero = (/** @type {any} */ props) => {
     actions,
     decoration = true,
     style,
+    onBack,
+    backLabel,
     'data-testid': testId,
   } = props || {};
   const screens = useBreakpoint();
@@ -54,6 +56,28 @@ const CoordinatorHero = (/** @type {any} */ props) => {
       {decoration && !isMobile ? <TechDecoration /> : null}
 
       <div style={{ position: 'relative', zIndex: 2 }}>
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            data-testid="coordinator-hero-back"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              marginBottom: 12,
+              padding: 0,
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              color: '#475569',
+              fontWeight: 600,
+              fontSize: 14,
+            }}
+          >
+            ← {backLabel || 'Quay lại'}
+          </button>
+        ) : null}
         {pills.length > 0 && (
           <div style={{ marginBottom: 14 }}>
             <Space wrap size={8}>

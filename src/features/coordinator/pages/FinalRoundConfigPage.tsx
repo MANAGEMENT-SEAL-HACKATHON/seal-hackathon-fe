@@ -245,6 +245,17 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({
       <CoordinatorHero
         data-testid="final-config-hero"
         title="Cấu hình Vòng Chung kết"
+        onBack={
+          isEmbeddedInSetup
+            ? undefined
+            : () =>
+                navigate(
+                  activeHackathonId
+                    ? `/hackathons/${activeHackathonId}/setup?tab=final-config`
+                    : '/hackathons',
+                )
+        }
+        backLabel="Quay lại Cấu hình sự kiện"
         pills={[
           { key: 'round', label: 'Vòng Chung kết', tone: 'info' },
           {
@@ -429,7 +440,11 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({
           showIcon
           type="warning"
           message="Chưa có vòng Chung kết"
-          description="Sự kiện này chưa được thiết lập vòng Chung kết. Vui lòng thêm vòng Chung kết trước khi kích hoạt hoặc mở cổng nộp bài."
+          description={
+            <Tooltip title="Thêm vòng Chung kết trước khi kích hoạt hoặc mở cổng nộp bài.">
+              <span style={{ cursor: 'help' }}>Cần thêm vòng CK trước khi kích hoạt.</span>
+            </Tooltip>
+          }
           style={{ borderRadius: 12 }}
         />
       )}
@@ -463,8 +478,14 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({
           <Alert
             showIcon
             type="success"
-            message="Vòng Chung kết đã được kích hoạt thành công"
-            description={`Vui lòng hoàn thành các bước dưới đây để kết thúc vòng Chung kết và chuyển sang giai đoạn ${resolveStatusLabel('PENDING_CONFIRM')}.`}
+            message="Vòng Chung kết đã kích hoạt"
+            description={
+              <Tooltip
+                title={`Hoàn thành các bước dưới đây để kết thúc CK và chuyển sang ${resolveStatusLabel('PENDING_CONFIRM')}.`}
+              >
+                <span style={{ cursor: 'help' }}>Tiếp tục các bước bên dưới để chốt sổ.</span>
+              </Tooltip>
+            }
             style={{ marginBottom: 16 }}
           />
           <List

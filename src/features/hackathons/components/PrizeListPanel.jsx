@@ -88,6 +88,7 @@ const PrizeListPanel = ({ data, loading, hackathonId, onRefresh, canAward, canRe
       <List
         itemLayout="horizontal"
         dataSource={data}
+        pagination={{ pageSize: 10, showSizeChanger: false }}
         renderItem={(item) => {
           const prizeName = item.prizeName ?? item.prize_name ?? 'Giải thưởng';
           const prizeType = item.prizeRank ?? item.prize_type ?? item.prize_rank;
@@ -133,9 +134,9 @@ const PrizeListPanel = ({ data, loading, hackathonId, onRefresh, canAward, canRe
       />
 
       <AwardPrizeModal
-        open={isModalVisible}
+        visible={isModalVisible}
         hackathonId={hackathonId}
-        onCancel={() => setIsModalVisible(false)}
+        onClose={() => setIsModalVisible(false)}
         onSuccess={() => {
           setIsModalVisible(false);
           onRefresh?.();

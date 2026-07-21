@@ -36,10 +36,6 @@ const PreliminaryResultsCoordinatorStepper = ({
     ':roundId',
     String(roundId),
   );
-  const previewUrl = ROUTES.ROUND_RANKING_PREVIEW.replace(':hackathonId', String(hackathonId)).replace(
-    ':roundId',
-    String(roundId),
-  );
   const roundsUrl = hackathonId ? `/hackathons/${hackathonId}/rounds` : ROUTES.ROUNDS;
   const finalConfigUrl = hackathonId
     ? `${ROUTES.COORDINATOR_FINAL_CONFIG}?hackathonId=${hackathonId}`
@@ -63,8 +59,17 @@ const PreliminaryResultsCoordinatorStepper = ({
             description: <Link to={roundsUrl}>Quản lý vòng</Link>,
           },
           {
-            title: 'Xem trước xếp hạng',
-            description: <Link to={previewUrl}>Bảng xếp hạng tạm</Link>,
+            title: 'BXH chính thức',
+            description: (
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: 0, height: 'auto' }}
+                onClick={() => goToTab('ranking')}
+              >
+                BXH sau khóa chấm
+              </Button>
+            ),
           },
           {
             title: 'Đồng điểm',

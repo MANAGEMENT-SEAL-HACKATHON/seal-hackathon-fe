@@ -22,7 +22,8 @@ const PEOPLE_TAB_HINT = (
       'Giám khảo khách mời: pool tài khoản khách toàn hệ thống',
       'Mentor & Giám khảo Sơ loại: gán theo từng bảng đấu',
       'Giám khảo Chung kết: chọn Giám khảo nội bộ (INTERNAL) hoặc Giám khảo khách khi gán',
-      'Một người không thể vừa mentor vừa giám khảo cùng một bảng',
+      'Mentor chỉ 1 bảng / vòng; Judge chỉ 1 bảng / vòng',
+      'Được phép: Mentor bảng A + Judge bảng B (và ngược lại); cấm cùng một bảng',
     ]}
   />
 );
@@ -226,7 +227,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
           {personSelectOption(p, {
             disabled: blocked,
             label: name,
-            extra: blocked ? `${roleLabel} · ${blockReason}` : roleLabel,
+            extra: blocked ? `${roleLabel} · ${blockReason}` : `${roleLabel} · có thể gán`,
           })}
         </Option>
       );
@@ -338,7 +339,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
             <Table
               dataSource={tempJudges}
               rowKey="id"
-              pagination={false}
+              pagination={{ pageSize: 10, showSizeChanger: false }}
               loading={isLoading}
               locale={{ emptyText: 'Chưa mời giám khảo khách mời nào.' }}
               columns={[
@@ -435,7 +436,13 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                     ) : null
                   }
                 >
-                  <Select placeholder="Chọn bảng đấu" style={{ width: 240 }} showSearch optionFilterProp="children">
+                  <Select
+                    placeholder="Chọn bảng đấu"
+                    style={{ width: 240 }}
+                    showSearch
+                    optionFilterProp="children"
+                    onChange={() => mentorForm.setFieldsValue({ mentor_id: undefined })}
+                  >
                     {tracks.map((t) => (
                       <Option key={t.id} value={t.id}>
                         {t.name}
@@ -475,14 +482,15 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                 </Button>
               </Form>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
-                Hiện mentor và giám khảo nội bộ — một người có thể đảm nhiệm cả hai vai, nhưng không cùng một bảng đấu.
+                Mỗi người chỉ làm <strong>Mentor một bảng</strong> / vòng. Vẫn được làm Judge ở bảng khác
+                (không cùng bảng đang mentor).
               </Text>
             </Card>
 
             <Table
               dataSource={trackMentors}
               rowKey="id"
-              pagination={false}
+              pagination={{ pageSize: 10, showSizeChanger: false }}
               loading={isLoading}
               locale={{ emptyText: 'Chưa gán mentor cho bảng đấu nào.' }}
               columns={[
@@ -540,7 +548,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
           <Tabs.TabPane
             tab={tabLabelWithInfo(
               'Giám khảo Sơ loại',
-              'Chỉ giám khảo/mentor nội bộ (INTERNAL). Mỗi giám khảo chỉ thuộc một bảng trong cùng vòng Sơ loại. Vai trò gán: Giám khảo (NORMAL).',
+              'Chỉ giám khảo/mentor nội bộ (INTERNAL). Mỗi người chỉ Judge một bảng / vòng. Vẫn được làm Mentor ở bảng khác (không cùng bảng đang judge).',
             )}
             key="3"
           >
@@ -556,7 +564,13 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                 }
               >
                 <Form.Item name="track_id" rules={[{ required: true, message: 'Chọn bảng đấu' }]}>
-                  <Select placeholder="Chọn bảng đấu" style={{ width: 220 }} showSearch optionFilterProp="children">
+                  <Select
+                    placeholder="Chọn bảng đấu"
+                    style={{ width: 220 }}
+                    showSearch
+                    optionFilterProp="children"
+                    onChange={() => prelimJudgeForm.setFieldsValue({ person_id: undefined })}
+                  >
                     {prelimTracks.map((t) => (
                       <Option key={t.id} value={t.id}>
                         {t.name}
@@ -581,9 +595,10 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                 <Form.Item name="person_id" rules={[{ required: true, message: 'Chọn giám khảo' }]}>
                   <Select
                     placeholder="Chọn giám khảo"
-                    style={{ width: 220 }}
+                    style={{ width: 320 }}
                     showSearch
-                    optionFilterProp="children"
+                    optionLabelProp="label"
+                    optionFilterProp="label"
                     disabled={!selectedPrelimJudgeTrackId}
                   >
                     {prelimJudgeOptionsForTrack(selectedPrelimJudgeTrackId)}

@@ -118,7 +118,12 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
       dataIndex: "description",
       key: "description",
       ellipsis: true,
-      render: (text) => text || <Typography.Text type="secondary">—</Typography.Text>,
+      render: (text) =>
+        text ? (
+          <Typography.Text ellipsis={{ tooltip: text }}>{text}</Typography.Text>
+        ) : (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ),
     },
     {
       title: "Trọng số",
@@ -280,7 +285,7 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
             columns={columns}
             dataSource={filteredCriteria}
             rowKey="id"
-            pagination={{ pageSize: 5 }}
+            pagination={{ pageSize: 10, showSizeChanger: false }}
           />
         </Card>
       )}

@@ -28,6 +28,10 @@ export const ENDPOINTS = {
     EVENTS: (hackathonId) => `/api/v1/hackathons/${hackathonId}/events`,
     LOTTERY: (hackathonId) => `/api/v1/hackathons/${hackathonId}/lottery`,
     CLOSE_REGISTRATION_EARLY: (id) => `/api/v1/hackathons/${id}/close-registration-early`,
+    COMPETITION_SCHEDULE_PREVIEW: (id) => `/api/v1/hackathons/${id}/competition-schedule/preview`,
+    COMPETITION_SCHEDULE_ADJUST: (id) => `/api/v1/hackathons/${id}/competition-schedule/adjust`,
+    // query assumeCloseRegToday=true khi preview trong modal đóng ĐK sớm
+
     CLONE: (id) => `/api/v1/hackathons/${id}/clone`,
   },
   TEAMS: {

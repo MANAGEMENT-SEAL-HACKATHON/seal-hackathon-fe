@@ -45,7 +45,7 @@ const RankingTopStepCard = ({ item, movement, index }) => {
           <RankingMovementTag movement={movement} compact />
         </div>
 
-        <Title level={5} ellipsis={{ rows: 1 }} style={{ margin: 0 }}>
+        <Title level={5} ellipsis={{ rows: 1, tooltip: item.teamName }} style={{ margin: 0 }}>
           {item.teamName}
         </Title>
 

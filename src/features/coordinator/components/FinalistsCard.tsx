@@ -151,7 +151,7 @@ const FinalistsCard: React.FC<FinalistsCardProps> = ({
           size="small"
           columns={columns}
           dataSource={advanced}
-          pagination={advanced.length > 20 ? { pageSize: 20 } : false}
+          pagination={advanced.length > 10 ? { pageSize: 10 } : false}
         />
       )}
     </Card>

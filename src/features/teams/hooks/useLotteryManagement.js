@@ -6,7 +6,10 @@ import { trackService } from '../../tracks/services/trackService';
 import { roundService } from '../../rounds/services/roundService';
 import { hackathonService } from '../../hackathons/services/hackathonService';
 import { mapHackathonToFE } from '../../hackathons/mappers/hackathonMapper';
-import { getLotteryGateReason } from '../../hackathons/utils/hackathonRegistrationRules';
+import {
+  getLotteryGateReason,
+  isRegistrationPeriodEnded,
+} from '../../hackathons/utils/hackathonRegistrationRules';
 import { classifyPendingTeams } from '../../hackathons/utils/pendingTeamBuckets';
 import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
 import { mapTrackToBE } from '../../tracks/mappers/trackMapper';
@@ -24,8 +27,9 @@ export const useLotteryManagement = (hackathonId, onUpdated) => {
     if (typeof onUpdated === 'function') await onUpdated();
   }, [onUpdated]);
 
-  const fetchLotteryData = useCallback(async () => {
-    setIsLoading(true);
+  const fetchLotteryData = useCallback(async (opts = {}) => {
+    const silent = Boolean(opts.silent);
+    if (!silent) setIsLoading(true);
     try {
       const [rRes, tRes, teamsRes, pendingRes, hRes] = await Promise.all([
         roundService.listByHackathon(hackathonId),
@@ -51,15 +55,31 @@ export const useLotteryManagement = (hackathonId, onUpdated) => {
         if (firstPrelim) setSelectedRoundId(firstPrelim.id);
       }
     } catch (error) {
-      message.error('Lỗi khi tải dữ liệu Bốc thăm & Bảng đấu');
+      if (!silent) message.error('Lỗi khi tải dữ liệu Bốc thăm & Bảng đấu');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [hackathonId, selectedRoundId]);
 
   useEffect(() => {
     fetchLotteryData();
   }, [fetchLotteryData]);
+
+  const unlockedActiveTeams = useMemo(
+    () => activeTeams.filter((t) => !(t.isLocked ?? t.is_locked)),
+    [activeTeams],
+  );
+
+  const registrationEnded = Boolean(hackathon && isRegistrationPeriodEnded(hackathon));
+  const awaitingAutoLock = registrationEnded && unlockedActiveTeams.length > 0;
+
+  useEffect(() => {
+    if (!awaitingAutoLock) return undefined;
+    const timer = setInterval(() => {
+      fetchLotteryData({ silent: true });
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [awaitingAutoLock, fetchLotteryData]);
 
   const selectedRound = useMemo(
     () => rounds.find((r) => r.id === selectedRoundId) ?? null,
@@ -158,6 +178,8 @@ export const useLotteryManagement = (hackathonId, onUpdated) => {
     activeTeams,
     pendingTeams,
     pendingBuckets,
+    unlockedActiveTeams,
+    awaitingAutoLock,
     hackathon,
     isLoading,
     selectedRoundId,

@@ -15,7 +15,9 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { StopCircle } from 'lucide-react';
 import { personBApi } from '../../../api/personB.api';
 import { teamService } from '../../teams/services/teamService';
+import { presentationService } from '../../judging/services/presentationService';
 import { buildSubmissionRoster } from '../utils/submissionRoster';
+import { extractFinalEligibleTeamsFromQueue } from '../utils/finalEligibleTeams';
 import {
   getSubmissionStatusMeta,
   countSubmissionBuckets,
@@ -42,9 +44,10 @@ const formatSubmittedAt = (value) => {
  * Panel «Tình trạng nộp bài» — luôn hiển thị trên tab Vòng thi khi vòng active,
  * để Coord biết đội nào đã / chưa nộp và ra quyết định đóng sớm ngay tại chỗ.
  *
+ * - Sơ loại: roster = đội ACTIVE hackathon.
+ * - Chung kết: roster = đội ADVANCED (TeamRoundParticipation via queue eligibleTeams) —
+ *   KHÔNG lấy toàn bộ ACTIVE (tránh lẫn đội bị loại sơ loại).
  * - Nhãn trạng thái BẮT BUỘC dùng getSubmissionStatusMeta (không tự chế tag).
- * - Realtime WS-first (useScoringProgressSocket); poll 30s chỉ là fallback khi WS rớt.
- * - CTA Kết thúc sớm gọi onRequestCloseEarly → mở đúng modal hiện có.
  */
 const SubmissionStatusPanel = ({ round, hackathonId, onRequestCloseEarly, trackId = null }) => {
   const roundId = round?.id;
@@ -68,32 +71,41 @@ const SubmissionStatusPanel = ({ round, hackathonId, onRequestCloseEarly, trackI
     if (!roundId || !hackathonId) return;
     setLoading(true);
     try {
-      // TeamStatus enum = ACTIVE/PENDING/… — KHÔNG có ADVANCED (đó là participationStatus).
-      // Gọi ?status=ADVANCED → 400 và làm trống roster CK.
-      const [subsRes, teamsRes] = await Promise.all([
-        personBApi.getRoundSubmissions(roundId),
-        teamService.listByHackathon(hackathonId, { status: 'ACTIVE' }),
-      ]);
+      const subsRes = await personBApi.getRoundSubmissions(roundId);
       const submissions = Array.isArray(subsRes) ? subsRes : [];
-      let teams = Array.isArray(teamsRes) ? teamsRes : teamsRes?.items || [];
-      // CK: ưu tiên đội đã có bài nộp / tham gia vòng (tránh đếm cả đội bị loại còn ACTIVE)
-      if (isFinal && submissions.length > 0) {
-        const seen = new Set();
-        const fromSubs = submissions
-          .filter((s) => {
-            const tid = Number(s.team_id ?? s.teamId);
-            if (!Number.isFinite(tid) || seen.has(tid)) return false;
-            seen.add(tid);
-            return true;
-          })
-          .map((s) => ({
-            id: s.team_id ?? s.teamId,
-            teamName: s.team_name ?? s.teamName,
-            trackId: s.track_id ?? s.trackId,
-            trackName: s.track_name ?? s.trackName,
-          }));
-        if (fromSubs.length > 0) teams = fromSubs;
+
+      let teams;
+      if (isFinal) {
+        // CK: chỉ đội có TRP (eligible) — không dùng ACTIVE toàn hackathon
+        try {
+          const queueRes = await presentationService.getQueue(roundId, null);
+          teams = extractFinalEligibleTeamsFromQueue(queueRes);
+        } catch {
+          teams = [];
+        }
+        // Fallback an toàn khi queue ẩn danh / lỗi: chỉ đội đã có bài nộp CK (không lẫn ACTIVE loại)
+        if (teams.length === 0 && submissions.length > 0) {
+          const seen = new Set();
+          teams = submissions
+            .filter((s) => {
+              const tid = Number(s.team_id ?? s.teamId);
+              if (!Number.isFinite(tid) || seen.has(tid)) return false;
+              seen.add(tid);
+              return true;
+            })
+            .map((s) => ({
+              id: s.team_id ?? s.teamId,
+              teamName: s.team_name ?? s.teamName,
+              trackId: s.track_id ?? s.trackId,
+              trackName: s.track_name ?? s.trackName,
+            }));
+        }
+      } else {
+        // TeamStatus enum = ACTIVE/PENDING/… — KHÔNG có ADVANCED
+        const teamsRes = await teamService.listByHackathon(hackathonId, { status: 'ACTIVE' });
+        teams = Array.isArray(teamsRes) ? teamsRes : teamsRes?.items || [];
       }
+
       let roster = buildSubmissionRoster(teams, submissions);
       if (Number.isFinite(filterTrackId)) {
         roster = roster.filter((r) => Number(r.trackId) === filterTrackId);
@@ -281,7 +293,7 @@ const SubmissionStatusPanel = ({ round, hackathonId, onRequestCloseEarly, trackI
 
       {isFinal && (
         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-          Vòng Chung kết khóa cứng thời hạn — nộp sau hạn sẽ bị từ chối.
+          Chỉ liệt kê đội đã vào Chung kết (ADVANCED). Vòng CK khóa cứng thời hạn — nộp sau hạn sẽ bị từ chối.
         </Text>
       )}
     </Card>

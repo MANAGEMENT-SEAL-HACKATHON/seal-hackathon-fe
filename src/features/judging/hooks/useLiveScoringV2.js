@@ -406,19 +406,17 @@ export const useLiveScoringV2 = (
   const hasScoredCurrentTeam = useMemo(() => {
     if (!scoringTargetId) return false;
     const subIdStr = String(scoringTargetId);
-    if (isFinal) {
-      const statusSubId = presentationScoringStatus?.submissionId;
-      if (
-        statusSubId != null &&
-        String(statusSubId) === subIdStr &&
-        presentationScoringStatus.myConfirmed
-      ) {
-        return true;
-      }
-      return false;
+    if (myScoredSubmissions?.[subIdStr]) return true;
+    const statusSubId = presentationScoringStatus?.submissionId;
+    if (
+      statusSubId != null &&
+      String(statusSubId) === subIdStr &&
+      presentationScoringStatus.myConfirmed
+    ) {
+      return true;
     }
-    return !!myScoredSubmissions[subIdStr];
-  }, [scoringTargetId, presentationScoringStatus, isFinal, myScoredSubmissions]);
+    return false;
+  }, [scoringTargetId, presentationScoringStatus, myScoredSubmissions]);
 
   useEffect(() => {
     if (hydrateAbortRef.current) {
@@ -591,20 +589,20 @@ export const useLiveScoringV2 = (
     hasAllCriteriaFilled,
   ]);
 
-  /** Early-end Q&A: phase QA with time left — does NOT require scoring complete */
+  /** Early-end Q&A: chỉ khi QA còn giờ + mọi GK đã Chốt điểm */
   const canEarlyEndQa = useMemo(
     () =>
       computeCanEarlyEndQa({
         hasPresentationQueue,
         localTimerPhase,
         localRemainingSeconds,
+        presentationScoringStatus,
       }),
-    [hasPresentationQueue, localTimerPhase, localRemainingSeconds],
+    [hasPresentationQueue, localTimerPhase, localRemainingSeconds, presentationScoringStatus],
   );
 
   /**
-   * Next team: ENDED + BE allJudgesSubmitted (do not derive from judgesConfirmed counts).
-   * Falls back to canAdvanceQueue only if allJudgesSubmitted is absent from older payloads.
+   * Next team: ENDED + đủ chốt, hoặc hết giờ Q&A tự nhiên (đã có điểm tới đâu ghi nhận tới đó).
    */
   const canCallNextTeam = useMemo(
     () =>

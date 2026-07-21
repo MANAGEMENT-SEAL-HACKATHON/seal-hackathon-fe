@@ -144,6 +144,8 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
           allJudges.push({
             id: j.id || j.assignmentId,
             track_id: track.id,
+            track_name: track.name,
+            round_id: track.roundId || track.round_id || null,
             target_name: track.name,
             judge_name:
               j.judgeFullName ||
@@ -443,16 +445,42 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
     return track?.roundId ?? track?.round_id ?? null;
   };
 
-  const isJudgeOnOtherPrelimTrackInSameRound = (judgeId, trackId) => {
-    const roundId = trackRoundId(trackId);
-    if (!roundId || !judgeId) return false;
-    return judgeAssignments.some((row) => {
-      if (Number(row.person_id) !== Number(judgeId)) return false;
-      const otherTrackId = Number(row.track_id);
-      if (!Number.isFinite(otherTrackId) || otherTrackId === Number(trackId)) return false;
-      return Number(trackRoundId(otherTrackId)) === Number(roundId);
-    });
+  const trackNameById = (trackId) => {
+    const track = tracks.find((item) => Number(item.id) === Number(trackId));
+    return track?.name || `bảng #${trackId}`;
   };
+
+  /** Mentor đã gán bảng khác trong cùng vòng (hoặc bất kỳ bảng khác nếu thiếu roundId). */
+  const findMentorOnOtherTrackInSameRound = (mentorId, trackId) => {
+    const roundId = trackRoundId(trackId);
+    return (
+      trackMentors.find((row) => {
+        if (Number(row.mentor_id) !== Number(mentorId)) return false;
+        const otherTrackId = Number(row.track_id);
+        if (!Number.isFinite(otherTrackId) || otherTrackId === Number(trackId)) return false;
+        if (!roundId) return true;
+        return Number(trackRoundId(otherTrackId)) === Number(roundId);
+      }) || null
+    );
+  };
+
+  const findJudgeOnOtherPrelimTrackInSameRound = (judgeId, trackId) => {
+    const roundId = trackRoundId(trackId);
+    return (
+      judgeAssignments.find((row) => {
+        if (Number(row.person_id) !== Number(judgeId)) return false;
+        const otherTrackId = Number(row.track_id);
+        if (!Number.isFinite(otherTrackId) || otherTrackId === Number(trackId)) return false;
+        const otherRound =
+          row.round_id != null ? Number(row.round_id) : Number(trackRoundId(otherTrackId));
+        if (!roundId || !Number.isFinite(otherRound)) return true;
+        return otherRound === Number(roundId);
+      }) || null
+    );
+  };
+
+  const isJudgeOnOtherPrelimTrackInSameRound = (judgeId, trackId) =>
+    Boolean(findJudgeOnOtherPrelimTrackInSameRound(judgeId, trackId));
 
   const isAlreadyJudgeOnFinalRound = (judgeId, roundId) =>
     finalJudgeAssignments.some(
@@ -463,6 +491,11 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
   const getMentorAssignBlockReason = (personId, trackId) => {
     if (!trackId || !personId) return null;
     if (isAlreadyMentorOnTrack(personId, trackId)) return 'đã là mentor cùng bảng';
+    const otherMentor = findMentorOnOtherTrackInSameRound(personId, trackId);
+    if (otherMentor) {
+      const name = otherMentor.track_name || trackNameById(otherMentor.track_id);
+      return `đã là mentor bảng «${name}»`;
+    }
     if (isMentorBlockedForTrack(personId, trackId)) return 'đang là giám khảo cùng bảng';
     return null;
   };
@@ -471,8 +504,10 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
   const getPrelimJudgeAssignBlockReason = (personId, trackId) => {
     if (!trackId || !personId) return null;
     if (isAlreadyJudgeOnTrack(personId, trackId)) return 'đã là giám khảo cùng bảng';
-    if (isJudgeOnOtherPrelimTrackInSameRound(personId, trackId)) {
-      return 'đã được phân vào bảng khác trong vòng này';
+    const otherJudge = findJudgeOnOtherPrelimTrackInSameRound(personId, trackId);
+    if (otherJudge) {
+      const name = otherJudge.track_name || otherJudge.target_name || trackNameById(otherJudge.track_id);
+      return `đã là giám khảo bảng «${name}»`;
     }
     if (isJudgeBlockedForTrack(personId, trackId)) return 'đang là mentor cùng bảng';
     return null;

@@ -224,6 +224,7 @@ const PresentationQueuePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const roundIdFromUrl = searchParams.get('roundId');
   const trackIdFromUrl = searchParams.get('trackId');
+  const fromParam = searchParams.get('from');
 
   const [roundId, setRoundId] = useState<number | null>(roundIdFromUrl ? Number(roundIdFromUrl) : null);
   const [selectedTrackId, setSelectedTrackId] = useState<number | null>(trackIdFromUrl ? Number(trackIdFromUrl) : null);
@@ -308,6 +309,19 @@ const PresentationQueuePage: React.FC = () => {
   });
 
   const currentHackathonId = roundDetail?.hackathonId || roundDetail?.hackathon_id;
+
+  const navigateBack = () => {
+    const hid = currentHackathonId;
+    if (fromParam === 'final-config' && hid) {
+      navigate(`/hackathons/${hid}/setup?tab=final-config`);
+      return;
+    }
+    if (hid) {
+      navigate(`/hackathons/${hid}/setup?tab=rounds`);
+      return;
+    }
+    navigate(-1);
+  };
   const { data: hackathonDetail } = useQuery<any>({
     queryKey: ['hackathonDetail', currentHackathonId],
     queryFn: () => hackathonService.getById(currentHackathonId!),
@@ -636,7 +650,7 @@ const PresentationQueuePage: React.FC = () => {
               Đến danh sách mentor
             </Button>
           )}
-          <Button onClick={() => navigate(-1)} style={{ marginTop: userRole === 'MENTOR' ? 0 : 16 }}>
+          <Button onClick={navigateBack} style={{ marginTop: userRole === 'MENTOR' ? 0 : 16 }}>
             Quay lại
           </Button>
         </Space>
@@ -649,7 +663,7 @@ const PresentationQueuePage: React.FC = () => {
       <DurationSettingsModal visible={isDurationModalOpen} onClose={() => setIsDurationModalOpen(false)} roundId={roundId} trackId={selectedTrackId} isFinalRound={isFinalRound} roundTracks={roundTracks} />
       
       <div style={{ marginBottom: 24 }}>
-        <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ padding: 0, marginBottom: 12, color: '#64748b', fontWeight: 600 }}>
+        <Button type="link" icon={<ArrowLeftOutlined />} onClick={navigateBack} style={{ padding: 0, marginBottom: 12, color: '#64748b', fontWeight: 600 }}>
           Quay lại Cấu hình sự kiện
         </Button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>

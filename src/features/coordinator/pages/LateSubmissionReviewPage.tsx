@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, Table, Button, Modal, Input, Typography, Spin, Space, Tooltip, Alert } from 'antd';
-import { CheckOutlined, CloseOutlined, GithubOutlined, FileTextOutlined, PlayCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, GithubOutlined, FileTextOutlined, PlayCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { personBApi, LateSubmission } from '../../../api/personB.api';
 import { resolvePreliminarySubmissionError } from '../../submissions/constants/preliminarySubmissionErrors';
 import toast from 'react-hot-toast';
@@ -11,10 +11,17 @@ const { Title, Text } = Typography;
 
 const LateSubmissionReviewPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roundIdParam = searchParams.get('roundId');
   const trackIdParam = searchParams.get('trackId');
   const hackathonIdParam = searchParams.get('hackathonId');
+
+  const backUrl = hackathonIdParam && roundIdParam
+    ? `/hackathons/${hackathonIdParam}/rounds/${roundIdParam}/results`
+    : hackathonIdParam
+      ? `/hackathons/${hackathonIdParam}/setup?tab=rounds`
+      : '/hackathons';
 
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
@@ -183,6 +190,14 @@ const LateSubmissionReviewPage: React.FC = () => {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div>
+        <Button
+          type="link"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(backUrl)}
+          style={{ padding: 0, marginBottom: 8, color: '#475569', fontWeight: 600 }}
+        >
+          Quay lại
+        </Button>
         <Title level={2} className="!m-0">Duyệt bài nộp muộn</Title>
         <Text type="secondary" className="block mt-1">
           {hackathonIdParam ? `Hackathon #${hackathonIdParam}` : ''}

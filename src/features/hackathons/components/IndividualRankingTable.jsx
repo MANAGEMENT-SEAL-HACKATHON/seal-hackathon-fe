@@ -45,7 +45,7 @@ const IndividualRankingTable = ({ data, loading }) => {
       columns={columns}
       dataSource={data}
       loading={loading}
-      pagination={false}
+      pagination={{ pageSize: 10, showSizeChanger: false }}
       rowKey="key"
       bordered
     />

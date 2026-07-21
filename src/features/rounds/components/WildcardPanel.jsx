@@ -372,7 +372,14 @@ const WildcardPanel = ({
                 title: "Ghi chú",
                 dataIndex: "note",
                 ellipsis: true,
-                render: (v) => v || "—",
+                render: (v) =>
+                  v ? (
+                    <Text ellipsis={{ tooltip: v }} style={{ maxWidth: 240 }}>
+                      {v}
+                    </Text>
+                  ) : (
+                    "—"
+                  ),
               },
               {
                 title: "Người sửa",

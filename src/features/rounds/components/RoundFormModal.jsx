@@ -5,9 +5,9 @@ import FormLabelWithInfo from '../../../shared/components/ui/FormLabelWithInfo';
 import { ROUND_TIEBREAK_RULE } from '../../../shared/constants/status';
 import {
   buildRoundScheduleContext,
+  getMaxFinalExamMoment,
   getMinFinalExamMoment,
   getPrelimExamDay,
-  getPreliminaryGradingEndMoment,
   getRoundExamDisabledTime,
   getRoundScheduleHint,
   getRoundSubmissionDeadlineDisabledTime,
@@ -273,9 +273,9 @@ const RoundFormModal = ({
                       return Promise.resolve();
                     }
                     const minFinal = getMinFinalExamMoment(prelimRoundForSchedule);
-                    const gradingEnd = getPreliminaryGradingEndMoment(prelimRoundForSchedule);
+                    const maxFinal = getMaxFinalExamMoment(prelimRoundForSchedule);
                     const prelimDay = getPrelimExamDay(prelimRoundForSchedule);
-                    if (!minFinal || !gradingEnd || !prelimDay) {
+                    if (!minFinal || !maxFinal || !prelimDay) {
                       return Promise.resolve();
                     }
                     if (!dayjs(value).isSame(prelimDay, 'day')) {
@@ -285,11 +285,11 @@ const RoundFormModal = ({
                         )
                       );
                     }
-                    if (dayjs(value).isBefore(minFinal)) {
+                    if (dayjs(value).isBefore(minFinal) || dayjs(value).isAfter(maxFinal)) {
                       return Promise.reject(
                         new Error(
-                          `Khóa trước ${gradingEnd.format('DD/MM HH:mm')} (chấm Sơ loại). ` +
-                            `Chỉ chọn từ ${minFinal.format('DD/MM HH:mm')} trở đi.`
+                          `Chọn giờ CK từ ${minFinal.format('DD/MM HH:mm')} đến ${maxFinal.format('DD/MM HH:mm')} ` +
+                            `(cách Sơ loại tối đa 2 giờ).`
                         )
                       );
                     }

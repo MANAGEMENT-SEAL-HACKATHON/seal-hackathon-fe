@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
-const PageHeader = ({ title, subtitle, extra, backAction, onBack }) => {
+const PageHeader = ({ title, subtitle, extra, backAction, onBack, backLabel }) => {
   const handleBack = onBack || backAction;
   const navigate = useNavigate();
 
@@ -21,7 +21,10 @@ const PageHeader = ({ title, subtitle, extra, backAction, onBack }) => {
             icon={<ArrowLeft size={18} />} 
             onClick={() => typeof handleBack === 'function' ? handleBack() : navigate(-1)}
             style={{ marginTop: 4 }}
-          />
+            aria-label={backLabel || 'Quay lại'}
+          >
+            {backLabel || null}
+          </Button>
         )}
         <div>
           <Title level={2} style={{ margin: 0 }}>{title}</Title>

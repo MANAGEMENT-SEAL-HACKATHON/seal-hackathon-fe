@@ -10,7 +10,15 @@ const fieldHint = (text) => (
   <Text type="secondary" style={{ fontSize: 12 }}>{text}</Text>
 );
 
+const currentYear = new Date().getFullYear();
+const buildYearOptions = (extraYear) => {
+  const years = new Set([currentYear - 1, currentYear, currentYear + 1, currentYear + 2]);
+  if (extraYear != null && !Number.isNaN(Number(extraYear))) years.add(Number(extraYear));
+  return [...years].filter((y) => y >= 2024).sort((a, b) => a - b);
+};
+
 const HackathonForm = ({ form, onFinish, initialValues }) => {
+  const yearOptions = buildYearOptions(initialValues?.year);
   return (
     <Form
       form={form}
@@ -43,13 +51,25 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
           <Form.Item
             name="year"
             label="Năm"
-            rules={[{ required: true, message: 'Vui lòng nhập năm' }]}
+            extra={fieldHint('Có thể đổi năm khi nhân bản (vd. Fall 2026 → Spring 2027).')}
+            rules={[
+              { required: true, message: 'Vui lòng nhập năm' },
+              {
+                validator: (_, value) => {
+                  const num = Number(value);
+                  if (!value || Number.isNaN(num) || num < 2024) {
+                    return Promise.reject(new Error('Năm phải từ 2024 trở lên'));
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
           >
-            <Input
-              type="number"
-              readOnly
-              placeholder="Ví dụ: 2026"
-              style={{ backgroundColor: '#fafafa', cursor: 'not-allowed' }}
+            <Select
+              placeholder="Chọn năm"
+              options={yearOptions.map((y) => ({ value: y, label: String(y) }))}
+              showSearch
+              optionFilterProp="label"
             />
           </Form.Item>
         </Col>

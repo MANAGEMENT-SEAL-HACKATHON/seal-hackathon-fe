@@ -42,7 +42,11 @@ import ScoringProgressCard from '../components/ScoringProgressCard';
 import PrelimReleaseChecklist from '../components/PrelimReleaseChecklist';
 import FinalReleaseChecklist from '../components/FinalReleaseChecklist';
 import ActivateScheduleModal from '../components/ActivateScheduleModal';
+import CompetitionScheduleAdjustModal from '../components/CompetitionScheduleAdjustModal';
 import { canActivateRound, getActivateRoundTooltip } from '../utils/canActivateRound';
+import { isRegistrationPeriodEnded } from '../../hackathons/utils/hackathonRegistrationRules';
+import { presentationService } from '../../judging/services/presentationService';
+import { extractFinalEligibleTeamsFromQueue } from '../utils/finalEligibleTeams';
 
 const { Title, Text } = Typography;
 
@@ -68,6 +72,15 @@ const buildActivateCtx = (round, tracks, teams, counts = {}) => {
 
 const hasTrackProblem = (track) =>
   Boolean(track?.problem_statement_filename || track?.problem_statement_url);
+
+/** Past deadline alone is not "ended" on DRAFT (e.g. cloned leftover schedules). */
+const isRoundEndedForUi = (record, hackathon) => {
+  if (!record?.submission_deadline) return false;
+  if (!dayjs().isAfter(dayjs(record.submission_deadline))) return false;
+  const status = String(hackathon?.status || '').toUpperCase();
+  if (status === 'DRAFT') return false;
+  return true;
+};
 
 const checkReleaseReadiness = async (round) => {
   const isFinal = Boolean(round?.is_final);
@@ -177,6 +190,10 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   const [closingEarly, setClosingEarly] = useState(false);
   const [closeEarlyRosterLoading, setCloseEarlyRosterLoading] = useState(false);
   const [closeEarlyRoster, setCloseEarlyRoster] = useState({ submitted: 0, total: 0, rows: [] });
+  const [activateRound, setActivateRound] = useState(null);
+  const [activating, setActivating] = useState(false);
+  const [scheduleAdjustOpen, setScheduleAdjustOpen] = useState(false);
+  const [scheduleAdjusting, setScheduleAdjusting] = useState(false);
 
   // Unlock scoring — chỉ SUPERADMIN (@SuperAdminOnly, reason bắt buộc + audit).
   const userRole = String(
@@ -220,13 +237,24 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
     (async () => {
       setCloseEarlyRosterLoading(true);
       try {
-        const [subsRes, teamsRes] = await Promise.all([
-          personBApi.getRoundSubmissions(closeEarlyRound.id),
-          teamService.listByHackathon(hackathonId, { status: 'ACTIVE' }),
-        ]);
+        const isFinalClose = Boolean(closeEarlyRound?.is_final ?? closeEarlyRound?.isFinal);
+        const subsRes = await personBApi.getRoundSubmissions(closeEarlyRound.id);
         if (cancelled) return;
         const submissions = Array.isArray(subsRes) ? subsRes : [];
-        const teams = Array.isArray(teamsRes) ? teamsRes : teamsRes?.items || [];
+
+        let teams;
+        if (isFinalClose) {
+          try {
+            const queueRes = await presentationService.getQueue(closeEarlyRound.id, null);
+            teams = extractFinalEligibleTeamsFromQueue(queueRes);
+          } catch {
+            teams = [];
+          }
+        } else {
+          const teamsRes = await teamService.listByHackathon(hackathonId, { status: 'ACTIVE' });
+          teams = Array.isArray(teamsRes) ? teamsRes : teamsRes?.items || [];
+        }
+
         const submittedIds = new Set(
           submissions
             .map((s) => Number(s.team_id ?? s.teamId))
@@ -234,7 +262,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         );
         const rows = teams
           .map((t) => {
-            const id = Number(t.id);
+            const id = Number(t.id ?? t.teamId);
             const name = t.teamName || t.team_name || t.name || `Đội #${id}`;
             const submitted = submittedIds.has(id);
             const sub = submissions.find((s) => Number(s.team_id ?? s.teamId) === id);
@@ -259,8 +287,6 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       cancelled = true;
     };
   }, [closeEarlyRound?.id, hackathonId]);
-  const [activateRound, setActivateRound] = useState(null);
-  const [activating, setActivating] = useState(false);
 
   const activeRounds = rounds.filter((r) => r.is_active);
   const activePrelimRound =
@@ -415,14 +441,12 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
     if (!round?.id || activating) return;
     setActivating(true);
     try {
-      const isRescheduleOnly = payload?.scheduleMode === 'RESCHEDULE';
-      if (round.is_final && !isRescheduleOnly) {
+      if (round.is_final) {
         const ready = await ensureFinalRoundReadiness();
         if (!ready) return;
       }
       setLoading(true);
       const activated = await roundService.activate(round.id, payload);
-      // Patch local round immediately so Live Coding banner shows new examAt/deadline without waiting for full refetch.
       if (activated) {
         const mapped = mapRoundToFE(activated);
         setRounds((prev) =>
@@ -433,13 +457,13 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       }
       const isStartNow = payload?.scheduleMode === 'START_NOW';
       message.success(
-        isRescheduleOnly
-          ? `Đã dời lịch ${round.name} — vòng vẫn ở trạng thái Bản nháp.`
-          : isStartNow
+        isStartNow
+          ? round.is_final
             ? `${round.name} bắt đầu thi sớm — giờ thi và hạn nộp bài đã được cập nhật.`
-            : round.is_final
-              ? `${round.name} đã kích hoạt — đề theo bảng sơ loại của từng đội đã mở cho sinh viên.`
-              : `${round.name} đã được kích hoạt thành công!`,
+            : `${round.name} bắt đầu thi sớm — giờ thi/hạn nộp và Chung kết đã được cập nhật.`
+          : round.is_final
+            ? `${round.name} đã kích hoạt — đề theo bảng sơ loại của từng đội đã mở cho sinh viên.`
+            : `${round.name} đã được kích hoạt thành công!`,
       );
       setActivateRound(null);
       await fetchRounds();
@@ -451,6 +475,28 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       setActivating(false);
     }
   };
+
+  const handleAdjustCompetitionSchedule = async ({ newPrelimExamAt, overrides }) => {
+    if (!hackathonId || scheduleAdjusting) return;
+    setScheduleAdjusting(true);
+    try {
+      await hackathonService.adjustCompetitionSchedule(hackathonId, { newPrelimExamAt, overrides });
+      message.success('Đã dời lịch và gửi thông báo mentor / giám khảo / sinh viên / BTC.');
+      setScheduleAdjustOpen(false);
+      await fetchRounds();
+      if (onHackathonSync) await onHackathonSync();
+    } catch (error) {
+      message.error(getRoundErrorMessage(error) || resolveUserError(error, { fallback: 'Không thể dời lịch thi' }));
+    } finally {
+      setScheduleAdjusting(false);
+    }
+  };
+
+  const scheduleAlreadyAdjusted = Boolean(
+    hackathon?.schedule_adjusted_at ?? hackathon?.scheduleAdjustedAt,
+  );
+  const showScheduleAdjust =
+    isRegistrationPeriodEnded(hackathon) && !scheduleAlreadyAdjusted;
 
   const handleCloseSubmissionEarly = async () => {
     if (!closeEarlyRound?.id) return;
@@ -840,7 +886,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       title: 'Trạng thái',
       key: 'status',
       render: (_, record) => {
-        const isEnded = record.submission_deadline && dayjs().isAfter(dayjs(record.submission_deadline));
+        const isEnded = isRoundEndedForUi(record, hackathon);
         const closedEarly = Boolean(record.submission_closed_early_at);
         
         // BƯỚC 8: Hiển thị Badge Đã khóa chấm điểm
@@ -861,7 +907,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
       title: 'Thao tác',
       key: 'actions',
       render: (_, record) => {
-        const isEnded = record.submission_deadline && dayjs().isAfter(dayjs(record.submission_deadline));
+        const isEnded = isRoundEndedForUi(record, hackathon);
         const isLocked = record.scoring_locked || record.scoringLocked;
 
         // Đã khóa chấm: Ranking + Trophy (SL→results GĐ4 / CK→results GĐ6) + label;
@@ -869,17 +915,9 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         if (isLocked) {
           return (
             <Space size="middle">
-              <Tooltip title="Xếp hạng">
-                <Button
-                  type="text"
-                  style={{ color: 'var(--ant-color-primary)' }}
-                  icon={<BarChart3 size={16} />}
-                  onClick={() => handleViewRanking(record)}
-                />
-              </Tooltip>
-
+              {/* Post-lock: một lối vào /results — không còn «Xếp hạng tạm» trùng Trophy */}
               {!record.is_final && (
-                <Tooltip title="Công bố & chuyển vòng">
+                <Tooltip title="Công bố & chuyển vòng — BXH chính thức sau khóa chấm">
                   <Button
                     type="text"
                     style={{ color: 'var(--ant-color-success)' }}
@@ -894,7 +932,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                 <Tooltip title="Kết quả Chung kết & chốt sổ">
                   <Button
                     type="text"
-                    style={{ color: 'var(--ant-color-success)' }}
+                    style={{ color: 'var(--ant-color-warning)' }}
                     icon={<Trophy size={16} />}
                     data-testid="round-final-results-nav-btn"
                     onClick={() => navigate(`/hackathons/${hackathonId}/results`)}
@@ -1335,6 +1373,14 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
             </Button>
           </Button.Group>
 
+          {showScheduleAdjust && (
+            <Tooltip title="Chỉ 1 lần · phải còn ≥ 4 ngày trước Khai mạc · thông báo mentor/GK/SV">
+              <Button icon={<Calendar size={16} />} onClick={() => setScheduleAdjustOpen(true)}>
+                Dời lịch thi
+              </Button>
+            </Tooltip>
+          )}
+
           <Button
             type="primary"
             icon={<Plus size={16} />}
@@ -1350,7 +1396,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
           columns={columns}
           dataSource={rounds}
           rowKey="id"
-          pagination={false}
+          pagination={{ pageSize: 10, showSizeChanger: false }}
           loading={loading}
         />
       ) : (
@@ -1371,7 +1417,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                       )}
                     </Title>
                     {(() => {
-                      const isEnded = round.submission_deadline && dayjs().isAfter(dayjs(round.submission_deadline));
+                      const isEnded = isRoundEndedForUi(round, hackathon);
                       if (round.scoring_locked || round.scoringLocked) {
                         return <Tag color="red" icon={<Lock size={12} style={{marginRight: 4}}/>}>Đã khóa chấm</Tag>;
                       }
@@ -1394,15 +1440,31 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
                     </Text>
                   </div>
                   <Space>
-                    <Tooltip title={round.scoring_locked || round.scoringLocked ? "Xếp hạng" : "Xếp hạng tạm"}>
-                      <Button
-                        size="small"
-                        type="text"
-                        style={{ color: 'var(--ant-color-primary)' }}
-                        icon={round.scoring_locked || round.scoringLocked ? <Trophy size={14} /> : <BarChart3 size={14} />}
-                        onClick={() => handleViewRanking(round)}
-                      />
-                    </Tooltip>
+                    {!(round.scoring_locked || round.scoringLocked) ? (
+                      <Tooltip title="Xếp hạng tạm — chưa khóa chấm">
+                        <Button
+                          size="small"
+                          type="text"
+                          style={{ color: 'var(--ant-color-primary)' }}
+                          icon={<BarChart3 size={14} />}
+                          onClick={() => handleViewRanking(round)}
+                        />
+                      </Tooltip>
+                    ) : (
+                      <Tooltip title={round.is_final ? "Kết quả Chung kết & chốt sổ" : "Công bố & chuyển vòng — BXH chính thức"}>
+                        <Button
+                          size="small"
+                          type="text"
+                          style={{ color: 'var(--ant-color-success)' }}
+                          icon={<Trophy size={14} />}
+                          onClick={() =>
+                            round.is_final
+                              ? navigate(`/hackathons/${hackathonId}/results`)
+                              : navigate(`/hackathons/${hackathonId}/rounds/${round.id}/results`)
+                          }
+                        />
+                      </Tooltip>
+                    )}
                     {!round.is_active && !(round.scoring_locked || round.scoringLocked) && (
                       <Button size="small" icon={<Edit size={14} />} onClick={() => handleEdit(round)}>Sửa</Button>
                     )}
@@ -1468,6 +1530,19 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
         onCancel={() => !activating && setActivateRound(null)}
         onConfirm={confirmActivateRound}
       />
+
+      {scheduleAdjustOpen ? (
+        <CompetitionScheduleAdjustModal
+          open={scheduleAdjustOpen}
+          hackathon={hackathon}
+          mode="adjust"
+          title="Dời lịch thi (1 lần)"
+          okText="Xác nhận dời lịch"
+          confirmLoading={scheduleAdjusting}
+          onCancel={() => !scheduleAdjusting && setScheduleAdjustOpen(false)}
+          onConfirm={handleAdjustCompetitionSchedule}
+        />
+      ) : null}
 
       <Modal
         title="Kết thúc thời gian thi sớm?"

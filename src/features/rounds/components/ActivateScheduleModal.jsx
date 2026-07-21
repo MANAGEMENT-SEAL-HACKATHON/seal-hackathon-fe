@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Radio, DatePicker, Space, Typography, Alert, InputNumber } from 'antd';
+import { Modal, Space, Typography, Alert, InputNumber } from 'antd';
 import dayjs from 'dayjs';
 import { calculateStartTime, formatExamPreview } from '../utils/ceilToNextMinute';
 
 const { Text } = Typography;
 
 /**
- * Modal: START_NOW (buffer) | RESCHEDULE (chỉ dời lịch, vòng vẫn Bản nháp).
+ * Chỉ START_NOW (test nhanh) / KEEP khi exam không còn ở tương lai.
+ * Dời lịch nằm ở «Dời lịch thi» / đóng ĐK sớm — không còn trong modal này.
  */
 const ActivateScheduleModal = ({
   open,
@@ -18,39 +19,21 @@ const ActivateScheduleModal = ({
   const examAt = round?.exam_at ? dayjs(round.exam_at) : null;
   const examInFuture = examAt?.isValid() && examAt.isAfter(dayjs());
   const isAlreadyActive = Boolean(round?.is_active ?? round?.isActive);
-  const [mode, setMode] = useState('START_NOW');
-  const [newExamAt, setNewExamAt] = useState(null);
+  const isFinal = Boolean(round?.is_final ?? round?.isFinal);
   const [setupLeadMinutes, setSetupLeadMinutes] = useState(5);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (open) {
-      setMode('START_NOW');
-      setNewExamAt(null);
       setSetupLeadMinutes(5);
     }
   }, [open, round?.id]);
 
   useEffect(() => {
-    if (!open || !examInFuture || mode !== 'START_NOW') return undefined;
+    if (!open || !examInFuture) return undefined;
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
-  }, [open, examInFuture, mode]);
-
-  const disabledDate = (current) => current && current.isBefore(dayjs().startOf('day'));
-
-  const disabledTime = (current) => {
-    if (!current) return {};
-    if (!current.isSame(dayjs(), 'day')) return {};
-    const now = dayjs();
-    return {
-      disabledHours: () => Array.from({ length: now.hour() }, (_, i) => i),
-      disabledMinutes: (selectedHour) => {
-        if (selectedHour !== now.hour()) return [];
-        return Array.from({ length: now.minute() + 1 }, (_, i) => i);
-      },
-    };
-  };
+  }, [open, examInFuture]);
 
   const hoursUntil = useMemo(() => {
     if (!examAt?.isValid()) return null;
@@ -63,44 +46,29 @@ const ActivateScheduleModal = ({
     return calculateStartTime(setupLeadMinutes);
   }, [setupLeadMinutes, tick]);
 
-  const isReschedule = examInFuture && mode === 'RESCHEDULE';
-
   const handleOk = () => {
     if (confirmLoading) return;
-    if (isReschedule && (!newExamAt || !newExamAt.isAfter(dayjs()))) {
-      return;
-    }
     const payload = {
-      scheduleMode: examInFuture ? mode : 'KEEP',
-      note: isReschedule ? 'Dời lịch thủ công' : 'Kích hoạt thủ công',
+      scheduleMode: examInFuture ? 'START_NOW' : 'KEEP',
+      note: 'Kích hoạt thủ công',
     };
-    if (examInFuture && mode === 'START_NOW') {
+    if (examInFuture) {
       payload.setupLeadMinutes = setupLeadMinutes ?? 5;
-    }
-    if (isReschedule && newExamAt) {
-      payload.newExamAt = newExamAt.format('YYYY-MM-DDTHH:mm:ss');
     }
     onConfirm(payload);
   };
-
-  const okDisabled =
-    confirmLoading ||
-    (isReschedule && (!newExamAt || !newExamAt.isAfter(dayjs())));
 
   return (
     <Modal
       open={open}
       title={
-        isReschedule
-          ? `Dời lịch ${round?.name || 'vòng thi'}?`
-          : isAlreadyActive
-            ? `Bắt đầu thi sớm ${round?.name || 'vòng thi'}?`
-            : `Kích hoạt ${round?.name || 'vòng thi'}?`
+        isAlreadyActive
+          ? `Bắt đầu thi sớm ${round?.name || 'vòng thi'}?`
+          : `Kích hoạt ${round?.name || 'vòng thi'}?`
       }
-      okText={isReschedule ? 'Lưu lịch mới' : isAlreadyActive ? 'Bắt đầu thi sớm' : 'Kích hoạt'}
+      okText={isAlreadyActive ? 'Bắt đầu thi sớm' : examInFuture ? 'Kích hoạt & bắt đầu sớm' : 'Kích hoạt'}
       cancelText="Hủy"
       confirmLoading={confirmLoading}
-      okButtonProps={{ disabled: okDisabled }}
       onCancel={confirmLoading ? undefined : onCancel}
       onOk={handleOk}
       destroyOnClose
@@ -108,14 +76,6 @@ const ActivateScheduleModal = ({
       keyboard={!confirmLoading}
     >
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
-        <Text type="secondary">
-          {isReschedule
-            ? 'Chỉ đổi giờ thi — vòng vẫn Bản nháp. Sau này bấm Play để kích hoạt hoặc bắt đầu thi sớm.'
-            : isAlreadyActive
-              ? 'Vòng đã kích hoạt. Bắt đầu thi sớm sẽ nén giờ thi và hạn nộp bài về thời điểm hiện tại (+ thời gian chuẩn bị).'
-              : 'Kích hoạt mở môi trường vận hành (chia bảng, giám khảo, đề). Chọn rõ bên dưới nếu muốn bắt đầu thi sớm hoặc chỉ dời lịch.'}
-        </Text>
-
         {examInFuture ? (
           <>
             <Alert
@@ -126,72 +86,42 @@ const ActivateScheduleModal = ({
                   ? `Lịch thi dự kiến còn khoảng ${hoursUntil} giờ (${examAt.format('DD/MM/YYYY HH:mm')}).`
                   : `Lịch thi dự kiến: ${examAt.format('DD/MM/YYYY HH:mm')}.`
               }
+              description="Dùng để test nhanh — bỏ qua chờ Workshop và Khai mạc. Muốn chỉnh ngày thi (Workshop / Khai mạc / Chung kết) dùng «Dời lịch thi» hoặc chọn lịch khi đóng đăng ký sớm."
             />
-            <Radio.Group
-              value={mode}
-              onChange={(e) => setMode(e.target.value)}
-              disabled={confirmLoading}
-              style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-            >
-              <Radio value="START_NOW">
-                {isAlreadyActive ? 'Bắt đầu thi sớm ngay' : 'Kích hoạt và bắt đầu thi sớm'}{' '}
-                <Text type="secondary">(Cài đặt thời gian chuẩn bị)</Text>
-              </Radio>
-              <Radio value="RESCHEDULE">
-                Chỉ dời lịch thi{' '}
-                <Text type="secondary">(Vòng thi vẫn giữ trạng thái Bản nháp)</Text>
-              </Radio>
-            </Radio.Group>
-
-            {mode === 'START_NOW' && (
-              <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                <Space align="center">
-                  <Text>Thời gian chuẩn bị (phút):</Text>
-                  <InputNumber
-                    min={1}
-                    max={30}
-                    precision={0}
-                    keyboard={false}
-                    value={setupLeadMinutes}
-                    disabled={confirmLoading}
-                    onChange={(v) => {
-                      if (v == null) {
-                        setSetupLeadMinutes(5);
-                        return;
-                      }
-                      const n = Math.floor(Number(v));
-                      if (!Number.isFinite(n)) return;
-                      setSetupLeadMinutes(Math.min(30, Math.max(1, n)));
-                    }}
-                  />
-                </Space>
-                <Text type="secondary">
-                  (Giờ thi sẽ bắt đầu vào lúc: {formatExamPreview(previewExam)} — đúng {setupLeadMinutes}{' '}
-                  phút từ lúc bạn bấm Kích hoạt)
-                </Text>
-              </Space>
-            )}
-
-            {mode === 'RESCHEDULE' && (
-              <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                <DatePicker
-                  showTime
-                  style={{ width: '100%' }}
-                  value={newExamAt}
-                  onChange={setNewExamAt}
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Space align="center">
+                <Text>Thời gian chuẩn bị trước giờ thi (phút):</Text>
+                <InputNumber
+                  min={1}
+                  max={30}
+                  precision={0}
+                  keyboard={false}
+                  value={setupLeadMinutes}
                   disabled={confirmLoading}
-                  disabledDate={disabledDate}
-                  disabledTime={disabledTime}
-                  placeholder="Chọn giờ thi mới (phải sau hiện tại)"
+                  onChange={(v) => {
+                    if (v == null) {
+                      setSetupLeadMinutes(5);
+                      return;
+                    }
+                    const n = Math.floor(Number(v));
+                    if (!Number.isFinite(n)) return;
+                    setSetupLeadMinutes(Math.min(30, Math.max(1, n)));
+                  }}
                 />
-                <Text type="secondary">
-                  Vòng vẫn Bản nháp. Nút Play vẫn còn để sau này kích hoạt / bắt đầu thi sớm.
-                </Text>
               </Space>
-            )}
+              <Text type="secondary">
+                Giờ thi sẽ là {formatExamPreview(previewExam)} — đúng {setupLeadMinutes} phút kể từ lúc bạn bấm xác nhận.
+                {!isFinal &&
+                  ' Lịch Chung kết sẽ được kéo theo (1–2 giờ sau khi Sơ loại kết thúc).'}
+              </Text>
+            </Space>
           </>
         ) : (
-          <Text>Xác nhận kích hoạt {round?.name}?</Text>
+          <Text>
+            {isAlreadyActive
+              ? `Xác nhận bắt đầu thi sớm ${round?.name}?`
+              : `Xác nhận kích hoạt ${round?.name}? (giữ nguyên lịch đã xếp)`}
+          </Text>
         )}
       </Space>
     </Modal>

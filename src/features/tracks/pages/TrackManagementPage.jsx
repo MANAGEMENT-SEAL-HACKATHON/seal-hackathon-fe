@@ -332,7 +332,7 @@ const TrackManagementPage = ({ hackathonId, onUpdated }) => {
         columns={columns} 
         dataSource={tracks} 
         rowKey="id"
-        pagination={false}
+        pagination={{ pageSize: 10, showSizeChanger: false }}
         loading={loading}
         locale={{ emptyText: 'Chưa có bảng đấu nào.' }}
       />

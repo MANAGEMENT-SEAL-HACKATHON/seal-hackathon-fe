@@ -305,7 +305,7 @@ const ScoringCheckPanel = ({ roundId, ranking, isLoading, error }) => {
         columns={matrixColumns}
         dataSource={matrixData}
         scroll={{ x: Math.max(800, (matrixColumns.length || 0) * 72) }}
-        pagination={{ pageSize: 15 }}
+        pagination={{ pageSize: 10 }}
         locale={{ emptyText: <Empty description="Chọn bảng đấu để xem ma trận." /> }}
         data-testid="score-audit-matrix"
       />
@@ -317,7 +317,7 @@ const ScoringCheckPanel = ({ roundId, ranking, isLoading, error }) => {
         loading={isLoading}
         columns={listColumns}
         dataSource={items}
-        pagination={{ pageSize: 20 }}
+        pagination={{ pageSize: 10 }}
         locale={{ emptyText: <Empty description="Chưa có đội trong ranking." /> }}
         size="middle"
       />

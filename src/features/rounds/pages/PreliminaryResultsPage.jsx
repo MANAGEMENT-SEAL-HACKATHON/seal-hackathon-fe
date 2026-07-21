@@ -1,8 +1,9 @@
 // src/features/rounds/results/pages/PreliminaryResultsPage.jsx
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Alert, Button, Card, Input, List, Modal, Space, Tabs, Tag, Tooltip, Typography } from "antd";
 import {
+  ArrowLeftOutlined,
   InfoCircleOutlined,
   ReloadOutlined,
   SafetyCertificateOutlined,
@@ -15,6 +16,7 @@ import AdvanceRosterPanel from "../components/AdvanceRosterPanel";
 import ScoringCheckPanel from "../components/ScoringCheckPanel";
 import PreliminaryResultsCoordinatorStepper from "../components/PreliminaryResultsCoordinatorStepper";
 import { useRoundResults } from "../hooks/useRoundResults";
+import { whiteButtonStyle } from "../../../shared/theme/coordinatorTheme";
 
 const { Title, Text } = Typography;
 
@@ -22,6 +24,7 @@ const TABS_ANCHOR_ID = "gd4-results-tabs";
 
 const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
   const params = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const roundId = roundIdProp || params.roundId || params.id;
   const hackathonId = params.hackathonId;
@@ -132,13 +135,25 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
     );
   }
 
+  const setupBackUrl = hackathonId
+    ? `/hackathons/${hackathonId}/setup?tab=rounds`
+    : "/hackathons";
+
   const pageGuide =
     results.hasAdvanced
       ? "Danh sách Chung kết đã được chốt. Xem tab «Danh sách Chung kết & Bị loại»."
       : "Kiểm tra bảng xếp hạng và theo dõi đồng điểm trước khi chốt danh sách Chung kết (Top-N mỗi bảng).";
 
   return (
-    <Space direction="vertical" size={18} style={{ width: "100%" }}>
+    <Space direction="vertical" size={18} className="coord-page" style={{ width: "100%" }}>
+      <Button
+        type="link"
+        icon={<ArrowLeftOutlined />}
+        onClick={() => navigate(setupBackUrl)}
+        style={{ padding: 0, color: "#475569", fontWeight: 600, width: "fit-content" }}
+      >
+        Quay lại Cấu hình sự kiện
+      </Button>
       {results.seatShortageWarning && (
         <Alert
           data-testid="gd4-seat-shortage-warning"
@@ -269,8 +284,9 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
             <Button
               icon={<ReloadOutlined spin={results.isRefreshing} />}
               onClick={() => results.fetchResults({ silent: true })}
+              style={whiteButtonStyle}
             >
-              Làm mới dữ liệu
+              Làm mới
             </Button>
           </Space>
         </div>
@@ -280,7 +296,12 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
         <Alert
           showIcon
           type="error"
-          message={`${results.tiebreaks.length} trường hợp đồng điểm cần giải quyết trước khi chốt chuyển vòng — thứ hạng hiện tại chỉ là tạm thời.`}
+          message={`${results.tiebreaks.length} đồng điểm chưa xử lý`}
+          description={
+            <Tooltip title="Thứ hạng hiện tại chỉ tạm thời. Cần phân xử đồng điểm trước khi chốt chuyển vòng.">
+              <span style={{ cursor: "help" }}>Xem chi tiết <InfoCircleOutlined /></span>
+            </Tooltip>
+          }
           action={
             <Button size="small" type="primary" danger onClick={() => setActiveTab("tiebreak")}>
               Xem đồng điểm

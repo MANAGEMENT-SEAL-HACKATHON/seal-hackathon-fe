@@ -24,7 +24,7 @@ const OrphanUserTable = ({ orphans, loading }) => {
       loading={loading}
       columns={columns}
       dataSource={orphans}
-      pagination={{ pageSize: 8, showSizeChanger: false }}
+      pagination={{ pageSize: 10, showSizeChanger: false }}
       locale={{ emptyText: 'Không có sinh viên mồ côi' }}
     />
   );

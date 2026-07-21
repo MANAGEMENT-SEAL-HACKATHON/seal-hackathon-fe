@@ -28,6 +28,7 @@ import { resolveUserError } from '../../../shared/errors/resolveUserError';
 import { isRegistrationPeriodEnded } from '../utils/hackathonRegistrationRules';
 import FormLabelWithInfo from '../../../shared/components/ui/FormLabelWithInfo';
 import SectionHeader, { HintList } from '../../../shared/components/ui/SectionHeader';
+import CompetitionScheduleAdjustModal from '../../rounds/components/CompetitionScheduleAdjustModal';
 import { teamService } from '../../teams/services/teamService';
 import {
   computeFillPercent,
@@ -40,10 +41,10 @@ const CLOSE_REG_EARLY_HINT = (
   <HintList
     items={[
       'Dùng khi số đội đã đủ hoặc cần dừng nhận đăng ký vì lý do đặc biệt',
-      'Chốt danh sách đội thi chính thức',
+      'Chọn giờ thi Sơ loại — hệ thống xếp lại Workshop → Kickoff → SL → CK → Awards (1 lần)',
+      'Chốt danh sách đội thi chính thức; khóa đội ACTIVE',
       'Tự động loại thí sinh lẻ và nhóm chưa hoàn thành thủ tục',
-      'Gửi thông báo Ban tổ chức nếu có đội đang chờ duyệt',
-      'Nhóm đủ thành viên chưa xác nhận: thêm 24 giờ để Trưởng nhóm xác nhận',
+      'Gửi thông báo mentor / giám khảo / sinh viên về lịch mới',
     ]}
   />
 );
@@ -53,8 +54,8 @@ const REG_CLOSED_HINT = (
     items={[
       'Cổng đăng ký đã đóng — danh sách đội thi chính thức đã được chốt',
       'Chuyển sang «Bốc thăm & khai mạc» để phân chia bảng đấu',
-      'Thời gian thi dự kiến vẫn được giữ nguyên',
-      'Khi bắt đầu vòng thi: giữ lịch hiện tại hoặc bắt đầu làm bài ngay',
+      'Muốn chỉnh lịch thêm (nếu chưa dời): tab Vòng thi → «Dời lịch thi» (trước Kickoff ≥ 4 ngày, 1 lần)',
+      'Test nhanh: Kích hoạt vòng → bắt đầu thi sớm (không cần chờ timeline)',
     ]}
   />
 );
@@ -181,13 +182,18 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
     }
   };
 
-  const handleCloseRegistrationEarly = async () => {
+  const handleCloseRegistrationEarly = async ({ newPrelimExamAt, overrides }) => {
     try {
       setClosingRegistration(true);
-      const result = await hackathonService.closeRegistrationEarly(hackathon.id);
+      const result = await hackathonService.closeRegistrationEarly(hackathon.id, {
+        newPrelimExamAt,
+        overrides,
+      });
       setConfirmOpen(false);
       setResultModal({ open: true, data: result });
-      message.success('Đã kết thúc đăng ký sớm');
+      message.success(
+        'Đã đóng ĐK sớm, cập nhật lịch và gửi thông báo mentor / giám khảo / sinh viên / BTC',
+      );
       onUpdated?.();
     } catch (error) {
       message.error(
@@ -380,32 +386,18 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
         </Col>
       </Row>
 
-      <Modal
-        title="Đóng cổng đăng ký sớm?"
-        open={confirmOpen}
-        onOk={handleCloseRegistrationEarly}
-        onCancel={() => setConfirmOpen(false)}
-        okText="Xác nhận đóng"
-        cancelText="Hủy"
-        okButtonProps={{ danger: true, loading: closingRegistration }}
-      >
-        <Space direction="vertical" size={12}>
-          <Text>
-            Bạn đang thực hiện đóng cổng đăng ký cho sự kiện <Text strong>{hackathon?.name}</Text> trước thời hạn.
-          </Text>
-          <ul style={{ margin: 0, paddingLeft: 20 }}>
-            <li>Chốt danh sách các đội thi đã được phê duyệt chính thức</li>
-            <li>Tự động loại các thí sinh tự do chưa ghép nhóm và các nhóm không đủ điều kiện</li>
-            <li>
-              Gửi thông báo đến Ban tổ chức đối với những nhóm đang đợi phê duyệt thành lập
-            </li>
-            <li>
-              Cho phép Trưởng nhóm của các nhóm đã đủ thành viên nhưng chưa hoàn tất thủ tục có thêm 24 giờ để xác nhận tham gia (quá thời hạn này nhóm sẽ tự động bị hủy)
-            </li>
-          </ul>
-          <Text type="secondary">Lưu ý: Hành động này không thể hoàn tác.</Text>
-        </Space>
-      </Modal>
+      {confirmOpen ? (
+        <CompetitionScheduleAdjustModal
+          open={confirmOpen}
+          hackathon={hackathon}
+          mode="close-reg"
+          title="Kết thúc đăng ký sớm + chọn lịch thi"
+          okText="Xác nhận đóng & lưu lịch"
+          confirmLoading={closingRegistration}
+          onCancel={() => !closingRegistration && setConfirmOpen(false)}
+          onConfirm={handleCloseRegistrationEarly}
+        />
+      ) : null}
 
       <Modal
         title="Kết quả đóng đăng ký sớm"
@@ -444,30 +436,64 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
         {resultModal.data && (
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Alert
-              type="info"
+              type="success"
               showIcon
-              icon={<ExclamationCircleOutlined />}
-              message="Tóm tắt xử lý hệ thống"
-              description={
-                <Space direction="vertical" size={4}>
-                  <Text>Đội thi chính thức đã chốt: {resultModal.data.lockedActiveTeams ?? 0}</Text>
-                  <Text>Thí sinh lẻ bị loại: {resultModal.data.withdrawnOrphans ?? 0}</Text>
-                  <Text>Đội không đủ điều kiện bị từ chối: {resultModal.data.rejectedIncompleteTeams ?? 0}</Text>
-                  {(resultModal.data.hoursUntilPrelimExam != null || resultModal.data.prelimExamAt) && (
-                    <Text>
-                      Thời gian thi sơ loại dự kiến vẫn còn
-                      {resultModal.data.hoursUntilPrelimExam != null
-                        ? ` khoảng ${resultModal.data.hoursUntilPrelimExam} giờ`
-                        : ''}
-                      {resultModal.data.prelimExamAt
-                        ? ` (${new Date(resultModal.data.prelimExamAt).toLocaleString('vi-VN')})`
-                        : ''}
-                      . Khi bắt đầu vòng thi mới, bạn có thể lựa chọn thời gian bắt đầu làm bài.
-                    </Text>
-                  )}
-                </Space>
-              }
+              message="Đã đóng đăng ký sớm"
+              description="Hệ thống đã chốt đội đủ điều kiện, cập nhật lịch và gửi thông báo liên quan."
             />
+            <Row gutter={[12, 12]}>
+              <Col xs={24} sm={8}>
+                <Card size="small" style={{ textAlign: 'center', borderTop: '3px solid #34d399' }}>
+                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Đội chính thức</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#059669' }}>
+                    {resultModal.data.lockedActiveTeams ?? 0}
+                  </div>
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card size="small" style={{ textAlign: 'center', borderTop: '3px solid #fbbf24' }}>
+                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Thí sinh lẻ bị loại</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#d97706' }}>
+                    {resultModal.data.withdrawnOrphans ?? 0}
+                  </div>
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card size="small" style={{ textAlign: 'center', borderTop: '3px solid #f87171' }}>
+                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Đội bị từ chối</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#dc2626' }}>
+                    {resultModal.data.rejectedIncompleteTeams ?? 0}
+                  </div>
+                </Card>
+              </Col>
+            </Row>
+            {(resultModal.data.timelineCompressed ?? resultModal.data.timeline_compressed) && (
+              <Alert
+                type="info"
+                showIcon
+                icon={<ExclamationCircleOutlined />}
+                message="Đã cập nhật lịch theo ngày đóng đăng ký mới"
+                description="Thứ tự: Workshop → Khai mạc → Sơ loại → Chung kết → Lễ trao giải. Phân bảng và khóa đội không bị reset."
+              />
+            )}
+            {(resultModal.data.hoursUntilPrelimExam != null || resultModal.data.prelimExamAt) && (
+              <Text type="secondary">
+                Giờ thi Sơ loại dự kiến
+                {resultModal.data.hoursUntilPrelimExam != null
+                  ? `: còn khoảng ${resultModal.data.hoursUntilPrelimExam} giờ`
+                  : ''}
+                {resultModal.data.prelimExamAt
+                  ? ` (${new Date(resultModal.data.prelimExamAt).toLocaleString('vi-VN', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })})`
+                  : ''}
+                . Muốn thi ngay để test → tab Vòng thi → «Bắt đầu thi sớm». Muốn chỉnh ngày khác → «Dời lịch».
+              </Text>
+            )}
 
             {awaitingApprovalTeams.length > 0 ? (
               <>

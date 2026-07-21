@@ -282,7 +282,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
             dataSource={events}
             columns={columns}
             rowKey="id"
-            pagination={false}
+            pagination={{ pageSize: 10, showSizeChanger: false }}
             locale={{ emptyText: 'Chưa có sự kiện nào được tạo.' }}
             onRow={(record) => {
               const style = getEventTypeStyle(record.type);

@@ -123,7 +123,14 @@ export function HackathonScopeProvider({ children }) {
       setIsLoadingHackathons(true);
       try {
         const res = await axiosClient.get(`${ENDPOINTS.HACKATHONS.BASE}?size=200`);
-        const list = extractList(res).map((h) => mapHackathonToFE(h));
+        const list = extractList(res)
+          .map((h) => mapHackathonToFE(h))
+          .sort((a, b) => {
+            const aTime = a.createdAt || a.created_at || a.id || 0;
+            const bTime = b.createdAt || b.created_at || b.id || 0;
+            if (aTime === bTime) return (b.id || 0) - (a.id || 0);
+            return aTime > bTime ? -1 : 1;
+          });
         if (cancelled) return;
         setHackathons(list);
         if (!urlResolvedId && !hackathonId && list.length > 0) {
