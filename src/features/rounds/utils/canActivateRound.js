@@ -25,6 +25,7 @@ export const canActivateRound = (round, ctx = {}) => {
   const teamsByTrack = ctx.teamsByTrack || {};
   const criteriaByTrack = ctx.criteriaCountByTrack || {};
   const judgesByTrack = ctx.judgeCountByTrack || {};
+  const declinedJudgeGaps = ctx.declinedJudgeGaps || [];
 
   for (const track of tracks) {
     const trackId = track.id;
@@ -42,6 +43,11 @@ export const canActivateRound = (round, ctx = {}) => {
     if (!teamCount) {
       reasons.push(`Bảng «${track.name}» chưa có đội tham gia`);
     }
+  }
+
+  for (const gap of declinedJudgeGaps) {
+    const name = gap?.trackName || gap?.track_name || gap?.name || 'bảng';
+    reasons.push(`Bảng «${name}» thiếu giám khảo do từ chối phân công — cần gán lại`);
   }
 
   if (!round.is_final && !round.isFinal) {

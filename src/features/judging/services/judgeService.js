@@ -75,4 +75,10 @@ export const judgeService = {
 
   confirmSubmissionScoring: async (submissionId) =>
     axiosClient.post(`/api/v1/me/judge/submissions/${submissionId}/confirm-scoring`, {}),
+
+  declineAssignment: async (assignmentId, reason) =>
+    axiosClient.patch(`/api/v1/me/judge/assignments/${assignmentId}/decline`, { reason }),
+
+  acceptAssignment: async (assignmentId) =>
+    axiosClient.patch(`/api/v1/me/judge/assignments/${assignmentId}/accept`),
 };

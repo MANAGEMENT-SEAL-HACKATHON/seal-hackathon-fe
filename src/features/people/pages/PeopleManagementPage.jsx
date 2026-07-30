@@ -116,8 +116,57 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
 
   const hasFinalInternalJudge = finalJudgeAssignments.some((a) => {
     const type = String(a.assignment_type || a.assignmentType || '').toUpperCase();
+    if (String(a.response_status || a.responseStatus || 'ACCEPTED').toUpperCase() === 'DECLINED') {
+      return false;
+    }
     return type === 'NORMAL' || type === 'HEAD';
   });
+
+  const isDeclinedRow = (row) =>
+    String(row?.response_status || row?.responseStatus || 'ACCEPTED').toUpperCase() === 'DECLINED';
+
+  const declinedMentors = trackMentors.filter(isDeclinedRow);
+  const declinedPrelimJudges = judgeAssignments.filter(isDeclinedRow);
+  const declinedFinalJudges = finalJudgeAssignments.filter(isDeclinedRow);
+  const declineGapCount =
+    declinedMentors.length + declinedPrelimJudges.length + declinedFinalJudges.length;
+
+  const declineGapLines = [
+    ...declinedMentors.map(
+      (r) =>
+        `Mentor «${r.mentor_name || '—'}» từ chối bảng «${r.track_name}»` +
+        (r.decline_reason ? ` — ${r.decline_reason}` : ''),
+    ),
+    ...declinedPrelimJudges.map(
+      (r) =>
+        `Giám khảo «${r.judge_name || '—'}» từ chối bảng «${r.target_name || r.track_name}»` +
+        (r.decline_reason ? ` — ${r.decline_reason}` : ''),
+    ),
+    ...declinedFinalJudges.map(
+      (r) =>
+        `Giám khảo CK «${r.judge_name || '—'}» từ chối «${r.target_name}»` +
+        (r.decline_reason ? ` — ${r.decline_reason}` : ''),
+    ),
+  ];
+
+  const tabBadge = (label, count) =>
+    count > 0 ? (
+      <span>
+        {label}{' '}
+        <Tag color="error" style={{ marginInlineStart: 4 }}>
+          {count}
+        </Tag>
+      </span>
+    ) : (
+      label
+    );
+
+  const renderNeedsReassign = (row) =>
+    isDeclinedRow(row) ? (
+      <Tooltip title={row.decline_reason || row.declineReason || 'Đã từ chối tham gia'}>
+        <Tag color="error">Cần gán lại</Tag>
+      </Tooltip>
+    ) : null;
 
   const getPersonDisplayName = (person) =>
     person?.fullName || person?.full_name || person?.name || 'Chưa có tên';
@@ -319,6 +368,24 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
     <div style={{ padding: '24px 0', animation: 'fadeInUp 0.4s ease-out both' }}>
       <SectionHeader title="Nhân sự" info={PEOPLE_TAB_HINT} />
       <Card style={{ borderRadius: 12 }}>
+        {declineGapCount > 0 && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16, borderRadius: 8 }}
+            message={`${declineGapCount} chỗ trống do từ chối phân công — cần gán lại`}
+            description={
+              <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+                {declineGapLines.slice(0, 8).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+                {declineGapLines.length > 8 && (
+                  <li>…và {declineGapLines.length - 8} mục khác</li>
+                )}
+              </ul>
+            }
+          />
+        )}
         <Tabs defaultActiveKey="2" destroyInactiveTabPane>
           <Tabs.TabPane
             tab={tabLabelWithInfo(
@@ -409,7 +476,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
 
           <Tabs.TabPane
             tab={tabLabelWithInfo(
-              'Mentor theo bảng đấu',
+              tabBadge('Mentor theo bảng đấu', declinedMentors.length),
               'Gán mentor theo bảng đấu — sau bốc thăm mọi đội trong bảng được hỗ trợ bởi mentor đó. Một người không thể vừa mentor vừa giám khảo cùng bảng.',
             )}
             key="2"
@@ -520,6 +587,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                           <Tag color="orange" style={{ margin: 0, fontSize: 10, fontWeight: 700 }}>
                             {personCode}
                           </Tag>
+                          {renderNeedsReassign(r)}
                         </div>
                       </div>
                     );
@@ -547,7 +615,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
 
           <Tabs.TabPane
             tab={tabLabelWithInfo(
-              'Giám khảo Sơ loại',
+              tabBadge('Giám khảo Sơ loại', declinedPrelimJudges.length),
               'Chỉ giám khảo/mentor nội bộ (INTERNAL). Mỗi người chỉ Judge một bảng / vòng. Vẫn được làm Mentor ở bảng khác (không cùng bảng đang judge).',
             )}
             key="3"
@@ -630,7 +698,12 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                   title: 'Giám khảo',
                   render: (_, r) => {
                     const found = judges.find((j) => j.id === r.person_id) || tempJudges.find((j) => j.id === r.person_id);
-                    return <PersonTableCell person={found || { fullName: r.judge_name }} subtitle={r.target_name} />;
+                    return (
+                      <Space size={8}>
+                        <PersonTableCell person={found || { fullName: r.judge_name }} subtitle={r.target_name} />
+                        {renderNeedsReassign(r)}
+                      </Space>
+                    );
                   },
                 },
                 { title: 'Bảng đấu', dataIndex: 'target_name', render: (t) => <Tag color="geekblue">{t}</Tag> },
@@ -657,7 +730,7 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
 
           <Tabs.TabPane
             tab={tabLabelWithInfo(
-              'Giám khảo Chung kết',
+              tabBadge('Giám khảo Chung kết', declinedFinalJudges.length),
               'Gán giám khảo Chung kết theo vòng/bảng. Chọn Giám khảo nội bộ (INTERNAL) hoặc Giám khảo khách ngay khi gán.',
             )}
             key="4"
@@ -762,7 +835,12 @@ const PeopleManagementPage = ({ hackathonId, onUpdated }) => {
                   title: 'Giám khảo',
                   render: (_, r) => {
                     const found = judges.find((j) => j.id === r.person_id) || tempJudges.find((j) => j.id === r.person_id);
-                    return <PersonTableCell person={found || { fullName: r.judge_name }} subtitle={r.target_name} />;
+                    return (
+                      <Space size={8}>
+                        <PersonTableCell person={found || { fullName: r.judge_name }} subtitle={r.target_name} />
+                        {renderNeedsReassign(r)}
+                      </Space>
+                    );
                   },
                 },
                 { title: 'Vòng', dataIndex: 'target_name', render: (t) => <Tag color="purple">{t}</Tag> },

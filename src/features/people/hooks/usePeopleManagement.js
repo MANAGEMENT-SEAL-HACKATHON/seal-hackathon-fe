@@ -133,6 +133,8 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
               m.fullName ||
               m.full_name ||
               m.name,
+            response_status: String(m.responseStatus || m.response_status || 'ACCEPTED').toUpperCase(),
+            decline_reason: m.declineReason || m.decline_reason || null,
           });
         });
       });
@@ -160,6 +162,8 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
               j.name,
             person_id: j.judge?.id || j.user?.id || j.judgeId || j.userId,
             assignment_type: j.assignmentType || j.assignment_type || 'NORMAL',
+            response_status: String(j.responseStatus || j.response_status || 'ACCEPTED').toUpperCase(),
+            decline_reason: j.declineReason || j.decline_reason || null,
           });
         });
       });
@@ -185,6 +189,8 @@ export const usePeopleManagement = (hackathonId, onUpdated) => {
               j.name,
             person_id: j.judge?.id || j.user?.id || j.judgeId || j.userId,
             assignment_type: j.assignmentType || j.assignment_type || 'NORMAL',
+            response_status: String(j.responseStatus || j.response_status || 'ACCEPTED').toUpperCase(),
+            decline_reason: j.declineReason || j.decline_reason || null,
           });
         });
       });

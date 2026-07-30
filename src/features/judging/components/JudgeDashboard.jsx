@@ -39,6 +39,8 @@ import {
 import { 
   judgeService 
 } from '../services/judgeService';
+import { runDeclineAssignment } from '../../assignments/utils/confirmAssignmentDecline';
+import { resolveUserError } from '../../../shared/errors/resolveUserError';
 import ScoringCountdownCard from '../components/ScoringCountdownCard';
 import LiveRecordIndicator from '../../../shared/components/ui/LiveRecordIndicator';
 
@@ -146,7 +148,9 @@ const JudgeDashboard = ({ user }) => {
             roundId: item.roundId || item.round_id,
             trackId: isFinalFlag ? null : (item.trackId || item.track_id),
             assignmentId: item.assignmentId || item.id,
-            isFinal: isFinalFlag
+            isFinal: isFinalFlag,
+            responseStatus: String(item.responseStatus || item.response_status || 'ACCEPTED').toUpperCase(),
+            declineReason: item.declineReason || item.decline_reason || null,
           };
         };
 
@@ -822,6 +826,58 @@ const JudgeDashboard = ({ user }) => {
                             >
                               {isEventClosed ? 'Xem Lịch Sử Chấm Thi' : 'Vào phòng chấm thi'}
                             </Button>
+                            {!isEventClosed && tasks.some((t) => t.responseStatus !== 'DECLINED') && (
+                              <div style={{ marginTop: 8, textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                                {tasks
+                                  .filter((t) => t.responseStatus !== 'DECLINED')
+                                  .slice(0, 2)
+                                  .map((t) => (
+                                    <Button
+                                      key={t.id}
+                                      type="link"
+                                      danger
+                                      size="small"
+                                      onClick={() =>
+                                        runDeclineAssignment(
+                                          (reason) => judgeService.declineAssignment(t.assignmentId || t.id, reason),
+                                          { onSuccess: () => window.location.reload() },
+                                        )
+                                      }
+                                    >
+                                      Từ chối tham gia{tasks.length > 1 ? ` · ${t.trackName || t.roundName}` : ''}
+                                    </Button>
+                                  ))}
+                              </div>
+                            )}
+                            {tasks.some((t) => t.responseStatus === 'DECLINED') && (
+                              <div style={{ marginTop: 4, textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                                {tasks
+                                  .filter((t) => t.responseStatus === 'DECLINED')
+                                  .slice(0, 2)
+                                  .map((t) => (
+                                    <Button
+                                      key={`accept-${t.id}`}
+                                      type="link"
+                                      size="small"
+                                      onClick={async () => {
+                                        try {
+                                          await judgeService.acceptAssignment(t.assignmentId || t.id);
+                                          message.success('Đã chấp nhận lại phân công');
+                                          window.location.reload();
+                                        } catch (error) {
+                                          message.error(
+                                            resolveUserError(error, {
+                                              fallback: 'Không thể chấp nhận lại phân công.',
+                                            }),
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      Rút lại từ chối{tasks.length > 1 ? ` · ${t.trackName || t.roundName}` : ''}
+                                    </Button>
+                                  ))}
+                              </div>
+                            )}
                           </Col>
                         </Row>
                         

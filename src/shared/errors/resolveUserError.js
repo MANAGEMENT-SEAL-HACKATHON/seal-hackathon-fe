@@ -68,6 +68,8 @@ export const SHARED_ERROR_MESSAGES = {
   KIT_ALREADY_ISSUED: 'Sinh viên đã nhận món kit này rồi.',
   TRACK_CLOSED: 'Bảng đấu đã đóng — không thể chuyển đội vào bảng này.',
   TEAM_NOT_ACTIVE: 'Đội thi chưa được duyệt / chưa ở trạng thái sẵn sàng.',
+  ASSIGNMENT_DECLINE_TOO_LATE:
+    'Không thể từ chối phân công sau khi vòng đã kích hoạt hoặc đã phát đề.',
   LATE_PENDING: 'Nộp muộn (Đang chờ duyệt)',
   PENDING_CONFIRM: 'Chờ chốt sổ',
   FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
