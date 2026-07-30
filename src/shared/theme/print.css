@@ -1,0 +1,32 @@
+@page {
+  size: A4;
+  margin: 15mm;
+}
+
+@media print {
+  .no-print,
+  .ant-layout-sider,
+  .ant-layout-header,
+  nav,
+  aside,
+  .ant-btn,
+  button {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .print-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .print-signatures {
+    break-inside: avoid;
+  }
+}

@@ -42,5 +42,8 @@ export const ROUTES = {
   PRESENTATION_QUEUE: '/presentation/queue',
   COORDINATOR_ANALYTICS: '/coordinator/analytics',
   COORDINATOR_FINAL_CONFIG: '/coordinator/final-config',
+  HACKATHON_PRIZES_PRINT: '/hackathons/:hackathonId/prizes/print',
+  PUBLIC_HALL_OF_FAME: '/hall-of-fame',
+  PUBLIC_ARTICLE: '/news/:slug',
 };
 

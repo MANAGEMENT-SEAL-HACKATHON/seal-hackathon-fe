@@ -129,10 +129,8 @@ export const PRIZE_TYPE_LABELS = {
   FIRST: 'Giải nhất',
   SECOND: 'Giải nhì',
   THIRD: 'Giải ba',
-  CREATIVE: 'Giải sáng tạo',
-  PRACTICAL: 'Giải thực tiễn',
+  HONORABLE: 'Giải khuyến khích',
   SPECIAL: 'Giải đặc biệt',
-  OTHER: 'Khác',
 };
 
 export const CRITERIA_TYPE_LABELS = {

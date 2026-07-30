@@ -26,6 +26,8 @@ import TempJudgesPage from '../features/auth/pages/TempJudgesPage';
 import CoordinatorTeamPage from '../features/coordinator/pages/CoordinatorTeamPage';
 import GithubCallbackPage from '../features/auth/pages/GithubCallbackPage';
 import LandingPage from '../landing/pages/LandingPage';
+import HallOfFamePage from '../landing/pages/HallOfFamePage';
+import ChampionArticlePage from '../landing/pages/ChampionArticlePage';
 import StudentTeamPage from '../student/features/team/pages/StudentTeamPage';
 import JudgeDashboardPage from '../features/judging/pages/JudgeDashboardPage';
 import LiveScoringPage from '../features/judging/pages/LiveScoringPage';
@@ -37,6 +39,7 @@ import StudentHackathonHistoryPage from '../student/features/hackathon/pages/Stu
 import StudentSubmissionPage from '../student/features/submission/pages/StudentSubmissionPage';
 import ScoringLobbyPage from '../features/judging/pages/ScoringLobbyPage';
 import HackathonResultsPage from '../features/hackathons/pages/HackathonResultsPage';
+import PrizePrintPage from '../features/hackathons/pages/PrizePrintPage';
 import PreliminaryResultsPage from '../features/rounds/pages/PreliminaryResultsPage';
 import StudentRoundLeaderboardPage from '../student/features/results/pages/StudentRoundLeaderboardPage';
 import StudentResultsIndexPage from '../student/features/results/pages/StudentResultsIndexPage';
@@ -225,6 +228,16 @@ const AppRouter = () => {
       <Route path={ROUTES.RESET_PASSWORD} element={<ResetPasswordPage />} />
       <Route path={ROUTES.VERIFY_EMAIL} element={<VerifyEmailPage />} />
       <Route path={ROUTES.PUBLIC_ROUND_SCOREBOARD} element={<StudentRoundLeaderboardPage />} />
+      <Route path={ROUTES.PUBLIC_HALL_OF_FAME} element={<HallOfFamePage />} />
+      <Route path={ROUTES.PUBLIC_ARTICLE} element={<ChampionArticlePage />} />
+      <Route
+        path={ROUTES.HACKATHON_PRIZES_PRINT}
+        element={
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
+            <PrizePrintPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Protected Routes inside role-aware layout */}
       <Route element={<AppLayoutWrapper />}>

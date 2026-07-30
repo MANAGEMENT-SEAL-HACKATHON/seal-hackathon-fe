@@ -12,8 +12,8 @@ const PRIZE_RANKS = [
   { value: 'FIRST', label: 'Giải Nhất (First Prize)' },
   { value: 'SECOND', label: 'Giải Nhì (Second Prize)' },
   { value: 'THIRD', label: 'Giải Ba (Third Prize)' },
-  { value: 'CONSOLATION', label: 'Giải Khuyến khích (Consolation)' },
-  { value: 'OTHER', label: 'Giải Khác (Other)' },
+  { value: 'HONORABLE', label: 'Giải Khuyến khích (Honorable)' },
+  { value: 'SPECIAL', label: 'Giải đặc biệt (Special)' },
 ];
 
 const normalizeRankingRow = (item, index) => {

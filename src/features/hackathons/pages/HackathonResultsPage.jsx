@@ -10,7 +10,8 @@ import ChapterRankingTable from '../components/ChapterRankingTable';
 import IndividualRankingTable from '../components/IndividualRankingTable';
 import PrizeListPanel from '../components/PrizeListPanel';
 import HackathonClosureStepper from '../components/HackathonClosureStepper';
-import { Trophy, Medal, User, Gift, Download } from 'lucide-react';
+import ShowcaseEditorPanel from '../../showcase/components/ShowcaseEditorPanel';
+import { Trophy, Medal, User, Gift, Download, Newspaper } from 'lucide-react';
 import { whiteButtonStyle } from '../../../shared/theme/coordinatorTheme';
 
 const { TextArea } = Input;
@@ -132,6 +133,18 @@ const HackathonResultsPage = ({ hackathonId: propHackathonId }) => {
       />
     ),
   });
+
+  if (status === 'FINISHED') {
+    tabItems.push({
+      key: 'showcase',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Newspaper size={16} /> Bài viết &amp; Vinh danh
+        </span>
+      ),
+      children: <ShowcaseEditorPanel hackathonId={id} />,
+    });
+  }
 
   return (
     <div className="hackathon-results-page coord-page" style={{ padding: 24 }}>

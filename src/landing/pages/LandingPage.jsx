@@ -14,8 +14,10 @@ import {
   Trophy,
   UsersRound,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../app/AppContext';
+import { absoluteApiUrl, showcaseService } from '../../features/showcase/services/showcase.service';
 import { ROUTES } from '../../shared/constants/routes';
 
 const { useBreakpoint } = Grid;
@@ -84,6 +86,22 @@ const LandingPage = () => {
   const { darkMode, toggleDarkMode } = useAppContext();
   const isMobile = !screens.md;
   const isTablet = !screens.lg;
+  const [teaserArticles, setTeaserArticles] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    showcaseService
+      .listPublishedArticles()
+      .then((list) => {
+        if (!cancelled) setTeaserArticles((Array.isArray(list) ? list : []).slice(0, 3));
+      })
+      .catch(() => {
+        if (!cancelled) setTeaserArticles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const colors = {
     primary: token.colorPrimary,
@@ -512,6 +530,13 @@ const LandingPage = () => {
           <a style={styles.navLink} href="#overview">Tổng quan</a>
           <a style={styles.navLink} href="#platform">Nền tảng</a>
           <a style={styles.navLink} href="#journey">Hệ thống</a>
+          <button
+            type="button"
+            style={{ ...styles.navLink, border: 0, background: 'transparent', cursor: 'pointer', padding: 0 }}
+            onClick={() => navigate(ROUTES.PUBLIC_HALL_OF_FAME)}
+          >
+            Vinh danh
+          </button>
         </nav>
 
         <div style={styles.navActions}>
@@ -704,6 +729,63 @@ const LandingPage = () => {
               </motion.div>
             ))}
           </div>
+        </section>
+
+        <section id="hall-of-fame" style={styles.section}>
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={stagger}>
+            <motion.span style={styles.kicker} variants={fadeUp}>Vinh danh</motion.span>
+            <motion.h2 style={styles.h2} variants={fadeUp}>
+              Bảng vàng và câu chuyện quán quân.
+            </motion.h2>
+            <motion.p style={styles.sectionText} variants={fadeUp}>
+              Xem các đội vô địch qua từng mùa và đọc bài viết giới thiệu hành trình của họ.
+            </motion.p>
+            {teaserArticles.length > 0 ? (
+              <motion.div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+                  gap: 14,
+                  marginTop: 22,
+                }}
+                variants={fadeUp}
+              >
+                {teaserArticles.map((article) => (
+                  <button
+                    key={article.id || article.slug}
+                    type="button"
+                    onClick={() => navigate(ROUTES.PUBLIC_ARTICLE.replace(':slug', article.slug))}
+                    style={{
+                      textAlign: 'left',
+                      border: `1px solid ${colors.border}`,
+                      background: colors.surface,
+                      borderRadius: 16,
+                      padding: 16,
+                      cursor: 'pointer',
+                      color: colors.text,
+                    }}
+                  >
+                    {article.coverUrl ? (
+                      <img
+                        src={absoluteApiUrl(article.coverUrl)}
+                        alt=""
+                        style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 10, marginBottom: 12 }}
+                      />
+                    ) : null}
+                    <strong style={{ display: 'block', marginBottom: 6 }}>{article.title}</strong>
+                    <span style={{ color: colors.muted, fontSize: 13 }}>
+                      {article.summary || 'Đọc bài viết'}
+                    </span>
+                  </button>
+                ))}
+              </motion.div>
+            ) : null}
+            <motion.div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 }} variants={fadeUp}>
+              <Button type="primary" size="large" style={styles.primaryBtn} onClick={() => navigate(ROUTES.PUBLIC_HALL_OF_FAME)}>
+                Xem bảng vàng <Trophy size={18} />
+              </Button>
+            </motion.div>
+          </motion.div>
         </section>
 
         <section style={styles.final}>
