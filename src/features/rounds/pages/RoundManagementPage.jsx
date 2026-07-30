@@ -455,15 +455,10 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
           ),
         );
       }
-      const isStartNow = payload?.scheduleMode === 'START_NOW';
       message.success(
-        isStartNow
-          ? round.is_final
-            ? `${round.name} bắt đầu thi sớm — giờ thi và hạn nộp bài đã được cập nhật.`
-            : `${round.name} bắt đầu thi sớm — giờ thi/hạn nộp và Chung kết đã được cập nhật.`
-          : round.is_final
-            ? `${round.name} đã kích hoạt — đề theo bảng sơ loại của từng đội đã mở cho sinh viên.`
-            : `${round.name} đã được kích hoạt thành công!`,
+        round.is_final
+          ? `${round.name} đã kích hoạt — đề theo bảng sơ loại của từng đội đã mở cho sinh viên.`
+          : `${round.name} đã được kích hoạt thành công!`,
       );
       setActivateRound(null);
       await fetchRounds();

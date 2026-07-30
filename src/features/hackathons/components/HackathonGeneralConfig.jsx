@@ -491,7 +491,7 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
                       minute: '2-digit',
                     })})`
                   : ''}
-                . Muốn thi ngay để test → tab Vòng thi → «Bắt đầu thi sớm». Muốn chỉnh ngày khác → «Dời lịch».
+                . Muốn chỉnh giờ thi → tab Vòng thi → «Dời lịch thi».
               </Text>
             )}
 

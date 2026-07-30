@@ -173,7 +173,7 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({
         ...payload,
         note: payload?.note || 'Activate final round by coordinator',
       });
-      message.success('Đã kích hoạt vòng Chung kết.');
+      message.success('Đã kích hoạt vòng Chung kết (giữ nguyên lịch đã xếp).');
       setActivateModalOpen(false);
       await loadData();
       if (typeof onUpdated === 'function') await onUpdated();

@@ -48,4 +48,17 @@ const tracks = [
   assert.ok(tip.includes('chưa có đội'));
 }
 
+{
+  // Already active — no early-start / START_NOW allowance
+  const active = { id: 1, is_final: false, is_active: true };
+  const { ok, reasons } = canActivateRound(active, {
+    tracks,
+    teamsByTrack: { 10: 2, 11: 2 },
+    criteriaCountByTrack: { 10: 5, 11: 5 },
+    judgeCountByTrack: { 10: 1, 11: 1 },
+  });
+  assert.equal(ok, false);
+  assert.ok(reasons.some((r) => r.includes('đã được kích hoạt')));
+}
+
 console.log('canActivateRound.test.js: ok');

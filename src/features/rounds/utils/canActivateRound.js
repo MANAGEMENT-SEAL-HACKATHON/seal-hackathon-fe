@@ -9,7 +9,7 @@ export const canActivateRound = (round, ctx = {}) => {
   }
 
   if (round.is_active || round.isActive) {
-    return { ok: true, reasons: [] };
+    return { ok: false, reasons: ['Vòng thi đã được kích hoạt'] };
   }
 
   const tracks = (ctx.tracks || []).filter(
