@@ -44,7 +44,9 @@ const getNotifConfig = (type, token, darkMode) => {
   if (t === 'SUBMISSION_RECEIVED') {
     return { icon: <FileCheck size={16} color={token.colorSuccess} />, bg: BG_GREEN(darkMode) };
   }
-  if (t === 'SUBMISSION_DEADLINE_REMINDER') {
+  if (t === 'SUBMISSION_DEADLINE_REMINDER'
+      || t === 'COMPETITION_SCHEDULE_UPDATED'
+      || t === 'ROUND_SCHEDULE_UPDATED') {
     return { icon: <CalendarClock size={16} color={token.colorWarning} />, bg: BG_AMBER(darkMode) };
   }
 
