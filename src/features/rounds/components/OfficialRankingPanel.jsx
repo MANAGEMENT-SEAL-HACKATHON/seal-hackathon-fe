@@ -13,11 +13,9 @@ const OfficialRankingPanel = ({
   isLoading,
   error,
   advancePreviewTeamIds,
-  rejectedWildcardTeamIds: _rejectedWildcardTeamIds,
   hasAdvanced,
   isPublished,
   rosterDecided,
-  wildcardData: _wildcardData,
   topN: _topN,
   roundId,
 }) => {

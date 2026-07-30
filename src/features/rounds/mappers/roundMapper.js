@@ -50,7 +50,6 @@ export const mapRoundToFE = (beData) => {
       ?? beData.final_problem_migration_banner_dismissed_at
       ?? null,
     top_n_advance: beData.topNAdvance ?? beData.top_n_advance,
-    wildcard_enabled: beData.wildcardEnabled ?? beData.wildcard_enabled,
     min_teams_final: beData.minTeamsFinal ?? beData.min_teams_final,
     tiebreak_rule: beData.tiebreakRule ?? beData.tiebreak_rule,
     is_active: beData.isActive ?? beData.is_active,
@@ -100,7 +99,6 @@ export const mapRoundToBE = (feData) => {
     codingDurationHours: feData.coding_duration_hours
       ? parseFloat(feData.coding_duration_hours)
       : null,
-    wildcardEnabled: !!feData.wildcard_enabled,
     tiebreakRule: feData.tiebreak_rule || 'COORDINATOR_DECISION',
   };
 

@@ -8,7 +8,6 @@ const { Text, Title } = Typography;
 
 const REASON_META = {
   TOP_N: { color: "green", label: "Top N" },
-  WILDCARD: { color: "blue", label: "Vé vớt" },
   OUT: { color: "default", label: "Loại" },
   DQ: { color: "red", label: "Bị loại kỷ luật" },
 };

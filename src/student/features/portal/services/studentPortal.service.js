@@ -46,11 +46,4 @@ export const studentPortalService = {
       trackId: Number(trackId),
     });
   },
-
-  downloadCertificate: async (certificateId, download = true) => {
-    return axiosClient.get(ENDPOINTS.STUDENT_PORTAL.CERTIFICATE_DOWNLOAD(certificateId), {
-      params: { download },
-      responseType: 'blob',
-    });
-  },
 };

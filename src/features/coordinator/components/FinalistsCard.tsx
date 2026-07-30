@@ -7,7 +7,6 @@ const { Text } = Typography;
 
 const REASON_META: Record<string, { color: string; label: string }> = {
   TOP_N: { color: 'green', label: 'Top N' },
-  WILDCARD: { color: 'blue', label: 'Vé vớt' },
 };
 
 type FinalistsCardProps = {
@@ -22,7 +21,7 @@ type FinalistsCardProps = {
 
 /**
  * GĐ5 — Card «Các đội vào Chung kết». Tái dùng advance-roster của vòng Sơ loại,
- * kèm cột LÝ DO vào CK (Top N / Vé vớt) phục vụ minh bạch WC-03 + DQ-backfill.
+ * kèm cột LÝ DO vào CK (Top N) phục vụ minh bạch.
  */
 const FinalistsCard: React.FC<FinalistsCardProps> = ({
   prelimRoundId,

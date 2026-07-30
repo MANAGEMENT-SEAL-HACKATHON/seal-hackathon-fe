@@ -104,8 +104,6 @@ const RoundFormModal = ({
       if (initialValues) {
         form.setFieldsValue({
           ...initialValues,
-          // Phase 1: Wildcard removed from UI — always force off
-          wildcard_enabled: false,
           round_type:
             initialValues.round_type ||
             initialValues.roundType ||
@@ -165,8 +163,6 @@ const RoundFormModal = ({
       .then(values => {
         const formattedValues = {
           ...values,
-          // Phase 1: Wildcard removed — never send enabled
-          wildcard_enabled: false,
           is_final: values.round_type === 'FINAL',
           exam_at: values.exam_at?.format('YYYY-MM-DD HH:mm:ss'),
           submission_open: values.submission_open?.format('YYYY-MM-DD HH:mm:ss'),
@@ -197,7 +193,6 @@ const RoundFormModal = ({
           tiebreak_rule: 'COORDINATOR_DECISION',
           late_submission_policy: 'ALLOW_LATE_PENDING',
           is_active: false,
-          wildcard_enabled: false,
           round_type: 'PRELIMINARY',
         }}
         onValuesChange={(changedValues, allValues) => {
@@ -418,10 +413,6 @@ const RoundFormModal = ({
             title="Cấu hình đi tiếp vào Chung kết"
             style={{ marginBottom: 16 }}
           >
-            <Form.Item name="wildcard_enabled" hidden valuePropName="checked" initialValue={false}>
-              <Switch />
-            </Form.Item>
-
             <Form.Item
               name="top_n_advance"
               label={

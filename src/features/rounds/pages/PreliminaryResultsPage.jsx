@@ -25,33 +25,18 @@ const TABS_ANCHOR_ID = "gd4-results-tabs";
 const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
   const params = useParams();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const roundId = roundIdProp || params.roundId || params.id;
   const hackathonId = params.hackathonId;
   const tabFromQuery = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState(
-    tabFromQuery === "wildcard" ? "ranking" : tabFromQuery || "ranking",
-  );
+  const [activeTab, setActiveTab] = useState(tabFromQuery || "ranking");
   const [advanceModalOpen, setAdvanceModalOpen] = useState(false);
   const [advanceTypedN, setAdvanceTypedN] = useState("");
   const results = useRoundResults(roundId);
 
   useEffect(() => {
-    if (tabFromQuery === "wildcard") {
-      setActiveTab("ranking");
-      const next = new URLSearchParams(searchParams);
-      next.set("tab", "ranking");
-      setSearchParams(next, { replace: true });
-      return;
-    }
     if (tabFromQuery) setActiveTab(tabFromQuery);
-  }, [tabFromQuery, searchParams, setSearchParams]);
-
-  useEffect(() => {
-    if (activeTab === "wildcard") {
-      setActiveTab("ranking");
-    }
-  }, [activeTab]);
+  }, [tabFromQuery]);
 
   const advanceN = results.advancePreview?.advancedTeamIds?.length ?? 0;
   const advanceConfirmEnabled =
@@ -82,11 +67,9 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
             isLoading={results.isLoading}
             error={results.errors.ranking}
             advancePreviewTeamIds={results.advancePreview.advancedTeamIdSet}
-            rejectedWildcardTeamIds={results.rejectedWildcardTeamIdSet}
             hasAdvanced={results.hasAdvanced}
             isPublished={results.isPublished}
             rosterDecided={results.rosterDecided}
-            wildcardData={results.wildcard}
             topN={results.ranking.topNAdvance || results.round?.top_n_advance || 0}
             roundId={roundId}
           />
@@ -170,8 +153,6 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
         isPublished={results.isPublished}
         hasAdvanced={results.hasAdvanced}
         tiebreakCount={results.tiebreaks.length}
-        wildcardPending={false}
-        showWildcardTab={false}
         onTabChange={setActiveTab}
         tabsAnchorId={TABS_ANCHOR_ID}
       />

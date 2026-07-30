@@ -21,9 +21,4 @@ export const studentResultsService = {
     const response = await axiosClient.get(`/api/v1/me/prizes`);
     return Array.isArray(response) ? response : (response?.items || response?.prizes || response?.data || []);
   },
-
-  getMyCertificates: async () => {
-    const response = await axiosClient.get(`/api/v1/me/certificates`);
-    return Array.isArray(response) ? response : (response?.items || response?.certificates || response?.data || []);
-  },
 };

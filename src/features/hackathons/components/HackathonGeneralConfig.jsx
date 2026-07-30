@@ -12,6 +12,7 @@ import {
   Progress,
   Row,
   Space,
+  Switch,
   Tag,
   Tooltip,
   Typography,
@@ -110,6 +111,8 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
     if (hackathon) {
       form.setFieldsValue({
         max_participants: hackathon.max_participants ?? hackathon.maxParticipants,
+        individual_ranking_enabled:
+          hackathon.individual_ranking_enabled ?? hackathon.individualRankingEnabled ?? false,
       });
       setBannerFileList([]);
     }
@@ -152,7 +155,11 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
     try {
       const values = await form.validateFields();
       setSaving(true);
-      const payload = mapHackathonToBE({ ...hackathon, max_participants: values.max_participants });
+      const payload = mapHackathonToBE({
+        ...hackathon,
+        max_participants: values.max_participants,
+        individual_ranking_enabled: values.individual_ranking_enabled,
+      });
       await hackathonService.update(hackathon.id, payload);
       message.success('Đã cập nhật cấu hình chung');
       onUpdated?.();
@@ -365,6 +372,20 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
                   ]}
                 >
                   <Input type="number" min={1} disabled={!isDraft} placeholder="Ví dụ: 100" />
+                </Form.Item>
+                <Form.Item
+                  name="individual_ranking_enabled"
+                  label="Bật bảng xếp hạng cá nhân"
+                  valuePropName="checked"
+                  extra={
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {isDraft
+                        ? 'Khi bật, hệ thống tính và hiển thị BXH cá nhân bên cạnh BXH đội.'
+                        : 'Chỉ chỉnh được khi sự kiện còn ở trạng thái Bản nháp.'}
+                    </Text>
+                  }
+                >
+                  <Switch disabled={!isDraft} />
                 </Form.Item>
                 {isDraft && (
                   <Button type="primary" onClick={handleSave} loading={saving}>

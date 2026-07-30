@@ -4,29 +4,20 @@ import { message } from "antd";
 import { roundResultsService } from "../services/roundResults.service";
 import { roundService } from "../services/roundService";
 import { mapRoundToFE } from "../mappers/roundMapper";
-import { enrichWildcardFromRound, enrichTiebreakItems } from "../mappers/roundResults.mapper";
+import { enrichTiebreakItems } from "../mappers/roundResults.mapper";
 import { resolveProgressionError } from "../constants/progressionErrors";
 
 const emptyRanking = { items: [], topNAdvance: 0, isPublished: false, roundName: "Vòng Sơ loại" };
-const emptyWildcard = {
-  config: { hackathonEnabled: false, roundEnabled: false, availableSlots: 0 },
-  items: [],
-  proposalConfirmedAt: null,
-};
 
 export const useRoundResults = (roundId) => {
   const [ranking, setRanking] = useState(emptyRanking);
   const [tiebreaks, setTiebreaks] = useState([]);
-  const [wildcard, setWildcard] = useState(emptyWildcard);
   const [round, setRound] = useState(null);
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isAdvancing, setIsAdvancing] = useState(false);
-  const [confirmingProposal, setConfirmingProposal] = useState(false);
-  const [overridingReviewId, setOverridingReviewId] = useState(null);
-  const [overrideHistory, setOverrideHistory] = useState([]);
   const [isResolvingTiebreak, setIsResolvingTiebreak] = useState(false);
 
   const fetchResults = useCallback(
@@ -34,17 +25,14 @@ export const useRoundResults = (roundId) => {
       if (!roundId) return;
       silent ? setIsRefreshing(true) : setIsLoading(true);
 
-      const [rankingResult, tiebreakResult, wildcardResult, roundResult] = await Promise.allSettled([
+      const [rankingResult, tiebreakResult, roundResult] = await Promise.allSettled([
         roundResultsService.getRanking(roundId),
         roundResultsService.getTiebreak(roundId),
-        roundResultsService.getWildcardCandidates(roundId),
         roundService.getById(roundId),
       ]);
 
       const nextErrors = {};
       let nextRanking = emptyRanking;
-      let nextRound = null;
-      let nextWildcard;
 
       if (rankingResult.status === "fulfilled") {
         nextRanking = rankingResult.value;
@@ -69,14 +57,8 @@ export const useRoundResults = (roundId) => {
       }
 
       if (roundResult.status === "fulfilled") {
-        nextRound = mapRoundToFE(roundResult.value);
-        setRound(nextRound);
+        setRound(mapRoundToFE(roundResult.value));
       } else nextErrors.round = roundResult.reason;
-
-      if (wildcardResult.status === "fulfilled") {
-        nextWildcard = enrichWildcardFromRound(wildcardResult.value, nextRound, nextRanking);
-        setWildcard(nextWildcard);
-      } else nextErrors.wildcard = wildcardResult.reason;
 
       setErrors(nextErrors);
       setIsLoading(false);
@@ -84,55 +66,6 @@ export const useRoundResults = (roundId) => {
     },
     [roundId],
   );
-
-  const confirmWildcardProposal = async () => {
-    if (!roundId) return false;
-    setConfirmingProposal(true);
-    try {
-      await roundResultsService.confirmWildcardProposal(roundId);
-      message.success("Đã xác nhận đề xuất vé vớt — danh sách đã khóa.");
-      await fetchResults({ silent: true });
-      await loadOverrideHistory();
-      return true;
-    } catch (error) {
-      const { message: msg } = resolveProgressionError(error, "Không thể xác nhận đề xuất vé vớt.");
-      message.error(msg);
-      return false;
-    } finally {
-      setConfirmingProposal(false);
-    }
-  };
-
-  const loadOverrideHistory = useCallback(async () => {
-    if (!roundId) return;
-    try {
-      const rows = await roundResultsService.getWildcardOverrides(roundId);
-      setOverrideHistory(rows);
-    } catch {
-      setOverrideHistory([]);
-    }
-  }, [roundId]);
-
-  const overrideWildcard = async (candidate, { approved, category, note }) => {
-    setOverridingReviewId(candidate.reviewId);
-    try {
-      await roundResultsService.overrideWildcardReview(candidate.reviewId, {
-        approved,
-        category,
-        note,
-      });
-      message.success("Đã lưu override vé vớt.");
-      await fetchResults({ silent: true });
-      await loadOverrideHistory();
-      return true;
-    } catch (error) {
-      const { message: msg } = resolveProgressionError(error, "Không thể override vé vớt.");
-      message.error(msg);
-      return false;
-    } finally {
-      setOverridingReviewId(null);
-    }
-  };
 
   const resolveTiebreak = async (payload) => {
     if (!roundId) return false;
@@ -188,10 +121,6 @@ export const useRoundResults = (roundId) => {
     [ranking.items],
   );
 
-  // Phase 1: Wildcard (Vé vớt) removed from UI — always ready / never show tab
-  const wildcardDecisionsReady = true;
-  const showWildcardTab = false;
-
   const advancePreview = useMemo(() => {
     const { advancedTeamIds, eliminatedTeamIds } = buildAdvancePayload();
     const byId = new Map(ranking.items.map((item) => [item.teamId, item]));
@@ -222,22 +151,6 @@ export const useRoundResults = (roundId) => {
       message: `Số đội vào Chung kết (${advancedCount}) thấp hơn trần thiết lập (${minFinal}). Có thể do bị loại kỷ luật hoặc bảng hết đội hợp lệ để đôn (Top-N mỗi bảng).`,
     };
   }, [round, ranking.items, advancePreview.advancedTeamIdSet]);
-
-  const rejectedWildcardTeamIdSet = useMemo(
-    () =>
-      new Set(
-        wildcard.items
-          .filter((item) => item.coordinatorApproved === false)
-          .map((item) => item.teamId)
-          .filter(Boolean),
-      ),
-    [wildcard.items],
-  );
-
-  const rosterDecided = useMemo(
-    () => wildcard.items.length === 0 || wildcardDecisionsReady,
-    [wildcard.items.length, wildcardDecisionsReady],
-  );
 
   const canPublish = useMemo(
     () => scoringLocked && !isPublished && !errors.ranking && ranking.items.length > 0,
@@ -336,24 +249,16 @@ export const useRoundResults = (roundId) => {
   return {
     ranking,
     tiebreaks,
-    wildcard,
-    showWildcardTab,
     round,
     errors,
     isLoading,
     isRefreshing,
     isPublishing,
     isAdvancing,
-    decidingReviewId: null,
-    confirmingProposal,
-    overridingReviewId,
-    overrideHistory,
     scoringLocked,
     isPublished,
     hasAdvanced,
-    wildcardDecisionsReady,
-    rosterDecided,
-    rejectedWildcardTeamIdSet,
+    rosterDecided: true,
     hasUnresolvedTiebreak,
     advancePreview,
     seatShortageWarning,
@@ -364,12 +269,8 @@ export const useRoundResults = (roundId) => {
     isResolvingTiebreak,
     buildAdvancePayload,
     fetchResults,
-    confirmWildcardProposal,
-    overrideWildcard,
-    loadOverrideHistory,
     publishRound,
     advanceTeams,
     resolveTiebreak,
   };
 };
-

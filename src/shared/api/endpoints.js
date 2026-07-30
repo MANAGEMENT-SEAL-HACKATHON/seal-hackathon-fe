@@ -91,7 +91,6 @@ export const ENDPOINTS = {
     SELECTABLE_TRACKS: (hackathonId) => `/api/v1/me/hackathons/${hackathonId}/selectable-tracks`,
     RELOTTERY_TRACK: (teamId, roundId) =>
       `/api/v1/me/teams/${teamId}/rounds/${roundId}/track`,
-    CERTIFICATE_DOWNLOAD: (id) => `/api/v1/me/certificates/${id}/download`,
   },
   MENTOR_PORTAL: {
     TEAM_ASSIGNMENTS: '/api/v1/me/mentor-team-assignments',

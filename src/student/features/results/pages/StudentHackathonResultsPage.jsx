@@ -85,9 +85,8 @@ const StudentHackathonResultsPage = () => {
   const [hackathonRounds, setHackathonRounds] = useState([]);
   const [selectedRoundId, setSelectedRoundId] = useState(null);
 
-  // Tab 3: Vinh danh của tôi (Prizes / Certificates)
+  // Tab 3: Vinh danh của tôi (Prizes / Honors)
   const [prizes, setPrizes] = useState([]);
-  const [certificates, setCertificates] = useState([]);
 
   // Khiếu nại
   const [appealOpen, setAppealOpen] = useState(false);
@@ -164,18 +163,16 @@ const StudentHackathonResultsPage = () => {
     setLoading(true);
     setRankingError(null);
     try {
-      const [rankingsRes, prizesRes, certsRes] = await Promise.all([
+      const [rankingsRes, prizesRes] = await Promise.all([
         studentResultsService.getHackathonRankings(hackathonId).catch((err) => {
           setRankingError(err);
           return [];
         }),
         studentResultsService.getMyPrizes().catch(() => []),
-        studentResultsService.getMyCertificates().catch(() => []),
       ]);
 
       setFinalRankings(Array.isArray(rankingsRes) ? rankingsRes : []);
       setPrizes((Array.isArray(prizesRes) ? prizesRes : []).filter((p) => matchesHackathon(p, hackathonId)));
-      setCertificates((Array.isArray(certsRes) ? certsRes : []).filter((c) => matchesHackathon(c, hackathonId)));
     } finally {
       setLoading(false);
     }
@@ -280,7 +277,7 @@ const StudentHackathonResultsPage = () => {
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, lineHeight: 1.6 }}>
               {activeMainTab === 'final_rankings' && 'Bảng vàng xếp hạng chính thức toàn đoàn sau vòng Chung kết. Dữ liệu được xác thực trực tiếp từ hệ thống chấm thi của Ban giám khảo.'}
               {activeMainTab === 'round_scoreboards' && 'Tra cứu bảng điểm đội đã công bố cho từng vòng thi trong hành trình, bao gồm cả Chung kết khi có kết quả.'}
-              {activeMainTab === 'my_honors' && 'Danh hiệu cá nhân/đội tuyển xuất sắc và tải giấy chứng nhận điện tử hợp lệ (PDF) do Ban Tổ Chức cấp phát.'}
+              {activeMainTab === 'my_honors' && 'Danh hiệu cá nhân/đội tuyển xuất sắc do Ban Tổ Chức trao tặng.'}
             </Text>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
@@ -465,13 +462,12 @@ const StudentHackathonResultsPage = () => {
           <Alert
             showIcon
             type="info"
-            message={<span style={{ fontWeight: 800, fontSize: 14 }}>Thông báo về giải thưởng & chứng nhận</span>}
-            description="Giải thưởng và giấy chứng nhận điện tử (PDF) sẽ được Ban Tổ Chức cập nhật và cấp phát chính thức sau khi khép lại toàn bộ giải đấu."
+            message={<span style={{ fontWeight: 800, fontSize: 14 }}>Thông báo về giải thưởng</span>}
+            description="Giải thưởng và danh hiệu sẽ được Ban Tổ Chức cập nhật chính thức sau khi khép lại toàn bộ giải đấu."
             style={{ marginBottom: 24, borderRadius: 16 }}
           />
           <MyHonorsPanel 
             prizes={prizes} 
-            certificates={certificates} 
             loading={loading} 
           />
         </div>

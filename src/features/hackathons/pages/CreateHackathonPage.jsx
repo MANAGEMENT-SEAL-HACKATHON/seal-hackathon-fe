@@ -16,7 +16,6 @@ function buildCloneInitialValues(source) {
     description: source.description,
     rules: source.rules,
     season: source.season,
-    individual_ranking_enabled: false,
     max_participants: source.max_participants,
     year: new Date().getFullYear(),
   };
@@ -111,7 +110,6 @@ const CreateHackathonPage = () => {
       const { banner_file: bannerFileList, ...formValues } = values;
       const payload = mapHackathonToBE({
         ...formValues,
-        individual_ranking_enabled: false,
         event_start: null,
         event_end: null,
       });

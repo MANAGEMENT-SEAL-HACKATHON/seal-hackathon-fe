@@ -1,4 +1,4 @@
-import { Form, Input, DatePicker, Select, Row, Col, Typography } from 'antd';
+import { Form, Input, DatePicker, Select, Row, Col, Typography, Switch } from 'antd';
 import dayjs from 'dayjs';
 import HackathonBannerUpload from './HackathonBannerUpload';
 
@@ -26,7 +26,6 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
       onFinish={onFinish}
       initialValues={{
         year: new Date().getFullYear(),
-        wildcard_enabled: false,
         individual_ranking_enabled: false,
         ...initialValues,
         registration_start: initialValues?.registration_start ? dayjs(initialValues.registration_start) : null,
@@ -131,6 +130,15 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
 
       <Form.Item name="rules" label="Thể lệ">
         <TextArea rows={4} placeholder="Quy định và thể lệ cuộc thi" />
+      </Form.Item>
+
+      <Form.Item
+        name="individual_ranking_enabled"
+        label="Bật bảng xếp hạng cá nhân"
+        valuePropName="checked"
+        extra={fieldHint('Khi bật, hệ thống tính và hiển thị BXH cá nhân bên cạnh BXH đội.')}
+      >
+        <Switch />
       </Form.Item>
 
       <Form.Item

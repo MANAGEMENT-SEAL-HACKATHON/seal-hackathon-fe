@@ -6,7 +6,6 @@ const { Text } = Typography;
 
 /**
  * Checklist vận hành trên màn kết quả sơ loại (công bố, đồng điểm, chốt chuyển vòng).
- * Phase 1: Vé vớt step removed — props kept for backward compat.
  */
 const PreliminaryResultsCoordinatorStepper = ({
   hackathonId,
@@ -15,10 +14,6 @@ const PreliminaryResultsCoordinatorStepper = ({
   isPublished,
   hasAdvanced,
   tiebreakCount = 0,
-  // eslint-disable-next-line no-unused-vars -- backward compat
-  wildcardPending = false,
-  // eslint-disable-next-line no-unused-vars -- backward compat
-  showWildcardTab = false,
   onTabChange,
   tabsAnchorId = 'gd4-results-tabs',
 }) => {

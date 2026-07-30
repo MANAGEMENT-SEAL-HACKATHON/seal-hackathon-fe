@@ -1,9 +1,6 @@
 // src/features/rounds/results/services/roundResults.service.js
 import axiosClient from "../../../shared/api/axiosClient";
-import {
-  mapOfficialRanking,
-  mapWildcardCandidates,
-} from "../mappers/roundResults.mapper";
+import { mapOfficialRanking } from "../mappers/roundResults.mapper";
 
 export const roundResultsService = {
   getRanking: async (roundId) => {
@@ -22,27 +19,6 @@ export const roundResultsService = {
     // Trả về thẳng data thô chứa candidateTeamIds
     return response?.data !== undefined ? response.data : response;
   },
-
-  getWildcardCandidates: async (roundId) => {
-    const response = await axiosClient.get(`/api/v1/rounds/${roundId}/wildcard-candidates`);
-    return mapWildcardCandidates(response);
-  },
-
-  confirmWildcardProposal: (roundId) =>
-    axiosClient.post(`/api/v1/rounds/${roundId}/wildcard-proposal/confirm`),
-
-  getWildcardOverrides: async (roundId) => {
-    const response = await axiosClient.get(`/api/v1/rounds/${roundId}/wildcard-overrides`);
-    const raw = response?.data !== undefined ? response.data : response;
-    return Array.isArray(raw) ? raw : [];
-  },
-
-  overrideWildcardReview: (reviewId, { approved, category, note }) =>
-    axiosClient.post(`/api/v1/wildcard-reviews/${reviewId}/override`, {
-      approved,
-      category,
-      note: note || undefined,
-    }),
 
   publishRound: (roundId) =>
     axiosClient.patch(`/api/v1/rounds/${roundId}/publish`),
