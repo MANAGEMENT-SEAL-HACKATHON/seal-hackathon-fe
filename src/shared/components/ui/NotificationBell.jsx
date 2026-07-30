@@ -46,7 +46,8 @@ const getNotifConfig = (type, token, darkMode) => {
   }
   if (t === 'SUBMISSION_DEADLINE_REMINDER'
       || t === 'COMPETITION_SCHEDULE_UPDATED'
-      || t === 'ROUND_SCHEDULE_UPDATED') {
+      || t === 'ROUND_SCHEDULE_UPDATED'
+      || t === 'REGISTRATION_EXTENDED') {
     return { icon: <CalendarClock size={16} color={token.colorWarning} />, bg: BG_AMBER(darkMode) };
   }
 

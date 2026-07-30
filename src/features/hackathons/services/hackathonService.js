@@ -53,4 +53,12 @@ export const hackathonService = {
   adjustCompetitionSchedule: async (id, body) => {
     return axiosClient.post(ENDPOINTS.HACKATHONS.COMPETITION_SCHEDULE_ADJUST(id), body);
   },
+
+  previewRegistrationExtension: async (id, body) => {
+    return axiosClient.post(ENDPOINTS.HACKATHONS.REGISTRATION_EXTENSION_PREVIEW(id), body);
+  },
+
+  extendRegistration: async (id, body) => {
+    return axiosClient.post(ENDPOINTS.HACKATHONS.REGISTRATION_EXTENSION(id), body);
+  },
 };

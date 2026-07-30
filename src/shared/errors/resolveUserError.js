@@ -58,6 +58,12 @@ export const SHARED_ERROR_MESSAGES = {
     'Chưa thể chấm điểm. Đội thi chưa lên bục trình bày (Chờ Điều phối viên khởi động).',
   REGISTRATION_ALREADY_CLOSED: 'Đăng ký đã kết thúc trước đó — không thể kết thúc đăng ký sớm lần nữa.',
   REGISTRATION_CLOSED: 'Đăng ký đã đóng. Không thể bốc thăm hoặc đổi bảng lúc này.',
+  REGISTRATION_EXTENSION_LIMIT_REACHED:
+    'Đã dùng hết số lần dời hạn đăng ký cho sự kiện này.',
+  REGISTRATION_EXTENSION_INVALID_DATE:
+    'Ngày hết hạn đăng ký mới không hợp lệ — phải sau hạn hiện tại và sau hôm nay.',
+  REGISTRATION_EXTENSION_TIMELINE_CONFLICT:
+    'Dời hạn đăng ký xung đột với lịch Workshop / Khai mạc / Sơ loại — cần điều chỉnh lịch thi.',
   TRACK_CLOSED: 'Bảng đấu đã đóng — không thể chuyển đội vào bảng này.',
   TEAM_NOT_ACTIVE: 'Đội thi chưa được duyệt / chưa ở trạng thái sẵn sàng.',
   LATE_PENDING: 'Nộp muộn (Đang chờ duyệt)',
