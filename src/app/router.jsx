@@ -46,6 +46,7 @@ import LateSubmissionReviewPage from '../features/coordinator/pages/LateSubmissi
 import CoordinatorAnalyticsPage from '../features/coordinator/pages/CoordinatorAnalyticsPage';
 import FinalRoundConfigPage from '../features/coordinator/pages/FinalRoundConfigPage';
 import PresentationQueuePage from '../features/presentation/pages/PresentationQueuePage';
+import KitDistributionPage from '../features/kits/pages/KitDistributionPage';
 import MentorHistoryPage from '../features/mentor/pages/MentorHistoryPage';
 import StudentAnnualAwardsPage from '../student/features/portal/pages/StudentAnnualAwardsPage';
 import StudentEventsPage from '../student/features/events/pages/StudentEventsPage';
@@ -369,6 +370,11 @@ const AppRouter = () => {
         <Route path={ROUTES.COORDINATOR_LATE_SUBMISSIONS} element={
           <ProtectedRoute allowedRoles={['COORDINATOR']}>
             <LateSubmissionReviewPage />
+          </ProtectedRoute>
+        } />
+        <Route path={ROUTES.COORDINATOR_KIT_DESK} element={
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
+            <KitDistributionPage />
           </ProtectedRoute>
         } />
         <Route path={`${ROUTES.COORDINATOR_ANALYTICS}/:hackathonId`} element={

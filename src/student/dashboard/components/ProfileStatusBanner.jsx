@@ -1,12 +1,14 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Progress, Typography, theme } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, ArrowRight, Clock3, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowRight, Clock3, ShieldCheck, Shirt } from 'lucide-react';
+import { kitService } from '../../../features/kits/services/kitService';
+import { ROUTES } from '../../../shared/constants/routes';
 
 const { Text } = Typography;
 
-/* OFFICIAL FPT ORANGE */
-const FPT_ORANGE = '#F37021';
+/* OFFICIAL FPT */
 const FPT_BLUE = '#00529C';
 
 const getProfileProgress = (user) => {
@@ -20,9 +22,76 @@ const ProfileStatusBanner = ({ user }) => {
   const navigate = useNavigate();
   const { token } = theme.useToken();
   const progress = getProfileProgress(user);
+  const [missingShirtSize, setMissingShirtSize] = useState(false);
+
+  useEffect(() => {
+    if (user?.status !== 'APPROVED') {
+      setMissingShirtSize(false);
+      return;
+    }
+    let cancelled = false;
+    kitService.listMyShirtSizes()
+      .then((sizes) => {
+        if (cancelled) return;
+        const regs = sizes || [];
+        if (!regs.length) {
+          setMissingShirtSize(false);
+          return;
+        }
+        setMissingShirtSize(regs.some((r) => !r.preferredShirtSize));
+      })
+      .catch(() => {
+        if (!cancelled) setMissingShirtSize(false);
+      });
+    return () => { cancelled = true; };
+  }, [user?.status, user?.id]);
 
   if (user?.status === 'APPROVED') {
-    return null;
+    if (!missingShirtSize) return null;
+    return (
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="shirt-nudge"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 10 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'auto 1fr auto',
+            gap: 18,
+            alignItems: 'center',
+            borderRadius: 20,
+            padding: '14px 20px',
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%)',
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              display: 'grid',
+              placeItems: 'center',
+              color: '#fff',
+              background: '#d97706',
+            }}
+          >
+            <Shirt size={20} />
+          </div>
+          <div>
+            <Text strong style={{ display: 'block', fontSize: 14 }}>Chưa khai size áo kit</Text>
+            <Text style={{ color: token.colorTextSecondary, fontSize: 13 }}>
+              Cập nhật size áo trong hồ sơ để quầy phát kit nhanh hơn vào ngày khai mạc.
+            </Text>
+          </div>
+          <Button type="default" onClick={() => navigate(ROUTES.PROFILE)}>
+            Cập nhật size <ArrowRight size={14} />
+          </Button>
+        </motion.div>
+      </AnimatePresence>
+    );
   }
 
   const isIncomplete = progress < 100;

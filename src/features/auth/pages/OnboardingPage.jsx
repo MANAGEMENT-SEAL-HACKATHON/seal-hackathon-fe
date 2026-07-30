@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { userService } from '../services/userService';
 import AccountSecurityPanel from '../components/AccountSecurityPanel';
 import { ROUTES } from '../../../shared/constants/routes';
+import { kitService, SHIRT_SIZES } from '../../kits/services/kitService';
 
 const { Option } = Select;
 
@@ -172,6 +173,14 @@ const OnboardingPage = () => {
         });
         if (merged.userType) setUserType(merged.userType);
 
+        try {
+          const sizes = await kitService.listMyShirtSizes();
+          const known = (sizes || []).find((s) => s.preferredShirtSize)?.preferredShirtSize;
+          if (known) form.setFieldsValue({ shirtSize: known });
+        } catch {
+          // optional
+        }
+
         if (freshUser.status === 'APPROVED') {
           setCurrentStep(3);
         } else {
@@ -220,6 +229,14 @@ const OnboardingPage = () => {
       };
 
       await userService.patchMe(payload);
+
+      if (values.shirtSize) {
+        try {
+          await kitService.updateMyShirtSizeAll(values.shirtSize);
+        } catch {
+          // Size lưu trên registration — bỏ qua nếu chưa đăng ký hackathon
+        }
+      }
 
       const updated = { ...getUserInfo(), profileCompleted: true };
       localStorage.setItem('userInfo', JSON.stringify(updated));
@@ -404,6 +421,16 @@ const OnboardingPage = () => {
           placeholder="0912345678"
           style={dynamicInputStyle}
           className="custom-ob-input"
+        />
+      </Form.Item>
+
+      <Form.Item label={<Label token={token}>SIZE ÁO (KIT)</Label>} name="shirtSize">
+        <Select
+          placeholder="Chọn size XS–XXL"
+          allowClear
+          style={dynamicInputStyle}
+          className="custom-ob-input"
+          options={SHIRT_SIZES.map((s) => ({ value: s, label: s }))}
         />
       </Form.Item>
 

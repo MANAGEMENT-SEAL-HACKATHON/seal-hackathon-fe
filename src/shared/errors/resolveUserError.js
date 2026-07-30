@@ -64,6 +64,8 @@ export const SHARED_ERROR_MESSAGES = {
     'Ngày hết hạn đăng ký mới không hợp lệ — phải sau hạn hiện tại và sau hôm nay.',
   REGISTRATION_EXTENSION_TIMELINE_CONFLICT:
     'Dời hạn đăng ký xung đột với lịch Workshop / Khai mạc / Sơ loại — cần điều chỉnh lịch thi.',
+  KIT_OUT_OF_STOCK: 'Hết tồn kho cho món/size này — không thể phát thêm.',
+  KIT_ALREADY_ISSUED: 'Sinh viên đã nhận món kit này rồi.',
   TRACK_CLOSED: 'Bảng đấu đã đóng — không thể chuyển đội vào bảng này.',
   TEAM_NOT_ACTIVE: 'Đội thi chưa được duyệt / chưa ở trạng thái sẵn sàng.',
   LATE_PENDING: 'Nộp muộn (Đang chờ duyệt)',

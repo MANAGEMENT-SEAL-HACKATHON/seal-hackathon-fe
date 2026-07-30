@@ -38,6 +38,7 @@ export const ROUTES = {
   STUDENT_SUBMIT: '/student/submit',
   STUDENT_EVENTS: '/student/events',
   COORDINATOR_LATE_SUBMISSIONS: '/coordinator/late-submissions',
+  COORDINATOR_KIT_DESK: '/coordinator/kit-desk',
   PRESENTATION_QUEUE: '/presentation/queue',
   COORDINATOR_ANALYTICS: '/coordinator/analytics',
   COORDINATOR_FINAL_CONFIG: '/coordinator/final-config',

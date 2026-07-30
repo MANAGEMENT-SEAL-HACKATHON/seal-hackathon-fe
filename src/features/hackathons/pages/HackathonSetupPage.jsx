@@ -9,6 +9,7 @@ import CriteriaManagementPage from '../../criteria/pages/CriteriaManagementPage'
 import { ROUTES } from '../../../shared/constants/routes';
 import PeopleManagementPage from '../../people/pages/PeopleManagementPage';
 import EventManagementPage from '../../events/pages/EventManagementPage';
+import KitInventoryPage from '../../kits/pages/KitInventoryPage';
 import { hackathonService } from '../services/hackathonService';
 import { roundService } from '../../rounds/services/roundService';
 import { trackService } from '../../tracks/services/trackService';
@@ -30,6 +31,7 @@ const VALID_TABS = new Set([
   'criteria',
   'people',
   'events',
+  'kits',
   'lottery',
   'final-config',
 ]);
@@ -205,6 +207,11 @@ const HackathonSetupPage = () => {
       key: 'events',
       label: 'Lịch trình & Sự kiện',
       children: <EventManagementPage hackathonId={hackathon.id} onUpdated={refreshSetupSnapshot} />,
+    },
+    {
+      key: 'kits',
+      label: 'Vật phẩm & Kit',
+      children: <KitInventoryPage hackathonId={hackathon.id} />,
     },
     {
       key: 'lottery',

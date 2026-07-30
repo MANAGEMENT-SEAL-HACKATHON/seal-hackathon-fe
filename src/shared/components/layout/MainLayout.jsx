@@ -17,7 +17,7 @@ import {
 import {
   LayoutDashboard, Trophy, Users,
   UserCheck, UserPlus, User,
-  FileText, ClipboardCheck, History, CheckSquare, BarChart3
+  FileText, ClipboardCheck, History, CheckSquare, BarChart3, Package
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../constants/routes';
@@ -120,6 +120,7 @@ const MainLayoutInner = ({ children }) => {
       { key: ROUTES.DASHBOARD, icon: <LayoutDashboard size={18} />, label: 'Tổng quan' },
       { key: ROUTES.HACKATHONS, icon: <Trophy size={18} />, label: 'Cấu hình sự kiện' },
       { key: ROUTES.GLOBAL_TEAMS, icon: <Users size={18} />, label: 'Quản lý đội thi' },
+      { key: ROUTES.COORDINATOR_KIT_DESK, icon: <Package size={18} />, label: 'Quầy phát kit' },
       { key: ROUTES.COORDINATOR_ANALYTICS, icon: <BarChart3 size={18} />, label: 'Phân tích & dữ liệu' },
       { key: ROUTES.USER_APPROVAL, icon: <UserCheck size={18} />, label: 'Duyệt tài khoản' },
       { key: ROUTES.TEMP_JUDGES, icon: <UserPlus size={18} />, label: 'Giám khảo khách' },

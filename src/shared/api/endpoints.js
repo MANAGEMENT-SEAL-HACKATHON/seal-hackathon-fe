@@ -35,6 +35,20 @@ export const ENDPOINTS = {
     // query assumeCloseRegToday=true khi preview trong modal đóng ĐK sớm
 
     CLONE: (id) => `/api/v1/hackathons/${id}/clone`,
+    KIT_ITEMS: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kit-items`,
+    KIT_RECIPIENTS: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/recipients`,
+    KIT_ISSUE: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/issue`,
+    KIT_RECONCILIATION: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/reconciliation`,
+  },
+  KITS: {
+    ITEM_DETAIL: (id) => `/api/v1/kit-items/${id}`,
+    ITEM_STOCK: (id) => `/api/v1/kit-items/${id}/stock`,
+    ALLOCATION_REVOKE: (id) => `/api/v1/kit-allocations/${id}/revoke`,
+  },
+  ME_KITS: {
+    SHIRT_SIZES: '/api/v1/me/shirt-sizes',
+    SHIRT_SIZE: '/api/v1/me/shirt-size',
+    HACKATHON_SHIRT_SIZE: (hackathonId) => `/api/v1/me/hackathons/${hackathonId}/shirt-size`,
   },
   TEAMS: {
     BASE: '/api/v1/teams',
