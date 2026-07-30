@@ -110,10 +110,10 @@ export const EVENT_TYPE_LABELS = {
 };
 
 export const EXPORT_JOB_TYPE_LABELS = {
-  CSV_SCORES: 'Điểm chi tiết (CSV)',
-  CSV_RANKINGS: 'Bảng xếp hạng (CSV)',
-  ANONYMIZED_RBL: 'Dataset RBL ẩn danh (CSV)',
-  FULL_REPORT: 'Báo cáo đầy đủ (CSV)',
+  CSV_SCORES: 'Điểm chi tiết (đội / giám khảo / tiêu chí)',
+  CSV_RANKINGS: 'Bảng xếp hạng (thành viên / chapter / DQ)',
+  ANONYMIZED_RBL: 'Dataset RBL ẩn danh dạng dài (nghiên cứu)',
+  FULL_REPORT: 'Báo cáo tổng hợp đa phần (đội, TV, tiêu chí, phân công, nộp bài, xếp hạng, giải, kháng cáo)',
 };
 
 export const EXPORT_JOB_STATUS_LABELS = {
