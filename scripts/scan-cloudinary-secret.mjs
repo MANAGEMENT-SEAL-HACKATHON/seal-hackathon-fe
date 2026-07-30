@@ -1,5 +1,5 @@
 /**
- * SEC-CLOU-02 — Fail if Cloudinary API secret leaks into FE source or env templates.
+ * SEC-CLOU-02 — Fail if Cloudinary API secret or GitHub PATs leak into FE source / env templates.
  * Usage: node scripts/scan-cloudinary-secret.mjs
  */
 import fs from 'node:fs';
@@ -8,8 +8,12 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-// Build needle at runtime so this file never contains the contiguous env key.
-const NEEDLE = ['VITE', 'CLOUDINARY', 'API', 'SECRET'].join('_');
+// Build needles at runtime so this file never contains contiguous secret env keys / token prefixes.
+const NEEDLES = [
+  ['VITE', 'CLOUDINARY', 'API', 'SECRET'].join('_'),
+  ['ghp', '_'].join(''),
+  ['github', '_pat_'].join(''),
+];
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'playwright-report', 'test-results', '.git', 'coverage']);
 const SELF = path.normalize(fileURLToPath(import.meta.url));
 
@@ -34,8 +38,10 @@ function walk(dir) {
     } catch {
       continue;
     }
-    if (text.includes(NEEDLE)) {
-      hits.push(path.relative(root, full));
+    for (const needle of NEEDLES) {
+      if (text.includes(needle)) {
+        hits.push(`${path.relative(root, full)} [${needle}]`);
+      }
     }
   }
 }
@@ -43,9 +49,9 @@ function walk(dir) {
 walk(root);
 
 if (hits.length) {
-  console.error('SEC-CLOU-02 FAIL — forbidden Cloudinary secret references:');
+  console.error('SEC-CLOU-02 FAIL — forbidden secret / token references:');
   for (const h of hits) console.error(' -', h);
   process.exit(1);
 }
 
-console.log('SEC-CLOU-02 PASS — no Cloudinary API secret env key in FE tree');
+console.log('SEC-CLOU-02 PASS — no Cloudinary secret or GitHub PAT prefixes in FE tree');

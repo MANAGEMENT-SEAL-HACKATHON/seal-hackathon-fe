@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Form, Input, Button, Typography, Tag, Space, Alert, Row, Col, Spin, Upload, Modal, message, theme, Divider } from 'antd';
+import { Card, Form, Input, Button, Typography, Tag, Space, Alert, Row, Col, Spin, Upload, Modal, message, theme, Divider, Collapse } from 'antd';
 import {
   CloudUploadOutlined,
   LockOutlined,
@@ -18,6 +18,7 @@ import {
 import { useFinalSubmission } from '../hooks/useFinalSubmission';
 import { criteriaService } from '../../../../features/criteria/services/criteriaService';
 import { studentSubmissionService } from '../services/studentSubmission.service';
+import GitHubRepoPanel from '../../../../features/submissions/components/GitHubRepoPanel';
 
 const { Title, Text, Paragraph } = Typography;
 const { Dragger } = Upload;
@@ -130,6 +131,25 @@ const FinalSuccessView = ({
               {existingSubmission?.repoUrl || existingSubmission?.repo_url}
             </a>
           </div>
+          {(existingSubmission?.id || existingSubmission?.submissionId || existingSubmission?.submission_id) && (
+            <Collapse
+              size="small"
+              style={{ marginTop: 10 }}
+              items={[{
+                key: 'github-meta',
+                label: 'Chi tiết repo & commits',
+                children: (
+                  <GitHubRepoPanel
+                    submissionId={
+                      existingSubmission?.id
+                      ?? existingSubmission?.submissionId
+                      ?? existingSubmission?.submission_id
+                    }
+                  />
+                ),
+              }]}
+            />
+          )}
         </Col>
         <Col xs={24} md={12}>
           <Text type="secondary" style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>

@@ -160,6 +160,12 @@ export const ENDPOINTS = {
   JUDGE: {
     SUBMISSIONS: '/api/v1/me/judge/submissions',
   },
+  SUBMISSIONS: {
+    BASE: '/api/v1/submissions',
+    DETAIL: (id) => `/api/v1/submissions/${id}`,
+    SLIDE: (id) => `/api/v1/submissions/${id}/slide`,
+    GITHUB: (id) => `/api/v1/submissions/${id}/github`,
+  },
   PRESENTATION: {
     QUEUE: '/api/v1/presentation/queue',
     QUEUE_SHUFFLE: '/api/v1/presentation/queue/shuffle',

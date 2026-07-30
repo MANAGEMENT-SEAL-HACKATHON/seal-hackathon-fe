@@ -726,6 +726,15 @@ export const personBApi = {
       responseType: 'blob',
     }),
 
+  /** GET /api/v1/submissions/{id}/github — repo info + commits */
+  getSubmissionGithub: async (
+    submissionId: string | number,
+    options?: { anonymous?: boolean }
+  ) =>
+    axiosClient.get(`/api/v1/submissions/${submissionId}/github`, {
+      params: { anonymous: options?.anonymous ? true : false },
+    }),
+
   approveLateSubmission: async (submissionId: string | number) =>
     axiosClient.patch(`/api/v1/submissions/${submissionId}/approve`, {}),
 

@@ -9,6 +9,7 @@ import { judgeService } from '../services/judgeService';
 import toast from 'react-hot-toast';
 import { formatJudgeQueueTeamLabel } from '../utils/liveScoringUtils';
 import { shouldWarnQaScoringDeadline } from '../utils/timerControlGates';
+import GitHubRepoPanel from '../../submissions/components/GitHubRepoPanel';
 
 const { Title, Text } = Typography;
 
@@ -350,6 +351,14 @@ const JudgeTimerAndControls = ({ logic, isFinal }) => {
             <Button block icon={<GithubOutlined />} disabled={!timerSlot.repoUrl} onClick={() => window.open(timerSlot.repoUrl, '_blank')} style={{ minHeight: 44, height: 'auto', whiteSpace: 'normal', borderRadius: 10, fontWeight: 700, background: '#0f172a', color: '#fff', border: 'none' }}>
               Xem mã nguồn (GitHub)
             </Button>
+
+            {timerSlot.submissionId && (
+              <GitHubRepoPanel
+                submissionId={timerSlot.submissionId}
+                anonymous
+                compact
+              />
+            )}
 
           </div>
         ) : (

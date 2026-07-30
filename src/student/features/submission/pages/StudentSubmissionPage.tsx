@@ -24,6 +24,7 @@ import FinalRoundProblemPanel from '../../round/components/FinalRoundProblemPane
 import FinalSubmissionPanel from '../components/FinalSubmissionPanel';
 import PresentationSlotPanel from '../components/PresentationSlotPanel';
 import { useFinalSubmission } from '../hooks/useFinalSubmission';
+import GitHubRepoPanel from '../../../../features/submissions/components/GitHubRepoPanel';
 import {
   resolvePreliminarySubmissionError,
 } from '../../../../features/submissions/constants/preliminarySubmissionErrors';
@@ -167,6 +168,21 @@ const SuccessView: React.FC<{ submissionData: any; submittedSlideName: string; o
               {submissionData?.repo_url || submissionData?.repoUrl || 'N/A'}
             </a>
           </div>
+          {(submissionData?.id || submissionData?.submissionId || submissionData?.submission_id) && (
+            <Collapse
+              size="small"
+              style={{ marginTop: 10, background: 'transparent' }}
+              items={[{
+                key: 'github-meta',
+                label: 'Chi tiết repo & commits',
+                children: (
+                  <GitHubRepoPanel
+                    submissionId={submissionData?.id ?? submissionData?.submissionId ?? submissionData?.submission_id}
+                  />
+                ),
+              }]}
+            />
+          )}
         </Col>
         <Col xs={24} md={12}>
           <Text type="secondary" style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1, color: token?.colorTextSecondary }}>Link Demo (Live)</Text>
