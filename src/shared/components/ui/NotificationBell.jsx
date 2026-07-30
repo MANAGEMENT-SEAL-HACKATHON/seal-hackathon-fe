@@ -60,9 +60,19 @@ const getNotifConfig = (type, token, darkMode) => {
     return { icon: <CalendarClock size={16} color={token.colorSuccess} />, bg: BG_GREEN(darkMode) };
   }
 
-  // Kết quả / điểm
-  if (t === 'SCORE_RELEASED') {
+  // Kết quả / điểm / khiếu nại
+  if (t === 'SCORE_RELEASED' || t === 'RESULTS_REVISED' || t === 'APPEAL_APPROVED') {
     return { icon: <Trophy size={16} color={token.colorSuccess} />, bg: BG_GREEN(darkMode) };
+  }
+  if (
+    t === 'APPEAL_WINDOW_OPENED' ||
+    t === 'APPEAL_SUBMITTED' ||
+    t === 'APPEAL_WINDOW_SKIPPED'
+  ) {
+    return { icon: <Gavel size={16} color={token.colorWarning} />, bg: BG_AMBER(darkMode) };
+  }
+  if (t === 'APPEAL_REJECTED' || t === 'APPEAL_EXPIRED') {
+    return { icon: <AlertTriangle size={16} color={token.colorError} />, bg: BG_AMBER(darkMode) };
   }
 
   // Hackathon còn nháp — nhắc Coordinator

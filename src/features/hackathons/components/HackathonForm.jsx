@@ -27,6 +27,7 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
       initialValues={{
         year: new Date().getFullYear(),
         individual_ranking_enabled: false,
+        appeal_window_minutes: 30,
         ...initialValues,
         registration_start: initialValues?.registration_start ? dayjs(initialValues.registration_start) : null,
         registration_end: initialValues?.registration_end ? dayjs(initialValues.registration_end) : null,
@@ -139,6 +140,30 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
         extra={fieldHint('Khi bật, hệ thống tính và hiển thị BXH cá nhân bên cạnh BXH đội.')}
       >
         <Switch />
+      </Form.Item>
+
+      <Form.Item
+        name="appeal_window_minutes"
+        label="Thời gian mở khiếu nại sau công bố (phút)"
+        extra={fieldHint('Mặc định 30 phút. Tối thiểu 10 phút (0 = tắt cửa sổ khiếu nại).')}
+        rules={[
+          { required: true, message: 'Vui lòng nhập thời gian cửa sổ khiếu nại' },
+          {
+            validator: (_, value) => {
+              const num = Number(value);
+              if (value === '' || value == null || Number.isNaN(num)) {
+                return Promise.reject(new Error('Nhập số phút hợp lệ'));
+              }
+              if (num === 0) return Promise.resolve();
+              if (num < 10) {
+                return Promise.reject(new Error('Tối thiểu 10 phút (hoặc 0 để tắt)'));
+              }
+              return Promise.resolve();
+            },
+          },
+        ]}
+      >
+        <Input type="number" min={0} placeholder="30" />
       </Form.Item>
 
       <Form.Item

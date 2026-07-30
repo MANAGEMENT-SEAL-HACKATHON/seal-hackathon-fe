@@ -61,4 +61,10 @@ export const hackathonService = {
   extendRegistration: async (id, body) => {
     return axiosClient.post(ENDPOINTS.HACKATHONS.REGISTRATION_EXTENSION(id), body);
   },
+
+  updateAppealWindowMinutes: async (id, appealWindowMinutes) => {
+    return axiosClient.patch(ENDPOINTS.HACKATHONS.APPEAL_WINDOW_MINUTES(id), {
+      appealWindowMinutes: Number(appealWindowMinutes),
+    });
+  },
 };

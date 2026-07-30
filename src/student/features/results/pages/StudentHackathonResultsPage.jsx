@@ -10,7 +10,8 @@ import PublicScoreboard from '../components/PublicScoreboard';
 import StudentFinalLeaderboard from '../components/StudentFinalLeaderboard';
 import MyHonorsPanel from '../components/MyHonorsPanel';
 import StudentAppealModal from '../../portal/components/StudentAppealModal';
-import { resolveAppealRoundOptions, resolveFinalRoundId } from '../../portal/utils/resolveAppealRound';
+import { resolveAppealRoundOptions, resolvePrelimAppealRoundId } from '../../portal/utils/resolveAppealRound';
+import AppealCountdownBar from '../../../../features/appeals/components/AppealCountdownBar';
 
 const { Title, Text } = Typography;
 
@@ -92,19 +93,19 @@ const StudentHackathonResultsPage = () => {
   const [appealOpen, setAppealOpen] = useState(false);
   const [appealContext, setAppealContext] = useState({ teamId: null, roundId: null, isEliminated: false, isLeader: false });
   const [appealRoundOptions, setAppealRoundOptions] = useState([]);
-
+  const [appealWindowStatus, setAppealWindowStatus] = useState(null);
   useEffect(() => {
     if (!hackathonId) return undefined;
     let cancelled = false;
 
     const loadTeamAndJourney = async () => {
       try {
-        const teams = await studentTeamService.getMyTeams();
+        const teams = await studentTeamService.getMyTeams({ includeEliminated: true });
         const team = teams.find((t) => Number(t.hackathonId) === Number(hackathonId));
         
         if (team && !cancelled) {
           const [roundId, roundOptions] = await Promise.all([
-            resolveFinalRoundId(hackathonId, team.id),
+            resolvePrelimAppealRoundId(hackathonId, team.id),
             resolveAppealRoundOptions(hackathonId, team.id),
           ]);
 
@@ -184,11 +185,15 @@ const StudentHackathonResultsPage = () => {
     }
   }, [hackathonId, fetchResults]);
 
+  const appealWindowOpen = String(appealWindowStatus?.windowState || '').toUpperCase() === 'OPEN';
+  const publishRevision = Number(appealWindowStatus?.publishRevision || 0);
+
   const canAppeal = Boolean(
     appealContext.teamId &&
     appealContext.roundId &&
     appealContext.isEliminated &&
-    appealContext.isLeader
+    appealContext.isLeader &&
+    appealWindowOpen
   );
 
   // Xử lý thông báo chờ Xếp hạng chung cuộc
@@ -304,7 +309,9 @@ const StudentHackathonResultsPage = () => {
                       ? 'Chỉ đội bị loại thủ công (ELIMINATED) mới có quyền gửi khiếu nại.'
                       : !appealContext.isLeader
                         ? 'Chỉ Trưởng nhóm (Leader) mới có quyền gửi khiếu nại.'
-                        : undefined
+                        : !appealWindowOpen
+                          ? 'Cửa sổ khiếu nại hiện không mở.'
+                          : undefined
               }
             >
               <Button
@@ -344,6 +351,24 @@ const StudentHackathonResultsPage = () => {
           </Space>
         </div>
       </div>
+
+      {appealContext.roundId && (
+        <div style={{ marginBottom: 20 }}>
+          <AppealCountdownBar
+            roundId={appealContext.roundId}
+            readOnly
+            onStatusChange={setAppealWindowStatus}
+          />
+          {publishRevision > 1 && (
+            <Alert
+              style={{ marginTop: 12, borderRadius: 12 }}
+              type="info"
+              showIcon
+              message={`Kết quả đã cập nhật (bản #${publishRevision})`}
+            />
+          )}
+        </div>
+      )}
 
       {/* 2. UNIFIED 3-TAB MAIN NAVIGATION SWITCHER */}
       <div style={{ marginBottom: 28 }}>
@@ -479,6 +504,7 @@ const StudentHackathonResultsPage = () => {
         teamId={appealContext.teamId}
         roundId={appealContext.roundId}
         roundOptions={appealRoundOptions}
+        appealWindowEndsAt={appealWindowStatus?.appealWindowEndsAt}
         onRoundChange={(nextRoundId) =>
           setAppealContext((prev) => ({ ...prev, roundId: nextRoundId }))
         }

@@ -20,8 +20,13 @@ export const roundResultsService = {
     return response?.data !== undefined ? response.data : response;
   },
 
-  publishRound: (roundId) =>
-    axiosClient.patch(`/api/v1/rounds/${roundId}/publish`),
+  publishRound: (roundId, body) =>
+    body == null
+      ? axiosClient.patch(`/api/v1/rounds/${roundId}/publish`)
+      : axiosClient.patch(`/api/v1/rounds/${roundId}/publish`, body),
+
+  publishPreflight: (roundId) =>
+    axiosClient.get(`/api/v1/rounds/${roundId}/publish/preflight`),
 
   advanceTeams: (roundId, payload) =>
     axiosClient.post(`/api/v1/rounds/${roundId}/advance`, payload),

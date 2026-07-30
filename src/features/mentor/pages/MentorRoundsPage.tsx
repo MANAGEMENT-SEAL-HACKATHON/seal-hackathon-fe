@@ -6,6 +6,7 @@ import { personBApi } from '../../../api/personB.api';
 import { mentorPortalService } from '../services/mentorPortal.service';
 import { runDeclineAssignment } from '../../assignments/utils/confirmAssignmentDecline';
 import { resolveUserError } from '../../../shared/errors/resolveUserError';
+import AppealCountdownBar from '../../appeals/components/AppealCountdownBar';
 
 const MentorRoundsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -117,6 +118,38 @@ const MentorRoundsPage: React.FC = () => {
           Danh sách các vòng thi mà bạn được phân công hỗ trợ chuyên môn trong SEAL Hackathon.
         </p>
       </div>
+
+      {!isLoading && !error && (() => {
+        const byHackathon = new Map<string | number, { prelimRoundId: any; finalActive: boolean }>();
+        (rounds || []).forEach((round: any) => {
+          const hid = round.hackathonId ?? round.hackathon_id ?? round.round_id ?? round.roundId;
+          const rid = round.round_id ?? round.roundId;
+          const isFinal = Boolean(round.isFinal ?? round.is_final)
+            || String(round.roundType || round.round_type || '').toUpperCase() === 'FINAL'
+            || String(round.round_name || round.roundName || '').toLowerCase().includes('chung kết');
+          const st = String(round.status || '').toUpperCase();
+          if (!byHackathon.has(hid)) {
+            byHackathon.set(hid, { prelimRoundId: null, finalActive: false });
+          }
+          const entry = byHackathon.get(hid)!;
+          if (isFinal) {
+            if (st === 'ACTIVE' || st === 'ONGOING') entry.finalActive = true;
+          } else if (rid) {
+            entry.prelimRoundId = rid;
+          }
+        });
+        const ids = [...byHackathon.values()]
+          .filter((e) => e.prelimRoundId && !e.finalActive)
+          .map((e) => e.prelimRoundId);
+        if (!ids.length) return null;
+        return (
+          <div style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {ids.map((rid) => (
+              <AppealCountdownBar key={String(rid)} roundId={rid} readOnly />
+            ))}
+          </div>
+        );
+      })()}
 
       {isLoading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

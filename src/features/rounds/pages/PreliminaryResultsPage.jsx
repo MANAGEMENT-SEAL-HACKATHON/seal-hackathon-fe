@@ -15,6 +15,8 @@ import TiebreakPanel from "../components/TiebreakPanel";
 import AdvanceRosterPanel from "../components/AdvanceRosterPanel";
 import ScoringCheckPanel from "../components/ScoringCheckPanel";
 import PreliminaryResultsCoordinatorStepper from "../components/PreliminaryResultsCoordinatorStepper";
+import AppealReviewPanel, { AppealTabLabel } from "../../appeals/components/AppealReviewPanel";
+import PublishAppealWindowModal from "../../appeals/components/PublishAppealWindowModal";
 import { useRoundResults } from "../hooks/useRoundResults";
 import { whiteButtonStyle } from "../../../shared/theme/coordinatorTheme";
 
@@ -32,11 +34,22 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
   const [activeTab, setActiveTab] = useState(tabFromQuery || "ranking");
   const [advanceModalOpen, setAdvanceModalOpen] = useState(false);
   const [advanceTypedN, setAdvanceTypedN] = useState("");
+  const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [appealCounts, setAppealCounts] = useState({ pendingCount: 0, underReviewCount: 0 });
   const results = useRoundResults(roundId);
 
   useEffect(() => {
     if (tabFromQuery) setActiveTab(tabFromQuery);
   }, [tabFromQuery]);
+
+  useEffect(() => {
+    if (results.appealWindow) {
+      setAppealCounts({
+        pendingCount: Number(results.appealWindow.pendingCount || 0),
+        underReviewCount: Number(results.appealWindow.underReviewCount || 0),
+      });
+    }
+  }, [results.appealWindow]);
 
   const advanceN = results.advancePreview?.advancedTeamIds?.length ?? 0;
   const advanceConfirmEnabled =
@@ -56,8 +69,33 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
     }
   };
 
+  const pendingBadge = appealCounts.pendingCount || results.appealPendingCount || 0;
+
+  const advanceTooltip = useMemo(() => {
+    if (results.canAdvance) return "";
+    if (results.hasOpenAppeals || pendingBadge + (appealCounts.underReviewCount || 0) > 0) {
+      return (
+        <span>
+          {results.advanceDisabledReason}{" "}
+          <Button
+            type="link"
+            size="small"
+            style={{ padding: 0, height: "auto" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab("appeals");
+            }}
+          >
+            Mở tab Khiếu nại
+          </Button>
+        </span>
+      );
+    }
+    return results.advanceDisabledReason;
+  }, [results.canAdvance, results.hasOpenAppeals, results.advanceDisabledReason, pendingBadge, appealCounts.underReviewCount]);
+
   const tabs = useMemo(() => {
-    return [
+    const items = [
       {
         key: "ranking",
         label: "Kết quả",
@@ -105,7 +143,29 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
         ),
       },
     ];
-  }, [results, roundId]);
+
+    if (results.isPublished) {
+      items.push({
+        key: "appeals",
+        label: <AppealTabLabel pendingCount={pendingBadge} />,
+        children: (
+          <AppealReviewPanel
+            roundId={roundId}
+            onCountsChange={(counts) => {
+              setAppealCounts(counts);
+              results.setAppealWindow?.((prev) => ({
+                ...(prev || {}),
+                pendingCount: counts.pendingCount,
+                underReviewCount: counts.underReviewCount,
+              }));
+            }}
+          />
+        ),
+      });
+    }
+
+    return items;
+  }, [results, roundId, pendingBadge]);
 
   if (!roundId) {
     return (
@@ -153,6 +213,7 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
         isPublished={results.isPublished}
         hasAdvanced={results.hasAdvanced}
         tiebreakCount={results.tiebreaks.length}
+        appealPendingCount={pendingBadge}
         onTabChange={setActiveTab}
         tabsAnchorId={TABS_ANCHOR_ID}
       />
@@ -224,17 +285,7 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
                     icon={<SendOutlined />}
                     loading={results.isPublishing}
                     disabled={!results.canPublish}
-                    onClick={() => {
-                      Modal.confirm({
-                        title: "Công bố kết quả Sơ loại?",
-                        content:
-                          "Sinh viên sẽ nhận thông báo kết quả. Sau khi công bố mới có thể Chốt chuyển vòng. Thao tác này không nên lặp lại tùy tiện.",
-                        okText: "Công bố",
-                        cancelText: "Hủy",
-                        okButtonProps: { danger: true },
-                        onOk: () => results.publishRound(),
-                      });
-                    }}
+                    onClick={() => setPublishModalOpen(true)}
                   >
                     Công bố kết quả
                   </Button>
@@ -242,7 +293,7 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
               </Tooltip>
             )}
             {results.isPublished && !results.hasAdvanced && (
-              <Tooltip title={!results.canAdvance ? results.advanceDisabledReason : ""}>
+              <Tooltip title={advanceTooltip}>
                 <span style={{ display: "inline-block" }}>
                   <Button
                     type="primary"
@@ -252,6 +303,7 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
                       !results.canAdvance ||
                       !results.scoringLocked ||
                       results.hasUnresolvedTiebreak ||
+                      results.hasOpenAppeals ||
                       Boolean(results.errors.ranking) ||
                       results.ranking.items.length === 0
                     }
@@ -291,6 +343,20 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
         />
       )}
 
+      {results.isPublished && results.hasOpenAppeals && (
+        <Alert
+          showIcon
+          type="warning"
+          message={`Còn ${results.appealPendingCount} đơn chờ duyệt / ${results.appealUnderReviewCount} đang xét`}
+          description="Không thể chốt chuyển vòng khi còn đơn khiếu nại mở."
+          action={
+            <Button size="small" type="primary" onClick={() => setActiveTab("appeals")}>
+              Xử lý khiếu nại
+            </Button>
+          }
+        />
+      )}
+
       {results.isPublished && !results.hasAdvanced && results.advancePreview.advancedTeams.length > 0 && (
         <Card title="Danh sách đề xuất vào Chung kết" style={{ borderRadius: 12 }}>
           <List
@@ -314,6 +380,14 @@ const PreliminaryResultsPage = ({ roundId: roundIdProp }) => {
       <div id={TABS_ANCHOR_ID}>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabs} />
       </div>
+
+      <PublishAppealWindowModal
+        open={publishModalOpen}
+        onCancel={() => setPublishModalOpen(false)}
+        roundId={roundId}
+        confirmLoading={results.isPublishing}
+        onPublished={() => results.fetchResults({ silent: true })}
+      />
 
       <Modal
         title={`Chuyển ${advanceN} đội vào Chung kết`}

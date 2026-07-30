@@ -28,6 +28,7 @@ export const mapHackathonToFE = (beData) => {
     individual_ranking_enabled: beData.individualRankingEnabled,
     banner_url: beData.bannerUrl,
     max_participants: beData.maxParticipants,
+    appeal_window_minutes: beData.appealWindowMinutes ?? beData.appeal_window_minutes ?? 30,
     cloned_from_hackathon_id: beData.clonedFromHackathonId,
     cloned_from_hackathon_name: beData.clonedFromHackathonName,
     cloned_at: beData.clonedAt,
@@ -49,5 +50,9 @@ export const mapHackathonToBE = (feData) => {
     eventEnd: feData.event_end ? dayjs(feData.event_end).format('YYYY-MM-DD') : null,
     individualRankingEnabled: feData.individual_ranking_enabled,
     maxParticipants: feData.max_participants ? parseInt(feData.max_participants, 10) : null,
+    appealWindowMinutes:
+      feData.appeal_window_minutes != null && feData.appeal_window_minutes !== ''
+        ? parseInt(feData.appeal_window_minutes, 10)
+        : undefined,
   };
 };
