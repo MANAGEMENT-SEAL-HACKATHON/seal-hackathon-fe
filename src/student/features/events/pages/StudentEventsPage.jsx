@@ -86,6 +86,18 @@ const StudentEventsPage = () => {
                         ? ` — ${dayjs(item.endsAt || item.endAt || item.endTime).format('HH:mm DD/MM/YYYY')}`
                         : ''}
                       {item.location ? ` · ${item.location}` : ''}
+                      {item.type === 'KICKOFF' && (item.buffetLocation || item.buffetStartsAt || item.buffetEndsAt) ? (
+                        <>
+                          <br />
+                          Buffet
+                          {item.buffetLocation ? `: ${item.buffetLocation}` : ''}
+                          {item.buffetStartsAt || item.buffetEndsAt
+                            ? ` (${item.buffetStartsAt ? dayjs(item.buffetStartsAt).format('HH:mm') : '…'}${
+                                item.buffetEndsAt ? `–${dayjs(item.buffetEndsAt).format('HH:mm')}` : ''
+                              })`
+                            : ''}
+                        </>
+                      ) : null}
                     </span>
                   }
                 />

@@ -7,10 +7,13 @@ import { useAppContext } from '../../../app/AppContext';
 import { useEventManagement } from '../hooks/useEventManagement';
 import {
   buildEventScheduleContext,
+  formatBuffetSubtitle,
+  getBuffetDisabledTime,
   getEventEndDisabledTime,
   getEventScheduleHint,
   getEventStartDisabledTime,
   getSuggestedEventStart,
+  isBuffetDateDisabled,
   isEventEndDateDisabled,
   isEventStartDateDisabled,
 } from '../utils/eventScheduleRules';
@@ -57,6 +60,8 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
   // "Nghe lén" loại sự kiện người dùng đang chọn để khóa lịch và highlight Timeline
   const selectedType = Form.useWatch('type', form);
   const startsAt = Form.useWatch('starts_at', form);
+  const endsAt = Form.useWatch('ends_at', form);
+  const buffetStartsAt = Form.useWatch('buffet_starts_at', form);
 
   const { events, rounds, currentHackathon, isLoading, createEvent, updateEvent, deleteEvent } = useEventManagement(
     hackathonId,
@@ -100,6 +105,9 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
       ends_at: record.ends_at ? dayjs(record.ends_at) : null,
       location: record.location,
       meet_url: record.meet_url,
+      buffet_location: record.buffet_location,
+      buffet_starts_at: record.buffet_starts_at ? dayjs(record.buffet_starts_at) : null,
+      buffet_ends_at: record.buffet_ends_at ? dayjs(record.buffet_ends_at) : null,
       description: record.description,
     });
     setIsModalOpen(true);
@@ -149,9 +157,29 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
   const disabledEndDate = (current) => isEventEndDateDisabled(current, scheduleCtx, startsAt);
   const disabledStartTime = (current) => getEventStartDisabledTime(current, scheduleCtx);
   const disabledEndTime = (current) => getEventEndDisabledTime(current, startsAt);
+  const disabledBuffetDate = (current) => isBuffetDateDisabled(current, startsAt, endsAt);
+  const disabledBuffetStartTime = (current) =>
+    getBuffetDisabledTime(current, startsAt, endsAt, null, false);
+  const disabledBuffetEndTime = (current) =>
+    getBuffetDisabledTime(current, startsAt, endsAt, buffetStartsAt, true);
   const scheduleHint = getEventScheduleHint(scheduleCtx);
   const columns = [
-    { title: 'Tên sự kiện', dataIndex: 'title', key: 'title', render: text => <strong>{text}</strong> },
+    {
+      title: 'Tên sự kiện',
+      dataIndex: 'title',
+      key: 'title',
+      render: (text, record) => {
+        const buffetLine = formatBuffetSubtitle(record);
+        return (
+          <div>
+            <strong>{text}</strong>
+            {buffetLine ? (
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{buffetLine}</div>
+            ) : null}
+          </div>
+        );
+      },
+    },
     {
       title: 'Loại',
       dataIndex: 'type',
@@ -202,6 +230,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {listData.map((item) => {
           const style = getEventTypeStyle(item.type);
+          const buffetLine = formatBuffetSubtitle(item);
           return (
             <li key={item.id} style={{ marginBottom: 4 }}>
               <div
@@ -214,6 +243,11 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
                 }}
               >
                 <Badge status={getBadgeStatus(item.type)} text={item.title} />
+                {buffetLine ? (
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, paddingLeft: 14 }}>
+                    {buffetLine}
+                  </div>
+                ) : null}
               </div>
             </li>
           );
@@ -451,6 +485,82 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
           >
             <Input placeholder="https://meet.google.com/..." />
           </Form.Item>
+
+          {selectedType === 'KICKOFF' && (
+            <>
+              <Form.Item name="buffet_location" label="Địa điểm buffet (tuỳ chọn)">
+                <Input placeholder="Ví dụ: Canteen tầng 1, tòa Alpha" />
+              </Form.Item>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <Form.Item
+                  name="buffet_starts_at"
+                  label="Buffet bắt đầu"
+                  style={{ flex: 1 }}
+                  dependencies={['starts_at', 'ends_at']}
+                  rules={[
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        if (!value) return Promise.resolve();
+                        const start = getFieldValue('starts_at');
+                        const end = getFieldValue('ends_at');
+                        if (start && dayjs(value).isBefore(dayjs(start))) {
+                          return Promise.reject(new Error('Buffet phải trong khung sự kiện'));
+                        }
+                        if (end && dayjs(value).isAfter(dayjs(end))) {
+                          return Promise.reject(new Error('Buffet phải trong khung sự kiện'));
+                        }
+                        return Promise.resolve();
+                      },
+                    }),
+                  ]}
+                >
+                  <DatePicker
+                    disabledDate={disabledBuffetDate}
+                    disabledTime={disabledBuffetStartTime}
+                    showTime={{ format: 'HH:mm' }}
+                    format="DD/MM/YYYY HH:mm"
+                    style={{ width: '100%' }}
+                    placeholder="Tuỳ chọn"
+                  />
+                </Form.Item>
+                <Form.Item
+                  name="buffet_ends_at"
+                  label="Buffet kết thúc"
+                  style={{ flex: 1 }}
+                  dependencies={['starts_at', 'ends_at', 'buffet_starts_at']}
+                  rules={[
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        if (!value) return Promise.resolve();
+                        const start = getFieldValue('starts_at');
+                        const end = getFieldValue('ends_at');
+                        const buffetStart = getFieldValue('buffet_starts_at');
+                        if (start && dayjs(value).isBefore(dayjs(start))) {
+                          return Promise.reject(new Error('Buffet phải trong khung sự kiện'));
+                        }
+                        if (end && dayjs(value).isAfter(dayjs(end))) {
+                          return Promise.reject(new Error('Buffet phải trong khung sự kiện'));
+                        }
+                        if (buffetStart && dayjs(value).isBefore(dayjs(buffetStart))) {
+                          return Promise.reject(new Error('Giờ kết thúc buffet phải sau giờ bắt đầu'));
+                        }
+                        return Promise.resolve();
+                      },
+                    }),
+                  ]}
+                >
+                  <DatePicker
+                    disabledDate={disabledBuffetDate}
+                    disabledTime={disabledBuffetEndTime}
+                    showTime={{ format: 'HH:mm' }}
+                    format="DD/MM/YYYY HH:mm"
+                    style={{ width: '100%' }}
+                    placeholder="Tuỳ chọn"
+                  />
+                </Form.Item>
+              </div>
+            </>
+          )}
 
           <Form.Item name="description" label="Ghi chú thêm"><TextArea rows={3} placeholder="Thông tin bổ sung cho sinh viên (tuỳ chọn)" /></Form.Item>        </Form>
       </Modal>

@@ -216,3 +216,83 @@ export const formatMoment = (value, withTime = true) => {
   if (!value) return '';
   return withTime ? dayjs(value).format(`${DATE_FMT} ${TIME_FMT}`) : dayjs(value).format(DATE_FMT);
 };
+
+/** Buffet DatePicker: chỉ cho chọn ngày trong khung sự kiện [startsAt, endsAt]. */
+export const isBuffetDateDisabled = (current, startsAt, endsAt) => {
+  if (!current || !startsAt) return false;
+  const day = current.startOf('day');
+  const startDay = dayjs(startsAt).startOf('day');
+  const endDay = endsAt ? dayjs(endsAt).startOf('day') : startDay;
+  return day.isBefore(startDay, 'day') || day.isAfter(endDay, 'day');
+};
+
+export const getBuffetDisabledTime = (current, startsAt, endsAt, buffetStartsAt, isEnd) => {
+  if (!current || !startsAt) return {};
+  const start = dayjs(startsAt);
+  const end = endsAt ? dayjs(endsAt) : start.endOf('day');
+  let minMoment = null;
+  let maxMoment = null;
+
+  if (current.isSame(start, 'day')) {
+    minMoment = start;
+  }
+  if (isEnd && buffetStartsAt && current.isSame(dayjs(buffetStartsAt), 'day')) {
+    const buffetStart = dayjs(buffetStartsAt);
+    if (!minMoment || buffetStart.isAfter(minMoment)) {
+      minMoment = buffetStart;
+    }
+  }
+  if (current.isSame(end, 'day')) {
+    maxMoment = end;
+  }
+
+  if (!minMoment && !maxMoment) return {};
+
+  return {
+    disabledHours: () => {
+      const hours = [];
+      for (let h = 0; h < 24; h += 1) {
+        if (minMoment && current.isSame(minMoment, 'day') && h < minMoment.hour()) hours.push(h);
+        if (maxMoment && current.isSame(maxMoment, 'day') && h > maxMoment.hour()) hours.push(h);
+      }
+      return hours;
+    },
+    disabledMinutes: (selectedHour) => {
+      const minutes = [];
+      for (let m = 0; m < 60; m += 1) {
+        if (
+          minMoment
+          && current.isSame(minMoment, 'day')
+          && selectedHour === minMoment.hour()
+          && m < minMoment.minute()
+        ) {
+          minutes.push(m);
+        }
+        if (
+          maxMoment
+          && current.isSame(maxMoment, 'day')
+          && selectedHour === maxMoment.hour()
+          && m > maxMoment.minute()
+        ) {
+          minutes.push(m);
+        }
+      }
+      return minutes;
+    },
+  };
+};
+
+export const formatBuffetSubtitle = (event) => {
+  if (!event || event.type !== 'KICKOFF') return null;
+  const loc = event.buffet_location || event.buffetLocation;
+  const start = event.buffet_starts_at || event.buffetStartsAt;
+  const end = event.buffet_ends_at || event.buffetEndsAt;
+  if (!loc && !start && !end) return null;
+  const timePart = start
+    ? `${dayjs(start).format(TIME_FMT)}${end ? `–${dayjs(end).format(TIME_FMT)}` : ''}`
+    : null;
+  if (loc && timePart) return `Buffet: ${loc} · ${timePart}`;
+  if (loc) return `Buffet: ${loc}`;
+  if (timePart) return `Buffet: ${timePart}`;
+  return null;
+};

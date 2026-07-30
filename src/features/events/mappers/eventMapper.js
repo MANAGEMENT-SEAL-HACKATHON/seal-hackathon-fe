@@ -13,12 +13,16 @@ export const mapEventToFE = (beData) => {
     is_public: beData.isPublic,
     location: beData.location,
     meet_url: beData.meetUrl,
+    buffet_location: beData.buffetLocation,
+    buffet_starts_at: beData.buffetStartsAt,
+    buffet_ends_at: beData.buffetEndsAt,
     description: beData.description
   };
 };
 
 export const mapEventToBE = (feData) => {
   if (!feData) return null;
+  const isKickoff = feData.type === 'KICKOFF';
   return {
     title: feData.title,
     type: feData.type,
@@ -28,6 +32,13 @@ export const mapEventToBE = (feData) => {
     isPublic: !!feData.is_public,
     location: feData.location,
     meetUrl: feData.meet_url,
+    buffetLocation: isKickoff && feData.buffet_location ? feData.buffet_location : null,
+    buffetStartsAt: isKickoff && feData.buffet_starts_at
+      ? dayjs(feData.buffet_starts_at).format('YYYY-MM-DDTHH:mm:ss')
+      : null,
+    buffetEndsAt: isKickoff && feData.buffet_ends_at
+      ? dayjs(feData.buffet_ends_at).format('YYYY-MM-DDTHH:mm:ss')
+      : null,
     description: feData.description
   };
 };

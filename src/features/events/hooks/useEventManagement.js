@@ -103,6 +103,20 @@ export const useEventManagement = (hackathonId, refreshNotifications, onUpdated)
           return message.error(`Sự kiện Khai mạc (Kick-off) bắt buộc phải diễn ra đúng 1 ngày trước ngày thi chính thức của Hackathon (Bắt buộc phải là ngày ${requiredKickoffDate.format('DD/MM/YYYY')}).`);
         }
       }
+
+      const buffetStart = values.buffet_starts_at ? dayjs(values.buffet_starts_at) : null;
+      const buffetEnd = values.buffet_ends_at ? dayjs(values.buffet_ends_at) : null;
+      if (buffetStart || buffetEnd || values.buffet_location) {
+        if (buffetStart && buffetStart.isBefore(eStart)) {
+          return message.error('Giờ bắt đầu buffet phải trong khung sự kiện Khai mạc.');
+        }
+        if (buffetEnd && eEnd && buffetEnd.isAfter(eEnd)) {
+          return message.error('Giờ kết thúc buffet phải trong khung sự kiện Khai mạc.');
+        }
+        if (buffetStart && buffetEnd && buffetEnd.isBefore(buffetStart)) {
+          return message.error('Giờ kết thúc buffet phải sau giờ bắt đầu buffet.');
+        }
+      }
     }
 
     // --- 4. QUY TẮC: AWARDS ---
