@@ -15,21 +15,23 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { Plus, Pencil, Trash2, Package, Layers, Scale } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Layers, Scale, Copy } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import SectionHeader, { HintList } from '../../../shared/components/ui/SectionHeader';
 import { kitService, SHIRT_FITS, SHIRT_SIZES } from '../services/kitService';
 import { resolveKitError } from '../utils/kitErrors';
+import KitCloneModal from '../components/KitCloneModal';
 
 const { Text, Title } = Typography;
 
 const KIT_HINT = (
   <HintList
     items={[
-      'Khai báo món kit (áo, dây đeo, …) và số lượng theo từng dáng/size trước ngày phát',
-      'Áo mặc định dáng UNISEX + size XS–XXL; dây đeo / khác có thể không chia size',
-      'Tạo combo mặc định để quầy phát một lần; đối chiếu nhu cầu vs tồn kho trước Kickoff',
+      'Khai món kit (áo, dây đeo, …) và số lượng theo từng dáng/size ngay khi tạo món',
+      'Tạo combo mặc định (có thể chỉnh số lượng mỗi món) để quầy phát một lần',
+      'Đối chiếu nhu cầu vs tồn kho trước Kickoff; phát tại «Quầy phát kit» trong khung Kickoff',
+      'Có thể sao chép kit từ kỳ khác (append — không ghi đè món trùng tên)',
     ]}
   />
 );
@@ -46,11 +48,15 @@ const FIT_LABELS = {
   FEMALE: 'Nữ',
 };
 
+const defaultShirtStockRows = () =>
+  SHIRT_SIZES.map((size) => ({ fit: 'UNISEX', size, quantityTotal: 0 }));
+
 const KitInventoryPage = ({ hackathonId }) => {
   const queryClient = useQueryClient();
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [stockModalOpen, setStockModalOpen] = useState(false);
   const [bundleModalOpen, setBundleModalOpen] = useState(false);
+  const [cloneModalOpen, setCloneModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [stockTarget, setStockTarget] = useState(null);
   const [editingBundle, setEditingBundle] = useState(null);
@@ -58,6 +64,7 @@ const KitInventoryPage = ({ hackathonId }) => {
   const [stockForm] = Form.useForm();
   const [bundleForm] = Form.useForm();
   const watchedType = Form.useWatch('type', itemForm);
+  const watchedHasSize = Form.useWatch('hasSize', itemForm);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['kitItems', hackathonId],
@@ -93,6 +100,19 @@ const KitInventoryPage = ({ hackathonId }) => {
         type: values.type,
         hasSize: values.hasSize,
       };
+      if (!editingItem && Array.isArray(values.stocks)) {
+        const stocks = values.stocks
+          .filter((s) => s && (s.quantityTotal != null || s.size || s.fit))
+          .map((s) => ({
+            fit: values.type === 'SHIRT' ? (s.fit || 'UNISEX') : null,
+            size: values.hasSize ? s.size : null,
+            quantityTotal: Number(s.quantityTotal) || 0,
+          }))
+          .filter((s) => !values.hasSize || s.size);
+        if (stocks.length) {
+          payload.stocks = stocks;
+        }
+      }
       if (editingItem) {
         return kitService.updateItem(editingItem.id, payload);
       }
@@ -139,10 +159,12 @@ const KitInventoryPage = ({ hackathonId }) => {
       const payload = {
         name: values.name,
         isDefault: Boolean(values.isDefault),
-        items: (values.kitItemIds || []).map((kitItemId) => ({
-          kitItemId,
-          quantity: 1,
-        })),
+        items: (values.items || [])
+          .filter((row) => row?.kitItemId)
+          .map((row) => ({
+            kitItemId: row.kitItemId,
+            quantity: Math.max(1, Number(row.quantity) || 1),
+          })),
       };
       if (editingBundle) {
         return kitService.updateBundle(editingBundle.id, payload);
@@ -190,7 +212,11 @@ const KitInventoryPage = ({ hackathonId }) => {
   const openCreate = () => {
     setEditingItem(null);
     itemForm.resetFields();
-    itemForm.setFieldsValue({ type: 'SHIRT', hasSize: true });
+    itemForm.setFieldsValue({
+      type: 'SHIRT',
+      hasSize: true,
+      stocks: defaultShirtStockRows(),
+    });
     setItemModalOpen(true);
   };
 
@@ -217,7 +243,10 @@ const KitInventoryPage = ({ hackathonId }) => {
   const openCreateBundle = () => {
     setEditingBundle(null);
     bundleForm.resetFields();
-    bundleForm.setFieldsValue({ isDefault: !bundles?.length, kitItemIds: [] });
+    bundleForm.setFieldsValue({
+      isDefault: !bundles?.length,
+      items: [{ kitItemId: undefined, quantity: 1 }],
+    });
     setBundleModalOpen(true);
   };
 
@@ -226,7 +255,12 @@ const KitInventoryPage = ({ hackathonId }) => {
     bundleForm.setFieldsValue({
       name: bundle.name,
       isDefault: Boolean(bundle.isDefault),
-      kitItemIds: (bundle.items || []).map((i) => i.kitItemId),
+      items: (bundle.items || []).length
+        ? (bundle.items || []).map((i) => ({
+            kitItemId: i.kitItemId,
+            quantity: i.quantity ?? 1,
+          }))
+        : [{ kitItemId: undefined, quantity: 1 }],
     });
     setBundleModalOpen(true);
   };
@@ -244,6 +278,27 @@ const KitInventoryPage = ({ hackathonId }) => {
     );
     const targetTotal = line.eligibleCount ?? ((line.quantityTotal || 0) + Math.max(0, line.shortfall || 0));
     openStock(item, matchStock || { fit: line.fit, size: line.size, quantityTotal: line.quantityTotal }, targetTotal);
+  };
+
+  const onTypeChange = (v) => {
+    const hasSize = v === 'SHIRT';
+    itemForm.setFieldValue('hasSize', hasSize);
+    if (!editingItem) {
+      if (hasSize) {
+        itemForm.setFieldValue('stocks', defaultShirtStockRows());
+      } else {
+        itemForm.setFieldValue('stocks', [{ fit: null, size: null, quantityTotal: 0 }]);
+      }
+    }
+  };
+
+  const onHasSizeChange = (checked) => {
+    if (editingItem) return;
+    if (checked) {
+      itemForm.setFieldValue('stocks', defaultShirtStockRows());
+    } else {
+      itemForm.setFieldValue('stocks', [{ fit: null, size: null, quantityTotal: 0 }]);
+    }
   };
 
   const columns = [
@@ -328,7 +383,9 @@ const KitInventoryPage = ({ hackathonId }) => {
       title: 'Món trong combo',
       render: (_, row) =>
         (row.items || []).length
-          ? (row.items || []).map((i) => i.kitItemName || `#${i.kitItemId}`).join(', ')
+          ? (row.items || [])
+              .map((i) => `${i.kitItemName || `#${i.kitItemId}`} ×${i.quantity ?? 1}`)
+              .join(', ')
           : <Text type="secondary">Trống</Text>,
     },
     {
@@ -350,10 +407,7 @@ const KitInventoryPage = ({ hackathonId }) => {
   ];
 
   const reconColumns = [
-    {
-      title: 'Món',
-      dataIndex: 'kitItemName',
-    },
+    { title: 'Món', dataIndex: 'kitItemName' },
     {
       title: 'Dáng',
       dataIndex: 'fit',
@@ -364,22 +418,10 @@ const KitInventoryPage = ({ hackathonId }) => {
       dataIndex: 'size',
       render: (v) => v || '—',
     },
-    {
-      title: 'Tồn tổng',
-      dataIndex: 'quantityTotal',
-    },
-    {
-      title: 'Đã phát',
-      dataIndex: 'quantityIssued',
-    },
-    {
-      title: 'Còn lại',
-      dataIndex: 'remaining',
-    },
-    {
-      title: 'Nhu cầu',
-      dataIndex: 'eligibleCount',
-    },
+    { title: 'Tồn tổng', dataIndex: 'quantityTotal' },
+    { title: 'Đã phát', dataIndex: 'quantityIssued' },
+    { title: 'Còn lại', dataIndex: 'remaining' },
+    { title: 'Nhu cầu', dataIndex: 'eligibleCount' },
     {
       title: 'Thiếu',
       dataIndex: 'shortfall',
@@ -402,6 +444,7 @@ const KitInventoryPage = ({ hackathonId }) => {
   ];
 
   const isOtherType = watchedType === 'OTHER';
+  const showCreateStocks = !editingItem;
 
   return (
     <div>
@@ -409,9 +452,14 @@ const KitInventoryPage = ({ hackathonId }) => {
         title="Vật phẩm & Kit"
         info={KIT_HINT}
         extra={
-          <Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>
-            Thêm món
-          </Button>
+          <Space wrap>
+            <Button icon={<Copy size={16} />} onClick={() => setCloneModalOpen(true)}>
+              Sao chép từ kỳ khác
+            </Button>
+            <Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>
+              Thêm món
+            </Button>
+          </Space>
         }
       />
 
@@ -419,7 +467,7 @@ const KitInventoryPage = ({ hackathonId }) => {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Khai báo tồn kho trước ngày phát. Quầy phát dùng menu «Quầy phát kit»."
+        message="Quy trình: khai món + tồn → đối chiếu trước Kickoff → phát tại «Quầy phát kit» trong khung Kickoff → đối soát sau phát. Chỉ SV ACCEPTED của đội ACTIVE nhận kit."
       />
 
       <Table
@@ -473,7 +521,6 @@ const KitInventoryPage = ({ hackathonId }) => {
           pagination={false}
           size="middle"
           locale={{ emptyText: 'Chưa có dữ liệu đối chiếu' }}
-          rowClassName={(row) => (row.shortfall > 0 ? 'kit-recon-shortfall' : '')}
           onRow={(row) =>
             row.shortfall > 0
               ? { style: { background: 'rgba(255, 77, 79, 0.08)' } }
@@ -489,6 +536,7 @@ const KitInventoryPage = ({ hackathonId }) => {
         onOk={() => itemForm.submit()}
         confirmLoading={saveItemMutation.isPending}
         destroyOnClose
+        width={showCreateStocks ? 640 : 520}
       >
         <Form
           form={itemForm}
@@ -512,12 +560,71 @@ const KitInventoryPage = ({ hackathonId }) => {
                 { value: 'LANYARD', label: 'Dây đeo' },
                 { value: 'OTHER', label: 'Khác' },
               ]}
-              onChange={(v) => itemForm.setFieldValue('hasSize', v === 'SHIRT')}
+              onChange={onTypeChange}
+              disabled={Boolean(editingItem)}
             />
           </Form.Item>
           <Form.Item name="hasSize" label="Chia theo size" valuePropName="checked">
-            <Switch disabled={watchedType === 'SHIRT'} />
+            <Switch
+              disabled={watchedType === 'SHIRT' || Boolean(editingItem)}
+              onChange={onHasSizeChange}
+            />
           </Form.Item>
+
+          {showCreateStocks && (
+            <Form.List name="stocks">
+              {(fields, { add, remove }) => (
+                <div>
+                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                    Tồn kho ban đầu {watchedHasSize || watchedType === 'SHIRT' ? '(theo size)' : ''}
+                  </Text>
+                  {fields.map((field) => (
+                    <Space key={field.key} align="start" style={{ display: 'flex', marginBottom: 8 }} wrap>
+                      {(watchedType === 'SHIRT') && (
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'fit']}
+                          rules={[{ required: true, message: 'Dáng' }]}
+                          style={{ marginBottom: 0, width: 120 }}
+                        >
+                          <Select
+                            options={SHIRT_FITS.map((f) => ({ value: f, label: FIT_LABELS[f] || f }))}
+                            placeholder="Dáng"
+                          />
+                        </Form.Item>
+                      )}
+                      {(watchedHasSize || watchedType === 'SHIRT') && (
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'size']}
+                          rules={[{ required: true, message: 'Size' }]}
+                          style={{ marginBottom: 0, width: 90 }}
+                        >
+                          <Select options={SHIRT_SIZES.map((s) => ({ value: s, label: s }))} placeholder="Size" />
+                        </Form.Item>
+                      )}
+                      <Form.Item
+                        {...field}
+                        name={[field.name, 'quantityTotal']}
+                        rules={[{ required: true, message: 'SL' }]}
+                        style={{ marginBottom: 0, width: 110 }}
+                      >
+                        <InputNumber min={0} placeholder="Số lượng" style={{ width: '100%' }} />
+                      </Form.Item>
+                      {fields.length > 1 && (
+                        <Button type="link" danger onClick={() => remove(field.name)}>
+                          Xóa
+                        </Button>
+                      )}
+                    </Space>
+                  ))}
+                  <Button type="dashed" onClick={() => add({ fit: 'UNISEX', size: 'M', quantityTotal: 0 })} block>
+                    Thêm dòng tồn
+                  </Button>
+                </div>
+              )}
+            </Form.List>
+          )}
         </Form>
       </Modal>
 
@@ -532,9 +639,7 @@ const KitInventoryPage = ({ hackathonId }) => {
         <Form form={stockForm} layout="vertical" onFinish={(v) => stockMutation.mutate(v)}>
           {stockTarget?.type === 'SHIRT' && (
             <Form.Item name="fit" label="Dáng áo" rules={[{ required: true, message: 'Chọn dáng' }]} initialValue="UNISEX">
-              <Select
-                options={SHIRT_FITS.map((f) => ({ value: f, label: FIT_LABELS[f] || f }))}
-              />
+              <Select options={SHIRT_FITS.map((f) => ({ value: f, label: FIT_LABELS[f] || f }))} />
             </Form.Item>
           )}
           {stockTarget?.hasSize && (
@@ -559,6 +664,7 @@ const KitInventoryPage = ({ hackathonId }) => {
         onOk={() => bundleForm.submit()}
         confirmLoading={saveBundleMutation.isPending}
         destroyOnClose
+        width={560}
       >
         <Form
           form={bundleForm}
@@ -571,21 +677,66 @@ const KitInventoryPage = ({ hackathonId }) => {
           <Form.Item name="isDefault" valuePropName="checked">
             <Checkbox>Đặt làm combo mặc định (nút Phát combo tại quầy)</Checkbox>
           </Form.Item>
-          <Form.Item
-            name="kitItemIds"
-            label="Chọn món trong combo"
-            rules={[{ required: true, type: 'array', min: 1, message: 'Chọn ít nhất một món' }]}
+          <Form.List
+            name="items"
+            rules={[
+              {
+                validator: async (_, value) => {
+                  if (!value || !value.some((r) => r?.kitItemId)) {
+                    throw new Error('Chọn ít nhất một món');
+                  }
+                },
+              },
+            ]}
           >
-            <Checkbox.Group
-              style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-              options={(items || []).map((item) => ({
-                value: item.id,
-                label: `${item.name} (${TYPE_LABELS[item.type] || item.type})`,
-              }))}
-            />
-          </Form.Item>
+            {(fields, { add, remove }) => (
+              <div>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>Món trong combo</Text>
+                {fields.map((field) => (
+                  <Space key={field.key} align="start" style={{ display: 'flex', marginBottom: 8 }} wrap>
+                    <Form.Item
+                      {...field}
+                      name={[field.name, 'kitItemId']}
+                      rules={[{ required: true, message: 'Chọn món' }]}
+                      style={{ marginBottom: 0, width: 280 }}
+                    >
+                      <Select
+                        placeholder="Món kit"
+                        options={(items || []).map((item) => ({
+                          value: item.id,
+                          label: `${item.name} (${TYPE_LABELS[item.type] || item.type})`,
+                        }))}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      {...field}
+                      name={[field.name, 'quantity']}
+                      rules={[{ required: true, message: 'SL' }]}
+                      style={{ marginBottom: 0, width: 100 }}
+                    >
+                      <InputNumber min={1} placeholder="SL" style={{ width: '100%' }} />
+                    </Form.Item>
+                    {fields.length > 1 && (
+                      <Button type="link" danger onClick={() => remove(field.name)}>
+                        Xóa
+                      </Button>
+                    )}
+                  </Space>
+                ))}
+                <Button type="dashed" onClick={() => add({ kitItemId: undefined, quantity: 1 })} block>
+                  Thêm món
+                </Button>
+              </div>
+            )}
+          </Form.List>
         </Form>
       </Modal>
+
+      <KitCloneModal
+        open={cloneModalOpen}
+        hackathonId={hackathonId}
+        onClose={() => setCloneModalOpen(false)}
+      />
     </div>
   );
 };

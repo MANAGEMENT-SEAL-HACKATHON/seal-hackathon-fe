@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Card, Tabs, Typography, Button, Row, Col, Tooltip, message } from 'antd';
+import { Card, Tabs, Typography, Button, Row, Col, Tooltip, message, Alert } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../../../shared/components/ui/PageHeader';
@@ -243,6 +243,13 @@ const HackathonSetupPage = () => {
 
   const isReadyToActivate = readinessData?.ready;
   const activateBlockers = readinessData?.blockers || [];
+  const readinessWarnings = readinessData?.warnings || [];
+  const kitWarnings = readinessWarnings.filter(
+    (w) =>
+      w?.details?.kitHint
+      || String(w?.message || '').toLowerCase().includes('kit')
+      || String(w?.message || '').toLowerCase().includes('combo'),
+  );
   const canActivateHackathon =
     isReadyToActivate && (readinessHackathon?.status || hackathon.status) === 'DRAFT';
 
@@ -445,6 +452,22 @@ const HackathonSetupPage = () => {
           extra="Đổi sự kiện bằng bộ chọn trên thanh header — mọi tab Setup dùng chung ngữ cảnh này."
         />
       </div>
+
+      {kitWarnings.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Khuyến nghị bộ kit — không chặn kích hoạt"
+          description={
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {kitWarnings.map((w, i) => (
+                <li key={`kit-warn-${i}`}>{w.message || w.code}</li>
+              ))}
+            </ul>
+          }
+        />
+      )}
 
       <PageHeader
         title={hackathon.name}

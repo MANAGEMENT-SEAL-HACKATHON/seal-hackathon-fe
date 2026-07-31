@@ -23,10 +23,10 @@ export const useStudentHackathonRegistration = () => {
     fetchHackathons();
   }, [fetchHackathons]);
 
-  const register = async (hackathonId) => {
+  const register = async (hackathonId, shirtPrefs) => {
     setActionLoading(true);
     try {
-      await studentHackathonService.register(hackathonId);
+      await studentHackathonService.register(hackathonId, shirtPrefs);
       await fetchHackathons();
       return { success: true };
     } catch (error) {

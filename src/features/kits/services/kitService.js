@@ -20,6 +20,15 @@ export const kitService = {
   upsertStock: (itemId, data) =>
     axiosClient.put(ENDPOINTS.KITS.ITEM_STOCK(itemId), data),
 
+  batchUpsertStock: (itemId, stocks) =>
+    axiosClient.put(ENDPOINTS.KITS.ITEM_STOCKS(itemId), { stocks }),
+
+  listCloneSources: (hackathonId) =>
+    axiosClient.get(ENDPOINTS.HACKATHONS.KIT_CLONE_SOURCES(hackathonId)),
+
+  cloneKits: (hackathonId, data) =>
+    axiosClient.post(ENDPOINTS.HACKATHONS.KIT_CLONE(hackathonId), data),
+
   listBundles: (hackathonId) =>
     axiosClient.get(ENDPOINTS.HACKATHONS.KIT_BUNDLES(hackathonId)),
 

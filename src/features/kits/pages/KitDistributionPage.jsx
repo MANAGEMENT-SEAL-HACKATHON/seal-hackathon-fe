@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
+  Checkbox,
   Grid,
   Input,
   Modal,
@@ -12,7 +13,7 @@ import {
   Typography,
   theme,
 } from 'antd';
-import { Check, PackageCheck, RotateCcw, Search } from 'lucide-react';
+import { Check, Download, PackageCheck, RotateCcw, Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import CoordinatorHero from '../../../shared/components/ui/CoordinatorHero';
@@ -40,6 +41,7 @@ const KitDistributionPage = () => {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
+  const [onlyPending, setOnlyPending] = useState(false);
   const [sizeOverrides, setSizeOverrides] = useState({});
   const [fitOverrides, setFitOverrides] = useState({});
 
@@ -171,6 +173,72 @@ const KitDistributionPage = () => {
     });
     return counters;
   }, [items]);
+
+  const recipientStats = useMemo(() => {
+    const total = (recipients || []).length;
+    const kitIds = (items || []).map((i) => i.id);
+    const fullyIssued = (recipients || []).filter((row) => {
+      if (!kitIds.length) return false;
+      return kitIds.every((id) =>
+        (row.allocations || []).some((a) => a.kitItemId === id && a.status === 'ISSUED'),
+      );
+    }).length;
+    const pending = total - fullyIssued;
+    return { total, fullyIssued, pending };
+  }, [recipients, items]);
+
+  const displayRecipients = useMemo(() => {
+    if (!onlyPending) return recipients || [];
+    const kitIds = (items || []).map((i) => i.id);
+    return (recipients || []).filter((row) => {
+      if (!kitIds.length) return true;
+      return !kitIds.every((id) =>
+        (row.allocations || []).some((a) => a.kitItemId === id && a.status === 'ISSUED'),
+      );
+    });
+  }, [recipients, onlyPending, items]);
+
+  const exportCsv = () => {
+    const kitIds = (items || []).map((i) => i.id);
+    const header = [
+      'fullName',
+      'studentCode',
+      'teamName',
+      'preferredShirtSize',
+      'preferredShirtFit',
+      'issuedCount',
+      'pending',
+      'issuedDetails',
+    ];
+    const lines = [header.join(',')];
+    (displayRecipients || []).forEach((row) => {
+      const issued = (row.allocations || []).filter((a) => a.status === 'ISSUED');
+      const pending = kitIds.length
+        ? !kitIds.every((id) => issued.some((a) => a.kitItemId === id))
+        : issued.length === 0;
+      const details = issued
+        .map((a) => `${a.kitItemName || a.kitItemId}:${a.size || ''}/${a.fit || ''}`)
+        .join(';');
+      const cells = [
+        row.fullName,
+        row.studentCode,
+        row.teamName,
+        row.preferredShirtSize,
+        row.preferredShirtFit,
+        issued.length,
+        pending ? 'YES' : 'NO',
+        details,
+      ].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`);
+      lines.push(cells.join(','));
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kit-distribution-${hackathonId}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const confirmRevoke = (allocation) => {
     let reason = '';
@@ -380,6 +448,15 @@ const KitDistributionPage = () => {
           }}
         >
           <Space wrap size={[8, 8]} style={{ marginBottom: 12 }}>
+            <Tag color="blue" style={{ fontSize: 14, padding: '4px 10px', margin: 0 }}>
+              Đã phát đủ: <strong>{recipientStats.fullyIssued}</strong> / {recipientStats.total}
+              {recipientStats.total > 0
+                ? ` (${Math.round((recipientStats.fullyIssued / recipientStats.total) * 100)}%)`
+                : ''}
+            </Tag>
+            <Tag color="orange" style={{ fontSize: 14, padding: '4px 10px', margin: 0 }}>
+              Chưa đủ: <strong>{recipientStats.pending}</strong>
+            </Tag>
             {remainingCounters.map((c) => (
               <Tag
                 key={c.key}
@@ -393,22 +470,30 @@ const KitDistributionPage = () => {
               <Tag>Chưa có tồn kho — khai báo ở tab Vật phẩm & Kit</Tag>
             )}
           </Space>
-          <Input
-            autoFocus
-            className="kit-desk-search"
-            size="large"
-            allowClear
-            prefix={<Search size={18} />}
-            placeholder="Tìm tên / mã SV / đội…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{ fontSize: 16, height: 48 }}
-          />
+          <Space wrap style={{ width: '100%', marginBottom: 12 }} size="middle">
+            <Input
+              autoFocus
+              className="kit-desk-search"
+              size="large"
+              allowClear
+              prefix={<Search size={18} />}
+              placeholder="Tìm tên / mã SV / đội…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{ fontSize: 16, height: 48, flex: 1, minWidth: 220 }}
+            />
+            <Checkbox checked={onlyPending} onChange={(e) => setOnlyPending(e.target.checked)}>
+              Chỉ chưa nhận đủ
+            </Checkbox>
+            <Button icon={<Download size={16} />} onClick={exportCsv} disabled={!displayRecipients.length}>
+              Xuất CSV
+            </Button>
+          </Space>
         </div>
 
         <Table
           loading={isLoading || isFetching}
-          dataSource={recipients}
+          dataSource={displayRecipients}
           columns={columns}
           rowKey="userId"
           pagination={{ pageSize: 20, showSizeChanger: false }}

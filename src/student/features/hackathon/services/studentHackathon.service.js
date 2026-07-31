@@ -80,8 +80,15 @@ export const studentHackathonService = {
     }
   },
 
-  register: async (hackathonId) => {
-    return axiosClient.post(ENDPOINTS.STUDENT_HACKATHONS.REGISTER(hackathonId));
+  register: async (hackathonId, body) => {
+    const payload =
+      body && (body.preferredShirtSize || body.preferredShirtFit)
+        ? {
+            preferredShirtSize: body.preferredShirtSize || undefined,
+            preferredShirtFit: body.preferredShirtFit || undefined,
+          }
+        : undefined;
+    return axiosClient.post(ENDPOINTS.STUDENT_HACKATHONS.REGISTER(hackathonId), payload);
   },
 
   unregister: async (hackathonId) => {

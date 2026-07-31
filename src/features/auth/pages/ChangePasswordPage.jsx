@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Form, Input, Button, message } from 'antd';
 import { LockOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '../services/authService';
+import { authService, persistAuthTokens } from '../services/authService';
 import { ROUTES } from '../../../shared/constants/routes';
 
 const ChangePasswordPage = () => {
@@ -13,16 +13,16 @@ const ChangePasswordPage = () => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      await authService.changePassword(values.currentPassword, values.newPassword);
-      message.success('Đổi mật khẩu thành công! Bạn đang được chuyển về trang chính.');
-      
-      // Update local storage flag if any
-      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-      if (userInfo.mustChangePassword) {
-        userInfo.mustChangePassword = false;
-        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+      const res = await authService.changePassword(values.currentPassword, values.newPassword);
+      const authData = res?.data || res;
+      if (authData?.accessToken) {
+        persistAuthTokens(authData);
       }
-      
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+      userInfo.mustChangePassword = false;
+      localStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+      message.success('Đổi mật khẩu thành công! Bạn đang được chuyển về trang chính.');
       navigate(ROUTES.DASHBOARD, { replace: true });
     } catch (error) {
       console.error('Change password error:', error);

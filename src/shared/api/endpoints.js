@@ -41,10 +41,13 @@ export const ENDPOINTS = {
     KIT_ISSUE: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/issue`,
     KIT_ISSUE_BUNDLE: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/issue-bundle`,
     KIT_RECONCILIATION: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/reconciliation`,
+    KIT_CLONE_SOURCES: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/clone-sources`,
+    KIT_CLONE: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/clone`,
   },
   KITS: {
     ITEM_DETAIL: (id) => `/api/v1/kit-items/${id}`,
     ITEM_STOCK: (id) => `/api/v1/kit-items/${id}/stock`,
+    ITEM_STOCKS: (id) => `/api/v1/kit-items/${id}/stocks`,
     BUNDLE_DETAIL: (id) => `/api/v1/kit-bundles/${id}`,
     ALLOCATION_REVOKE: (id) => `/api/v1/kit-allocations/${id}/revoke`,
   },

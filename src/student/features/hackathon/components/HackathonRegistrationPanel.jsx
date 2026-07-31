@@ -6,7 +6,7 @@
  * 2. Khi click "Khám phá & Đăng ký": Mở ra Modal Trung tâm Giải đấu (Tournament Arena) với giao diện tối ưu TUYỆT ĐỐI cho cả Light Mode và Dark Mode (Cyber Slate / Royal Navy Glassmorphism).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Empty, Input, Modal, Segmented, Space, Spin, Tag, Typography, message, theme, Grid } from 'antd';
+import { Badge, Button, Empty, Input, Modal, Segmented, Select, Space, Spin, Tag, Typography, message, theme, Grid } from 'antd';
 import {
   CalendarOutlined,
   ClockCircleOutlined,
@@ -22,6 +22,7 @@ import { Flame, Trophy, ArrowRight, CheckCircle2, Sparkles, Calendar, Clock, Use
 
 import { useStudentHackathonRegistration } from '../hooks/useStudentHackathonRegistration';
 import { getStudentHackathonErrorMessage } from '../constants/studentHackathon.constants';
+import { kitService, SHIRT_FITS, SHIRT_SIZES } from '../../../../features/kits/services/kitService';
 import {
   canStudentRegister,
   formatCountdownLabel,
@@ -89,20 +90,63 @@ const HackathonRegistrationPanel = ({ hasTeam = false, onRegistrationChange }) =
   } = useStudentHackathonRegistration();
 
   const handleRegister = async (hackathonId, hackathonName) => {
+    let preferredShirtSize;
+    let preferredShirtFit = 'UNISEX';
+    try {
+      const sizes = await kitService.listMyShirtSizes();
+      const first = Array.isArray(sizes) ? sizes.find((s) => s?.preferredShirtSize) : null;
+      if (first?.preferredShirtSize) preferredShirtSize = first.preferredShirtSize;
+      if (first?.preferredShirtFit) preferredShirtFit = first.preferredShirtFit;
+    } catch {
+      // kit module optional
+    }
     Modal.confirm({
       title: 'Xác nhận đăng ký tham gia?',
       icon: <ThunderboltFilled style={{ color: FPT.orange }} />,
       content: (
-        <>
-          Bạn sẽ đăng ký tham gia <strong>{hackathonName}</strong> tại Đại học FPT. Mỗi người chỉ được đăng ký một
-          giải tại một thời điểm và không thể đăng ký lại sau khi hủy.
-        </>
+        <div>
+          <p>
+            Bạn sẽ đăng ký tham gia <strong>{hackathonName}</strong> tại Đại học FPT. Mỗi người chỉ được đăng ký một
+            giải tại một thời điểm và không thể đăng ký lại sau khi hủy.
+          </p>
+          <div style={{ marginTop: 12 }}>
+            <Text type="secondary" style={{ display: 'block', marginBottom: 6 }}>
+              Size áo kit (tuỳ chọn — dùng khi phát kit)
+            </Text>
+            <Space wrap>
+              <Select
+                placeholder="Size"
+                style={{ width: 100 }}
+                defaultValue={preferredShirtSize}
+                options={SHIRT_SIZES.map((s) => ({ value: s, label: s }))}
+                onChange={(v) => {
+                  preferredShirtSize = v;
+                }}
+                allowClear
+              />
+              <Select
+                placeholder="Dáng"
+                style={{ width: 120 }}
+                defaultValue={preferredShirtFit}
+                options={SHIRT_FITS.map((f) => ({ value: f, label: f }))}
+                onChange={(v) => {
+                  preferredShirtFit = v || 'UNISEX';
+                }}
+              />
+            </Space>
+          </div>
+        </div>
       ),
       okText: 'Đăng ký ngay',
       cancelText: 'Hủy',
       okButtonProps: { style: { background: FPT.orange, borderColor: FPT.orange, fontWeight: 600 } },
       onOk: async () => {
-        const result = await register(hackathonId);
+        const result = await register(
+          hackathonId,
+          preferredShirtSize
+            ? { preferredShirtSize, preferredShirtFit: preferredShirtFit || 'UNISEX' }
+            : undefined,
+        );
         if (result.success) {
           message.success('Đăng ký tham gia hackathon thành công');
           onRegistrationChange?.();
