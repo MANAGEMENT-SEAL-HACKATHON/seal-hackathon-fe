@@ -26,6 +26,7 @@ const UserInviteAutoComplete = ({
   onChange,
   onUserSelect,
   searchFn,
+  hackathonId,
   getSecondaryLine,
   placeholder = 'Tìm theo email, tên hoặc mã SV...',
   disabled = false,
@@ -36,7 +37,8 @@ const UserInviteAutoComplete = ({
   const [fetching, setFetching] = useState(false);
   const debounceRef = useRef(null);
 
-  const resolveSearchFn = searchFn || studentTeamService.searchInviteCandidates.bind(studentTeamService);
+  const resolveSearchFn = searchFn
+    || ((q) => studentTeamService.searchInviteCandidates(q, hackathonId));
   const resolveSecondaryLine = getSecondaryLine || defaultSecondaryLine;
 
   const clearDebounce = useCallback(() => {

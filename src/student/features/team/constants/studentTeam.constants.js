@@ -72,6 +72,8 @@ export const TEAM_ACTION_ERROR_MESSAGES = {
   TEAM_LOCKED: 'Đội đã bị khóa, không thể thay đổi thành viên.',
   INVITEE_NOT_APPROVED: 'Thành viên được mời chưa được phê duyệt.',
   INVITEE_INVALID_ROLE: 'Người được mời không phải sinh viên hợp lệ.',
+  LEADER_NOT_REGISTERED: 'Bạn phải đăng ký sự kiện trước khi tạo đội hoặc mời thành viên.',
+  INVITEE_NOT_REGISTERED: 'Chỉ mời được sinh viên đã đăng ký cùng sự kiện này.',
   NEW_LEADER_NOT_MEMBER: 'Người nhận quyền phải là thành viên đã tham gia đội.',
   NEW_LEADER_NOT_APPROVED: 'Người nhận quyền chưa được phê duyệt.',
   TEAM_HAS_MENTOR_CANNOT_DISBAND: 'Đội đã có Mentor, không thể giải tán.',

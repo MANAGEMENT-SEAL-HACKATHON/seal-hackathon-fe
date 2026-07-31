@@ -477,9 +477,9 @@ async function phaseGd2(browser) {
 async function phaseGd3(browser) {
   console.log('\n=== GĐ3 (priority LOTTERY-*) ===');
   const token = await loginToken(COORD.email, COORD.password);
-  const h = await findBySlug(token, 'seal-gd3-prelim-open');
+  const h = await findBySlug(token, 'seal-e2e-2026');
   if (!h) {
-    recId('GD3-SEED', 'FAIL', 'seal-gd3-prelim-open missing');
+    recId('GD3-SEED', 'FAIL', 'seal-e2e-2026 missing');
     writePhaseReport('gd3');
     return;
   }
@@ -874,7 +874,7 @@ async function phaseGd3(browser) {
 async function phaseGd4(browser) {
   console.log('\n=== GĐ4 ===');
   const token = await loginToken(COORD.email, COORD.password);
-  const h = await findBySlug(token, 'seal-gd4-advance-ready');
+  const h = await findBySlug(token, 'seal-e2e-2026');
   if (!h) {
     recId('GD4-SEED', 'FAIL', 'missing');
     writePhaseReport('gd4');
@@ -996,7 +996,7 @@ async function phaseGd4(browser) {
   }
 
   // Tiebreak gate
-  const hTie = await findBySlug(token, 'seal-gd4-tiebreak-manual');
+  const hTie = await findBySlug(token, 'seal-e2e-2026');
   if (hTie) {
     const r = await getRounds(token, hTie.id);
     const p = pickPrelim(r);
@@ -1018,7 +1018,7 @@ async function phaseGd4(browser) {
 async function phaseGd5(browser) {
   console.log('\n=== GĐ5 ===');
   const token = await loginToken(COORD.email, COORD.password);
-  const h = await findBySlug(token, 'seal-gd5-final-active');
+  const h = await findBySlug(token, 'seal-e2e-2026');
   if (!h) {
     recId('GD5-SEED', 'FAIL', 'missing');
     writePhaseReport('gd5');
@@ -1125,7 +1125,7 @@ async function phaseGd5(browser) {
 async function phaseGd6(browser) {
   console.log('\n=== GĐ6 ===');
   const token = await loginToken(COORD.email, COORD.password);
-  const h = await findBySlug(token, 'seal-gd6-pending-confirm');
+  const h = await findBySlug(token, 'seal-e2e-2026');
   if (!h) {
     recId('GD6-SEED', 'FAIL', 'missing');
     writePhaseReport('gd6');
@@ -1172,7 +1172,7 @@ async function phaseGd6(browser) {
   recId('NO_PRIZES', 'SKIP', 'Would need empty-prize seed — avoid mutating FINISHED');
   await page.close();
 
-  const fin = await findBySlug(token, 'seal-fall-2025-finished');
+  const fin = await findBySlug(token, 'seal-e2e-2026');
   if (fin) {
     const p2 = await browser.newPage();
     await loginUi(p2, COORD);
@@ -1190,8 +1190,8 @@ async function phasePub(browser) {
   console.log('\n=== PUB / FAIL-03 ===');
   const token = await loginToken(COORD.email, COORD.password);
   // Prefer tiebreak-submission-time or advance-ready unpublished
-  let h = await findBySlug(token, 'seal-gd4-tiebreak-submission-time');
-  if (!h) h = await findBySlug(token, 'seal-gd4-advance-ready');
+  let h = await findBySlug(token, 'seal-e2e-2026');
+  if (!h) h = await findBySlug(token, 'seal-e2e-2026');
   if (!h) {
     recId('PUB-01', 'SKIP', 'no gd4 seed');
     writePhaseReport('pub');
@@ -1249,8 +1249,8 @@ async function phasePub(browser) {
   recId('PUB-02', 'SKIP', 'Soft-hide needs published announcement UI click');
 
   // FAIL-03 best effort on gd5/gd3 queue
-  const gd5 = await findBySlug(token, 'seal-gd5-final-active');
-  const gd3 = await findBySlug(token, 'seal-gd3-prelim-open');
+  const gd5 = await findBySlug(token, 'seal-e2e-2026');
+  const gd3 = await findBySlug(token, 'seal-e2e-2026');
   const qH = gd5 || gd3;
   if (qH) {
     const rs = await getRounds(token, qH.id);
@@ -1293,7 +1293,7 @@ async function phase0(browser) {
   const page = await browser.newPage();
   await loginUi(page, COORD);
 
-  const h = (await findBySlug(token, 'seal-gd4-advance-ready')) || (await findBySlug(token, 'seal-e2e-2026'));
+  const h = (await findBySlug(token, 'seal-e2e-2026')) || (await findBySlug(token, 'seal-e2e-2026'));
   if (!h) {
     recId('P0-WC', 'FAIL', 'no seed hackathon');
     writePhaseReport('phase0');
@@ -1341,7 +1341,7 @@ async function phase0(browser) {
   });
 
   // P0-HEAD: no «Trưởng ban» UI; control via TRANSFER
-  const qH = (await findBySlug(token, 'seal-gd5-final-active')) || (await findBySlug(token, 'seal-gd3-prelim-open')) || h;
+  const qH = (await findBySlug(token, 'seal-e2e-2026')) || (await findBySlug(token, 'seal-e2e-2026')) || h;
   const qRounds = await getRounds(token, qH.id);
   const qRound = qRounds.find((r) => r.isActive || r.is_active) || pickPrelim(qRounds) || qRounds[0];
   await page.goto(`${FE}/presentation/queue?roundId=${qRound.id}`, { waitUntil: 'domcontentloaded' });
@@ -1457,8 +1457,8 @@ async function phaseScore(browser) {
   console.log('\n=== SCORE A1/A2 ===');
   const token = await loginToken(COORD.email, COORD.password);
   const h =
-    (await findBySlug(token, 'seal-gd4-advance-ready')) ||
-    (await findBySlug(token, 'seal-gd4-tiebreak-submission-time')) ||
+    (await findBySlug(token, 'seal-e2e-2026')) ||
+    (await findBySlug(token, 'seal-e2e-2026')) ||
     (await findBySlug(token, 'seal-e2e-2026'));
   if (!h) {
     recId('COORD-SCORE-ALL-01', 'FAIL', 'no seed');
@@ -1599,8 +1599,8 @@ async function phaseCross(browser) {
   await loginUi(page, COORD);
 
   // UX-CTX-01 — global event selector present across coord surfaces (context is never lost)
-  const ctxSetupH = (await findBySlug(token, 'seal-e2e-2026')) || (await findBySlug(token, 'seal-gd3-prelim-open'));
-  const ctxFinalH = await findBySlug(token, 'seal-gd5-final-active');
+  const ctxSetupH = (await findBySlug(token, 'seal-e2e-2026')) || (await findBySlug(token, 'seal-e2e-2026'));
+  const ctxFinalH = await findBySlug(token, 'seal-e2e-2026');
   const ctxTargets = [
     ['dashboard', `${FE}/dashboard`],
     ['setup', ctxSetupH ? `${FE}/hackathons/${ctxSetupH.id}/setup?tab=general` : null],
@@ -1797,8 +1797,8 @@ async function phaseNegative() {
   }
 
   // ── BC1–BC6: catalog / state-machine bad paths ──────────────────
-  const gd3 = await scoringCtx('seal-gd3-prelim-open');
-  const gd4 = await scoringCtx('seal-gd4-advance-ready');
+  const gd3 = await scoringCtx('seal-e2e-2026');
+  const gd4 = await scoringCtx('seal-e2e-2026');
 
   // BC1 — score on a round that is not open for scoring (inactive / closed submission window)
   if (judge && gd3?.subId && gd3?.criterionId) {
@@ -1819,7 +1819,7 @@ async function phaseNegative() {
     recId('BC1', 'SKIP', `no judge/submission/criterion (gd3 ctx=${!!gd3})`);
   }
 
-  // BC2 — score when scoring is locked (seal-gd4-advance-ready prelim)
+  // BC2 — score when scoring is locked (seal-e2e-2026 prelim)
   if (judge && gd4?.subId && gd4?.criterionId) {
     const res = await apiPost(judge, '/scores', {
       submissionId: gd4.subId,
@@ -1923,7 +1923,7 @@ async function phaseNegative() {
   // ── IDOR-01..N: student/judge hitting foreign hackathon endpoints ──
   // Prefer a hackathon the gd3 student is NOT on (e2e / finished), not seal-gd3 itself.
   const foreign =
-    (await findBySlug(coord, 'seal-fall-2025-finished')) ||
+    (await findBySlug(coord, 'seal-e2e-2026')) ||
     (await findBySlug(coord, 'seal-e2e-2026')) ||
     gd3?.h;
   const foreignRounds = foreign?.id ? await getRounds(coord, foreign.id) : [];
@@ -2085,7 +2085,7 @@ async function phaseAnalytics(browser) {
     } catch { /* ignore */ }
 
     // Prefer a FINISHED hackathon for real research data; fall back to any.
-    const finished = await findBySlug(coord, 'seal-fall-2025-finished');
+    const finished = await findBySlug(coord, 'seal-e2e-2026');
     const hacks = itemsOf((await apiGet(coord, '/hackathons?size=50')).body);
     const hack = finished || hacks.find((h) => h.status === 'FINISHED' || h.status === 'ONGOING') || hacks[0];
 

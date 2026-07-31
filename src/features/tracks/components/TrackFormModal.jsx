@@ -87,10 +87,22 @@ const TrackFormModal = ({
         <Form.Item
           name="name"
           label="Tên bảng đấu"
-          extra={<span style={{ fontSize: 12, color: '#888' }}>Chủ đề thi, ví dụ: RAG Pipeline.</span>}
+          extra={<span style={{ fontSize: 12, color: '#888' }}>Tên hiển thị của bảng, ví dụ: Track 1 — RAG Pipeline.</span>}
           rules={[{ required: true, message: 'Vui lòng nhập tên bảng đấu' }]}
         >
           <Input placeholder="Ví dụ: Bảng đấu RAG" />
+        </Form.Item>
+
+        <Form.Item
+          name="topic"
+          label="Chủ đề"
+          extra={<span style={{ fontSize: 12, color: '#888' }}>Chủ đề thi của bảng đấu (hiển thị khi bốc thăm).</span>}
+          rules={[
+            { required: true, message: 'Vui lòng nhập chủ đề bảng đấu' },
+            { max: 300, message: 'Chủ đề tối đa 300 ký tự' },
+          ]}
+        >
+          <Input placeholder="Ví dụ: Business Analysis App" />
         </Form.Item>
 
         <Form.Item name="description" label="Mô tả">

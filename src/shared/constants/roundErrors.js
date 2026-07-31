@@ -13,6 +13,8 @@ export const ROUND_ERROR_MESSAGES = {
   ROUND_WEIGHT_NOT_ONE: 'Tổng trọng số các tiêu chí phải bằng 1.0 (100%)',
   ROUND_NOT_ACTIVE: 'Vòng thi chưa được kích hoạt',
   SUBMISSION_ALREADY_CLOSED: 'Vòng thi đã khóa sổ, không thể nộp bài hay chỉnh sửa điểm.',
+  TEAMS_NOT_ALL_SUBMITTED:
+    'Còn đội chưa nộp bài — không thể kết thúc thời gian thi sớm. Chờ mọi đội nộp xong.',
   INVALID_STATE: 'Trạng thái vòng thi không cho phép thao tác này',
   INVALID_ROUND_STATE_UNRELEASED: 'Vòng thi chưa phát đề, không thể kết thúc sớm!',
   INVALID_ROUND_STATE_BEFORE_EXAM: 'Chưa đến giờ thi (đang thời gian chờ setup).',

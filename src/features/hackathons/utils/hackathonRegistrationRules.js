@@ -6,6 +6,16 @@ export { classifyPendingTeams, formatPendingTeamsGateReason };
 export const isRegistrationClosedEarly = (hackathon) =>
   Boolean(hackathon?.registration_closed_early_at ?? hackathon?.registrationClosedEarlyAt);
 
+/** Chưa tới ngày mở đăng ký (registrationStart). */
+export const isRegistrationNotYetOpen = (hackathon) => {
+  if (!hackathon) return true;
+  if (hackathon.registrationNotYetOpen === true) return true;
+  if (hackathon.registrationNotYetOpen === false) return false;
+  const regStart = hackathon.registration_start ?? hackathon.registrationStart;
+  if (!regStart) return false;
+  return dayjs().startOf('day').isBefore(dayjs(regStart).startOf('day'));
+};
+
 /** Giai đoạn đăng ký đã đóng (sớm hoặc quá hạn). */
 export const isRegistrationPeriodEnded = (hackathon) => {
   if (!hackathon) return false;
@@ -13,6 +23,62 @@ export const isRegistrationPeriodEnded = (hackathon) => {
   const regEnd = hackathon.registration_end ?? hackathon.registrationEnd;
   if (!regEnd) return false;
   return dayjs().startOf('day').isAfter(dayjs(regEnd).startOf('day'));
+};
+
+/** Cửa sổ đăng ký đang mở (đã tới start, chưa đóng). */
+export const isRegistrationWindowOpen = (hackathon) => {
+  if (!hackathon) return false;
+  if (hackathon.registrationWindowOpen === true) return true;
+  if (hackathon.registrationWindowOpen === false) return false;
+  const status = String(hackathon.status || 'ONGOING').toUpperCase();
+  if (status && status !== 'ONGOING' && status !== 'OPEN') return false;
+  if (isRegistrationNotYetOpen(hackathon)) return false;
+  return !isRegistrationPeriodEnded(hackathon);
+};
+
+/**
+ * Student đủ điều kiện bấm đăng ký sự kiện này.
+ * @param {object} hackathon — browse item
+ * @param {{ registrationBlocked?: Record<string|number, boolean> }} [ctx]
+ */
+export const canStudentRegister = (hackathon, ctx = {}) => {
+  if (!hackathon) return false;
+  if (!isRegistrationWindowOpen(hackathon)) return false;
+  if (hackathon.registered) return false;
+  if (hackathon.registrationWithdrawn) return false;
+  if (hackathon.registeredElsewhere) return false;
+  if (ctx.registrationBlocked?.[hackathon.id]) return false;
+  return true;
+};
+
+/** Countdown target: start of registrationStart day (local). */
+export const getRegistrationOpenAt = (hackathon) => {
+  const regStart = hackathon?.registration_start ?? hackathon?.registrationStart;
+  if (!regStart) return null;
+  return dayjs(regStart).startOf('day').toDate();
+};
+
+export const formatCountdownParts = (targetDate) => {
+  if (!targetDate) return null;
+  const distance = new Date(targetDate).getTime() - Date.now();
+  if (Number.isNaN(distance) || distance <= 0) {
+    return { ended: true, days: 0, hours: 0, minutes: 0, seconds: 0 };
+  }
+  return {
+    ended: false,
+    days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((distance / (1000 * 60 * 60)) % 24),
+    minutes: Math.floor((distance / (1000 * 60)) % 60),
+    seconds: Math.floor((distance / 1000) % 60),
+  };
+};
+
+export const formatCountdownLabel = (parts) => {
+  if (!parts || parts.ended) return 'Đã mở đăng ký';
+  const { days, hours, minutes, seconds } = parts;
+  if (days > 0) return `Còn ${days}n ${hours}g ${minutes}p để mở đăng ký`;
+  if (hours > 0) return `Còn ${hours}g ${minutes}p ${seconds}s để mở đăng ký`;
+  return `Còn ${minutes}p ${seconds}s để mở đăng ký`;
 };
 
 /**

@@ -99,9 +99,9 @@ async function shot(page, name) {
 async function phaseArch(browser) {
   console.log('\n=== PHASE 0 — Architecture verify (Gap 1) ===');
   const token = await loginToken(COORD.email, COORD.password);
-  const h = await findHackathonBySlug(token, 'seal-gd4-advance-ready');
+  const h = await findHackathonBySlug(token, 'seal-e2e-2026');
   if (!h) {
-    record('A1', 'FAIL', 'seed seal-gd4-advance-ready not found');
+    record('A1', 'FAIL', 'seed seal-e2e-2026 not found');
     return;
   }
   const rounds = await getRounds(token, h.id);
@@ -162,8 +162,8 @@ async function phaseArch(browser) {
   }
 
   // A4 — presentation queue TRANSFER only (use gd3 or gd5 if active)
-  const gd3 = await findHackathonBySlug(token, 'seal-gd3-prelim-open');
-  const gd5 = await findHackathonBySlug(token, 'seal-gd5-final-active');
+  const gd3 = await findHackathonBySlug(token, 'seal-e2e-2026');
+  const gd5 = await findHackathonBySlug(token, 'seal-e2e-2026');
   const queueH = gd5 || gd3 || h;
   const queueRounds = await getRounds(token, queueH.id);
   const activeRound =
@@ -252,9 +252,9 @@ async function phaseArch(browser) {
 async function phaseGd3(browser) {
   console.log('\n=== HOTSPOT GĐ3 — close early + submission status ===');
   const token = await loginToken(COORD.email, COORD.password);
-  const h = await findHackathonBySlug(token, 'seal-gd3-prelim-open');
+  const h = await findHackathonBySlug(token, 'seal-e2e-2026');
   if (!h) {
-    record('GD3-SEED', 'FAIL', 'seal-gd3-prelim-open not found');
+    record('GD3-SEED', 'FAIL', 'seal-e2e-2026 not found');
     return;
   }
   const rounds = await getRounds(token, h.id);
@@ -356,7 +356,7 @@ async function phaseGd3(browser) {
 async function phaseGd3AfterFix(browser) {
   console.log('\n=== GĐ3 AFTER FIX — re-verify force alert ===');
   const token = await loginToken(COORD.email, COORD.password);
-  const h = await findHackathonBySlug(token, 'seal-gd3-prelim-open');
+  const h = await findHackathonBySlug(token, 'seal-e2e-2026');
   if (!h) return;
   const page = await browser.newPage();
   await loginUi(page, COORD);
@@ -404,9 +404,9 @@ async function phaseGd3AfterFix(browser) {
 async function phaseGd4(browser) {
   console.log('\n=== HOTSPOT GĐ4 — advance gate + PUB-01 ===');
   const token = await loginToken(COORD.email, COORD.password);
-  const h = await findHackathonBySlug(token, 'seal-gd4-advance-ready');
+  const h = await findHackathonBySlug(token, 'seal-e2e-2026');
   if (!h) {
-    record('GD4-SEED', 'FAIL', 'seal-gd4-advance-ready not found');
+    record('GD4-SEED', 'FAIL', 'seal-e2e-2026 not found');
     return;
   }
   const rounds = await getRounds(token, h.id);
@@ -543,7 +543,7 @@ async function phaseGd4(browser) {
   }
 
   // Tiebreak seed
-  const hTie = await findHackathonBySlug(token, 'seal-gd4-tiebreak-manual');
+  const hTie = await findHackathonBySlug(token, 'seal-e2e-2026');
   if (hTie) {
     const rTie = await getRounds(token, hTie.id);
     const pTie = rTie.find((r) => !r.isFinal && !r.is_final) || rTie[0];
@@ -578,8 +578,8 @@ async function phaseHist(browser) {
   await loginUi(page, COORD);
 
   // R4 — CK no upload PDF (final-config / rounds on gd5 or gd4)
-  const gd5 = await findHackathonBySlug(token, 'seal-gd5-final-active');
-  const h = gd5 || (await findHackathonBySlug(token, 'seal-gd4-advance-ready'));
+  const gd5 = await findHackathonBySlug(token, 'seal-e2e-2026');
+  const h = gd5 || (await findHackathonBySlug(token, 'seal-e2e-2026'));
   if (h) {
     await page.goto(`${FE}/coordinator/final-config?hackathonId=${h.id}`, {
       waitUntil: 'networkidle',
@@ -597,7 +597,7 @@ async function phaseHist(browser) {
   }
 
   // R5 — tiebreak ghost after resolve (open tiebreak seed)
-  const hTie = await findHackathonBySlug(token, 'seal-gd4-tiebreak-manual');
+  const hTie = await findHackathonBySlug(token, 'seal-e2e-2026');
   if (hTie) {
     const rounds = await getRounds(token, hTie.id);
     const prelim = rounds.find((r) => !r.isFinal && !r.is_final) || rounds[0];
@@ -696,7 +696,7 @@ async function phaseChuongL(browser) {
   await loginUi(page, COORD);
 
   // SH-01 — shuffle before close
-  const gd3 = await findHackathonBySlug(token, 'seal-gd3-prelim-open');
+  const gd3 = await findHackathonBySlug(token, 'seal-e2e-2026');
   if (gd3) {
     const rounds = await getRounds(token, gd3.id);
     const prelim = rounds.find((r) => !r.isFinal && !r.is_final) || rounds[0];
@@ -737,7 +737,7 @@ async function phaseChuongL(browser) {
   }
 
   // CSV-01 / PRIZE — gd6
-  const gd6 = await findHackathonBySlug(token, 'seal-gd6-pending-confirm');
+  const gd6 = await findHackathonBySlug(token, 'seal-e2e-2026');
   if (gd6) {
     await page.goto(`${FE}/hackathons/${gd6.id}/results`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
@@ -814,7 +814,7 @@ async function phaseExpand(browser) {
     );
   }
 
-  const gd5 = await findHackathonBySlug(token, 'seal-gd5-final-active');
+  const gd5 = await findHackathonBySlug(token, 'seal-e2e-2026');
   if (gd5) {
     await page.goto(`${FE}/hackathons/${gd5.id}/setup?tab=rounds`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);

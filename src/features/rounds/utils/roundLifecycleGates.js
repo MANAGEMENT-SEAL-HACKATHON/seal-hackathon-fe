@@ -102,7 +102,7 @@ export const getCloseEarlyTooltip = (round, now = new Date()) => {
   if (!hasReachedExam(round, now)) {
     return 'Đang trong thời gian chờ (Waiting), chưa thể kết thúc sớm.';
   }
-  return 'Kết thúc thời gian thi sớm';
+  return 'Kết thúc thời gian thi sớm (cần mọi đội đã nộp — xác nhận trong hộp thoại)';
 };
 
 export const getLockScoringTooltip = (round, now = new Date()) => {

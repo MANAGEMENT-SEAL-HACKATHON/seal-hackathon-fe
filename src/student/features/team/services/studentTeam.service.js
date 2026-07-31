@@ -59,8 +59,10 @@ export const studentTeamService = {
     return axiosClient.post(ENDPOINTS.TEAMS.INVITE_MEMBER(teamId), { email });
   },
 
-  searchInviteCandidates: async (q) => {
-    const res = await axiosClient.get(ENDPOINTS.USERS.LOOKUP, { params: { q } });
+  searchInviteCandidates: async (q, hackathonId) => {
+    const res = await axiosClient.get(ENDPOINTS.USERS.LOOKUP, {
+      params: { q, hackathonId },
+    });
     if (Array.isArray(res)) return res;
     if (Array.isArray(res?.data)) return res.data;
     if (Array.isArray(res?.items)) return res.items;

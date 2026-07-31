@@ -19,7 +19,7 @@ const LOTTERY_TAB_HINT = (
     items={[
       'Chỉ bốc thăm sau khi kết thúc đăng ký (hoặc kết thúc sớm) và khóa đội',
       'Xử lý hết đội PENDING (duyệt / từ chối sớm) trước khi bốc thăm',
-      'Gán chủ đề cho từng bảng đấu trước',
+      'Chủ đề từng bảng đấu nhập ở tab Bảng đấu (GĐ1) — tab này chủ yếu hiển thị',
       'Bốc thăm tự động để phân bảng cho các đội đã duyệt',
       'Sau khi phân bảng xong, kích hoạt vòng Sơ loại',
     ]}
@@ -59,26 +59,29 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
   // Lọc Bảng đấu theo vòng đang chọn
   const currentTracks = tracks.filter(t => (t.round_id || t.roundId) === selectedRoundId);
 
-  // Cột cho Bảng 1: Quản lý Topic của Track
+  // Cột cho Bảng 1: Chủ đề Track (nhập ở GĐ1; fallback gán nếu trống)
   const trackColumns = [
     { title: 'Tên Bảng đấu', dataIndex: 'name', key: 'name', render: t => <strong>{t}</strong> },
     { title: 'Chủ đề', dataIndex: 'topic', key: 'topic', render: t => t ? <Tag color="blue">{t}</Tag> : <Text type="secondary">Chưa có chủ đề</Text> },
     { title: 'Số đội tối đa', key: 'maxTeams', render: (_, record) => record.max_teams_per_group || record.maxTeamsPerGroup || 'Không giới hạn' },
     {
       title: 'Thao tác', key: 'action', width: 120,
-      render: (_, record) => (
-        <Button 
-          type="text" 
-          icon={<Edit size={16} />} 
-          onClick={() => {
-            setEditingTrack(record);
-            form.setFieldsValue({ topic: record.topic });
-            setTopicModalVisible(true);
-          }}
-        >
-          Gán Chủ đề
-        </Button>
-      )
+      render: (_, record) => {
+        if (record.topic) return null;
+        return (
+          <Button 
+            type="text" 
+            icon={<Edit size={16} />} 
+            onClick={() => {
+              setEditingTrack(record);
+              form.setFieldsValue({ topic: record.topic });
+              setTopicModalVisible(true);
+            }}
+          >
+            Gán Chủ đề
+          </Button>
+        );
+      }
     }
   ];
 
@@ -106,11 +109,20 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
       title: 'Bảng đấu hiện tại', 
       key: 'track', 
       render: (_, record) => {
-        // Mock logic lấy track hiện tại của đội (Backend trả về mảng participation)
-        // Thay thế 'record.track_name' bằng field chính xác từ API response của team bạn
         const trackName = record.trackName || record.track_name; 
         return trackName ? <Tag color="geekblue">{trackName}</Tag> : <Tag color="default">Chưa phân bảng</Tag>;
       } 
+    },
+    {
+      title: 'Chủ đề',
+      key: 'topic',
+      render: (_, record) => {
+        const trackId = record.trackId || record.track_id;
+        const track = currentTracks.find((t) => Number(t.id) === Number(trackId))
+          || tracks.find((t) => Number(t.id) === Number(trackId));
+        const topic = track?.topic;
+        return topic ? <Tag color="blue">{topic}</Tag> : <Text type="secondary">—</Text>;
+      },
     },
     {
       title: 'Thao tác', key: 'action', width: 150, align: 'right',
@@ -153,9 +165,9 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
       ) : (
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           
-          {/* SECTION 1: GÁN TOPIC */}
+          {/* SECTION 1: CHỦ ĐỀ BẢNG ĐẤU */}
           <Card 
-            title={<Space><LayoutGrid size={18} /> Gán Chủ đề cho Bảng đấu</Space>} 
+            title={<Space><LayoutGrid size={18} /> Chủ đề bảng đấu</Space>} 
             style={{ borderRadius: 12, borderTop: '3px solid #818cf8' }}
           >
             <Table 

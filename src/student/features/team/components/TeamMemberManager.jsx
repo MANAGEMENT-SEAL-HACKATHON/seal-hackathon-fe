@@ -183,7 +183,8 @@ const TeamMemberManager = ({ team, onInviteMember, onCancelInvite, onLeaveTeam, 
                   ]}
                 >
                     <UserInviteAutoComplete
-                      placeholder="Tìm email hoặc mã SV để mời..."
+                      hackathonId={team.hackathonId}
+                      placeholder="Chỉ tìm SV đã đăng ký sự kiện này..."
                       disabled={false}
                       inputStyle={{
                         height: 42,

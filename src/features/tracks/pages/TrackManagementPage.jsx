@@ -170,6 +170,12 @@ const TrackManagementPage = ({ hackathonId, onUpdated }) => {
       render: (text) => <strong>{text}</strong>,
     },
     {
+      title: 'Chủ đề',
+      dataIndex: 'topic',
+      key: 'topic',
+      render: (topic) => topic || <span style={{ color: '#999' }}>Chưa có</span>,
+    },
+    {
       title: 'Vòng sơ loại',
       dataIndex: 'round_id',
       key: 'round_id',

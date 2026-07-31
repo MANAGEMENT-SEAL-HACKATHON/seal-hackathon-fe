@@ -6,7 +6,6 @@ import axiosClient from '../../../../shared/api/axiosClient';
 import { ENDPOINTS } from '../../../../shared/api/endpoints';
 import { mapTeamToInvitation } from '../mapper/studentInvitation.mapper';
 import { studentHackathonService } from '../../hackathon/services/studentHackathon.service';
-import { studentTeamService } from '../../team/services/studentTeam.service';
 
 const unwrapList = (res) => {
   if (Array.isArray(res)) return res;
@@ -17,15 +16,8 @@ const unwrapList = (res) => {
 };
 
 export const studentInvitationService = {
-  getActiveHackathon: async () => {
-    let hack = await studentHackathonService.getPrimaryRegisteredHackathon();
-    if (hack) return hack;
-    const ongoing = await studentHackathonService.browse('ONGOING');
-    if (ongoing && ongoing.length > 0) {
-      return studentHackathonService.getHackathonDetail(ongoing[0].id);
-    }
-    return null;
-  },
+  /** Chỉ dùng hackathon đã đăng ký — không fallback ONGOING đầu tiên. */
+  getActiveHackathon: async () => studentHackathonService.getPrimaryRegisteredHackathon(),
 
   getInvitations: async ({ hackathonId, status } = {}) => {
     if (!hackathonId) return [];
@@ -39,4 +31,3 @@ export const studentInvitationService = {
     return axiosClient.patch(ENDPOINTS.TEAMS.MEMBER_DETAIL(teamId, userId), { action });
   },
 };
-

@@ -20,6 +20,8 @@ export const INVITATION_ERROR_MESSAGES = {
   USER_IN_ANOTHER_TEAM: 'Bạn đã thuộc đội khác trong hackathon này.',
   LEADER_CANNOT_LEAVE_TEAM: 'Trưởng nhóm không thể tự rời đội. Hãy chuyển quyền trước.',
   FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
+  INVITEE_NOT_REGISTERED: 'Bạn phải đăng ký cùng sự kiện trước khi chấp nhận lời mời vào đội.',
+  LEADER_NOT_REGISTERED: 'Trưởng nhóm phải đăng ký sự kiện trước khi mời thành viên.',
 };
 
 export const getInvitationErrorMessage = (error, fallback = 'Thao tác thất bại. Vui lòng thử lại.') => {

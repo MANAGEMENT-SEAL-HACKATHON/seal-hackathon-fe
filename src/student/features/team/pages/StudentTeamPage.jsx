@@ -193,8 +193,8 @@ const StudentTeamPage = () => {
                   </span>
                 }
               >
-                <Button type="primary" onClick={() => navigate(ROUTES.STUDENT_HACKATHON_HISTORY)}>
-                  Xem cuộc thi
+                <Button type="primary" onClick={() => navigate(ROUTES.DASHBOARD)}>
+                  Đăng ký sự kiện
                 </Button>
               </Empty>
             </motion.div>
