@@ -6,6 +6,8 @@ import { studentHackathonService } from '../../features/hackathon/services/stude
 import { roundService } from '../../../features/rounds/services/roundService';
 import { eventService } from '../../../features/events/services/eventService';
 import { mapRoundToFE } from '../../../features/rounds/mappers/roundMapper';
+import { studentRoundService } from '../../features/round/services/studentRound.service';
+
 
 const getStoredUser = () => {
   try {
@@ -32,6 +34,7 @@ const isApprovedStudent = (user) => user?.role === 'STUDENT' && user?.status ===
 export const useStudentDashboard = () => {
   const [user, setUser] = useState(getStoredUser);
   const [activeHackathon, setActiveHackathon] = useState(null);
+  const [activeRound, setActiveRound] = useState(null);
   const [teams, setTeams] = useState([]);
   const [nextAction, setNextAction] = useState(null);
   const [upcomingDeadlines, setUpcomingDeadlines] = useState([]);
@@ -86,6 +89,7 @@ export const useStudentDashboard = () => {
     if (!isApprovedStudent(profile)) {
       setTeams([]);
       setActiveHackathon(null);
+      setActiveRound(null);
       setNextAction(null);
       setUpcomingDeadlines([]);
       return;
@@ -111,6 +115,7 @@ export const useStudentDashboard = () => {
 
       if (!primaryHackathonId) {
         setActiveHackathon(null);
+        setActiveRound(null);
         setTeams([]);
         setNextAction({ title: 'Đăng ký / tham gia sự kiện', detail: 'Chưa có hackathon đang gắn với đội của bạn.' });
         setUpcomingDeadlines([]);
@@ -123,15 +128,52 @@ export const useStudentDashboard = () => {
         nextTeams.filter((team) => Number(team.hackathonId) === Number(primaryHackathonId))
       );
 
-      const [roundsRaw, eventsRaw] = await Promise.all([
-        roundService.listByHackathon(primaryHackathonId).catch(() => []),
+      const [roundsResult, eventsRaw] = await Promise.all([
+        roundService.listByHackathon(primaryHackathonId).catch(async () => {
+          const studentRounds = [];
+          try {
+            const finalRoundRes = await studentRoundService.getFinalRound(primaryHackathonId);
+            const data = finalRoundRes?.data || finalRoundRes;
+            if (data && (data.roundId || data.id)) {
+              studentRounds.push({
+                id: data.roundId || data.id,
+                name: data.name || data.roundName || 'Vòng Chung kết',
+                is_active: data.isActive ?? data.is_active,
+                is_final: true,
+                submission_deadline: data.submissionDeadline || data.submission_deadline,
+              });
+            }
+          } catch (e) {
+            // ignore
+          }
+
+          try {
+            const deadlineRes = await studentRoundService.getCurrentDeadline(primaryHackathonId);
+            const data = deadlineRes?.data || deadlineRes;
+            if (data && data.roundId) {
+              if (!studentRounds.some(r => Number(r.id) === Number(data.roundId))) {
+                studentRounds.push({
+                  id: data.roundId,
+                  name: 'Vòng Sơ loại',
+                  is_active: true,
+                  is_final: false,
+                  submission_deadline: data.deadline,
+                });
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+          return studentRounds;
+        }),
         eventService.listByHackathon(primaryHackathonId).catch(() => []),
       ]);
-      const rounds = (Array.isArray(roundsRaw) ? roundsRaw : roundsRaw?.items || []).map(mapRoundToFE);
+      const rounds = (Array.isArray(roundsResult) ? roundsResult : roundsResult?.items || []).map(mapRoundToFE);
       const activeRound =
         rounds.find((r) => r.is_active && !r.submission_closed) ||
         rounds.find((r) => r.is_active) ||
         null;
+      setActiveRound(activeRound);
       const submitDeadline =
         activeRound?.submission_deadline ||
         activeRound?.submissionDeadline ||
@@ -163,6 +205,8 @@ export const useStudentDashboard = () => {
       setUpcomingDeadlines(events);
     } catch {
       setTeams([]);
+      setActiveHackathon(null);
+      setActiveRound(null);
     } finally {
       setIsTeamLoading(false);
     }
@@ -199,6 +243,7 @@ export const useStudentDashboard = () => {
   return {
     user,
     activeHackathon,
+    activeRound,
     selectedTeam: teams[0] || null,
     nextAction,
     upcomingDeadlines,
