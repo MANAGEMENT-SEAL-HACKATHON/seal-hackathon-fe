@@ -4,8 +4,7 @@ import dayjs from 'dayjs';
 import {
   getAwardsMinMoment,
   isEventStartDateDisabled,
-  isBuffetDateDisabled,
-  formatBuffetSubtitle,
+  getBuffetBreakBounds,
   buildEventScheduleContext,
 } from './eventScheduleRules.js';
 
@@ -44,23 +43,32 @@ describe('eventScheduleRules AWARDS constraints', () => {
   });
 });
 
-describe('eventScheduleRules buffet helpers', () => {
-  it('disables buffet dates outside event window', () => {
-    const startsAt = dayjs('2026-08-05T08:00:00');
-    const endsAt = dayjs('2026-08-05T17:00:00');
-    assert.equal(isBuffetDateDisabled(dayjs('2026-08-04'), startsAt, endsAt), true);
-    assert.equal(isBuffetDateDisabled(dayjs('2026-08-05'), startsAt, endsAt), false);
-    assert.equal(isBuffetDateDisabled(dayjs('2026-08-06'), startsAt, endsAt), true);
+describe('eventScheduleRules BUFFET break window', () => {
+  const prelim = {
+    is_final: false,
+    exam_at: '2026-08-10T08:00:00',
+    coding_duration_hours: 4,
+  };
+  const finalRound = {
+    is_final: true,
+    exam_at: '2026-08-10T14:00:00',
+  };
+
+  it('computes break window [prelimEnd, final.examAt]', () => {
+    const bounds = getBuffetBreakBounds([prelim, finalRound]);
+    assert.equal(bounds.breakStart.format('YYYY-MM-DD HH:mm'), '2026-08-10 12:00');
+    assert.equal(bounds.breakEnd.format('YYYY-MM-DD HH:mm'), '2026-08-10 14:00');
   });
 
-  it('formats kickoff buffet subtitle', () => {
-    const line = formatBuffetSubtitle({
-      type: 'KICKOFF',
-      buffet_location: 'Canteen',
-      buffet_starts_at: '2026-08-05T11:00:00',
-      buffet_ends_at: '2026-08-05T12:00:00',
+  it('disables BUFFET dates outside break window', () => {
+    const ctx = buildEventScheduleContext({
+      hackathon: {},
+      rounds: [prelim, finalRound],
+      events: [],
+      selectedType: 'BUFFET',
     });
-    assert.equal(line, 'Buffet: Canteen · 11:00–12:00');
-    assert.equal(formatBuffetSubtitle({ type: 'WORKSHOP', buffet_location: 'X' }), null);
+    assert.equal(isEventStartDateDisabled(dayjs('2026-08-09'), ctx), true);
+    assert.equal(isEventStartDateDisabled(dayjs('2026-08-10'), ctx), false);
+    assert.equal(isEventStartDateDisabled(dayjs('2026-08-11'), ctx), true);
   });
 });

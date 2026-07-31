@@ -3,6 +3,7 @@ import { Alert, Card, Empty, List, Spin, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { CalendarDays } from 'lucide-react';
 import { eventService } from '../../../../features/events/services/eventService';
+import { EVENT_TYPE_LABELS } from '../../../../features/events/utils/eventTypeRules';
 import { studentHackathonService } from '../../hackathon/services/studentHackathon.service';
 
 const { Title, Text } = Typography;
@@ -30,7 +31,18 @@ const StudentEventsPage = () => {
         if (!cancelled) setHackathon(primary);
         const res = await eventService.listByHackathon(primary.id, { isPublic: true });
         const list = Array.isArray(res) ? res : (res?.items || []);
-        if (!cancelled) setEvents(list);
+        const withMenus = await Promise.all(
+          list.map(async (item) => {
+            if (item.type !== 'BUFFET' || !item.id) return item;
+            try {
+              const menu = await eventService.getBuffetMenu(item.id);
+              return { ...item, buffetMenu: Array.isArray(menu) ? menu : [] };
+            } catch {
+              return { ...item, buffetMenu: [] };
+            }
+          }),
+        );
+        if (!cancelled) setEvents(withMenus);
       } catch (err) {
         if (!cancelled) {
           setError(err?.message || 'Không tải được lịch sự kiện.');
@@ -68,41 +80,48 @@ const StudentEventsPage = () => {
         <Card>
           <List
             dataSource={events}
-            renderItem={(item) => (
-              <List.Item>
-                <List.Item.Meta
-                  title={
-                    <span>
-                      {item.title || item.name || `Sự kiện #${item.id}`}
-                      {item.type ? <Tag style={{ marginLeft: 8 }}>{item.type}</Tag> : null}
-                    </span>
-                  }
-                  description={
-                    <span>
-                      {item.startsAt || item.startAt || item.startTime
-                        ? dayjs(item.startsAt || item.startAt || item.startTime).format('HH:mm DD/MM/YYYY')
-                        : 'Chưa có thời gian'}
-                      {(item.endsAt || item.endAt || item.endTime)
-                        ? ` — ${dayjs(item.endsAt || item.endAt || item.endTime).format('HH:mm DD/MM/YYYY')}`
-                        : ''}
-                      {item.location ? ` · ${item.location}` : ''}
-                      {item.type === 'KICKOFF' && (item.buffetLocation || item.buffetStartsAt || item.buffetEndsAt) ? (
-                        <>
-                          <br />
-                          Buffet
-                          {item.buffetLocation ? `: ${item.buffetLocation}` : ''}
-                          {item.buffetStartsAt || item.buffetEndsAt
-                            ? ` (${item.buffetStartsAt ? dayjs(item.buffetStartsAt).format('HH:mm') : '…'}${
-                                item.buffetEndsAt ? `–${dayjs(item.buffetEndsAt).format('HH:mm')}` : ''
-                              })`
-                            : ''}
-                        </>
-                      ) : null}
-                    </span>
-                  }
-                />
-              </List.Item>
-            )}
+            renderItem={(item) => {
+              const typeLabel = EVENT_TYPE_LABELS[item.type] || item.type;
+              const start = item.startsAt || item.startAt || item.startTime;
+              const end = item.endsAt || item.endAt || item.endTime;
+              const menu = item.buffetMenu || [];
+              return (
+                <List.Item>
+                  <List.Item.Meta
+                    title={
+                      <span>
+                        {item.title || item.name || `Sự kiện #${item.id}`}
+                        {item.type ? <Tag style={{ marginLeft: 8 }}>{typeLabel}</Tag> : null}
+                      </span>
+                    }
+                    description={
+                      <span>
+                        {start
+                          ? dayjs(start).format('HH:mm DD/MM/YYYY')
+                          : 'Chưa có thời gian'}
+                        {end ? ` — ${dayjs(end).format('HH:mm DD/MM/YYYY')}` : ''}
+                        {item.location ? ` · ${item.location}` : ''}
+                        {item.type === 'BUFFET' && menu.length > 0 ? (
+                          <>
+                            <br />
+                            <Text type="secondary">Thực đơn: </Text>
+                            {menu.map((dish, idx) => (
+                              <span key={dish.id || idx}>
+                                {idx > 0 ? '; ' : ''}
+                                {dish.name}
+                                {dish.quantity != null ? ` ×${dish.quantity}` : ''}
+                                {dish.unit ? ` ${dish.unit}` : ''}
+                                {dish.note ? ` (${dish.note})` : ''}
+                              </span>
+                            ))}
+                          </>
+                        ) : null}
+                      </span>
+                    }
+                  />
+                </List.Item>
+              );
+            }}
           />
         </Card>
       )}

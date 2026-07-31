@@ -54,6 +54,7 @@ export const buildEventScheduleContext = ({ hackathon, rounds, events, selectedT
       : null;
 
   const finalRound = (rounds || []).find((r) => r.is_final || r.isFinal);
+  const buffetBounds = getBuffetBreakBounds(rounds);
 
   return {
     selectedType,
@@ -67,7 +68,51 @@ export const buildEventScheduleContext = ({ hackathon, rounds, events, selectedT
     latestWorkshop,
     latestWorkshopDay,
     finalRound,
+    buffetBreakStart: buffetBounds?.breakStart ?? null,
+    buffetBreakEnd: buffetBounds?.breakEnd ?? null,
+    prelimRound: buffetBounds?.prelim ?? null,
   };
+};
+
+/** Khớp BE: DEFAULT_PRELIM_CODING_HOURS khi codingDurationHours null/≤0. */
+const DEFAULT_PRELIM_CODING_HOURS = 7;
+
+const getRoundExamAt = (round) => round?.exam_at || round?.examAt || null;
+
+/** Buffet window [prelimEnd, final.examAt], prelimEnd = examAt + codingDurationHours. */
+export const getBuffetBreakBounds = (rounds) => {
+  const list = rounds || [];
+  const finalRound = list.find((r) => r.is_final || r.isFinal);
+  const prelim =
+    list.find((r) => !(r.is_final || r.isFinal) && getRoundExamAt(r))
+    || [...list]
+      .filter((r) => !(r.is_final || r.isFinal))
+      .sort((a, b) => dayjs(getRoundExamAt(a)).valueOf() - dayjs(getRoundExamAt(b)).valueOf())[0]
+    || null;
+
+  const prelimExam = getRoundExamAt(prelim);
+  const finalExam = getRoundExamAt(finalRound);
+  if (!prelimExam || !finalExam) return null;
+
+  let hours = Number(prelim.coding_duration_hours ?? prelim.codingDurationHours ?? 0);
+  if (!hours || hours <= 0) hours = DEFAULT_PRELIM_CODING_HOURS;
+
+  return {
+    prelim,
+    finalRound,
+    breakStart: dayjs(prelimExam).add(hours, 'hour'),
+    breakEnd: dayjs(finalExam),
+  };
+};
+
+export const isPrelimPublished = (rounds) => {
+  const bounds = getBuffetBreakBounds(rounds);
+  const prelim = bounds?.prelim;
+  if (!prelim) {
+    const fallback = (rounds || []).find((r) => !(r.is_final || r.isFinal));
+    return Boolean(fallback?.is_published ?? fallback?.isPublished);
+  }
+  return Boolean(prelim.is_published ?? prelim.isPublished);
 };
 
 /** Mốc sớm nhất cho AWARDS: publishedAt → scoringLockedAt → kế hoạch sau CK */
@@ -111,6 +156,12 @@ export const isEventStartDateDisabled = (current, ctx) => {
     if (ctx.hEvEnd && day.isAfter(ctx.hEvEnd, 'day')) return true;
   }
 
+  if (ctx.selectedType === 'BUFFET') {
+    if (!ctx.buffetBreakStart || !ctx.buffetBreakEnd) return true;
+    if (day.isBefore(ctx.buffetBreakStart.startOf('day'), 'day')) return true;
+    if (day.isAfter(ctx.buffetBreakEnd.startOf('day'), 'day')) return true;
+  }
+
   if (ctx.selectedType === 'OTHER') {
     if (ctx.hEvStart && day.isBefore(ctx.hEvStart, 'day')) return true;
     if (ctx.hEvEnd && day.isAfter(ctx.hEvEnd, 'day')) return true;
@@ -124,6 +175,13 @@ export const isEventStartDateDisabled = (current, ctx) => {
 export const isEventEndDateDisabled = (current, ctx, startsAt) => {
   if (isEventStartDateDisabled(current, ctx)) return true;
   if (startsAt && current.isBefore(dayjs(startsAt).startOf('day'), 'day')) return true;
+  if (
+    ctx?.selectedType === 'BUFFET'
+    && ctx.buffetBreakEnd
+    && current.isAfter(ctx.buffetBreakEnd.startOf('day'), 'day')
+  ) {
+    return true;
+  }
   return false;
 };
 
@@ -158,21 +216,67 @@ export const getEventStartDisabledTime = (current, ctx) => {
     }
   }
 
+  if (ctx.selectedType === 'BUFFET') {
+    return buildDisabledTimeForRange(current, ctx.buffetBreakStart, ctx.buffetBreakEnd);
+  }
+
   return minMoment ? buildDisabledTimeForMin(minMoment) : {};
 };
 
-export const getEventEndDisabledTime = (current, startsAt) => {
-  if (!current || !startsAt) {
+const buildDisabledTimeForRange = (current, minBound, maxBound) => {
+  if (!current) return {};
+  let minMoment = null;
+  let maxMoment = null;
+  if (minBound && current.isSame(minBound, 'day')) minMoment = minBound;
+  if (maxBound && current.isSame(maxBound, 'day')) maxMoment = maxBound;
+  if (!minMoment && !maxMoment) return {};
+
+  return {
+    disabledHours: () => {
+      const hours = [];
+      for (let h = 0; h < 24; h += 1) {
+        if (minMoment && h < minMoment.hour()) hours.push(h);
+        if (maxMoment && h > maxMoment.hour()) hours.push(h);
+      }
+      return hours;
+    },
+    disabledMinutes: (selectedHour) => {
+      const minutes = [];
+      for (let m = 0; m < 60; m += 1) {
+        if (minMoment && selectedHour === minMoment.hour() && m < minMoment.minute()) {
+          minutes.push(m);
+        }
+        if (maxMoment && selectedHour === maxMoment.hour() && m > maxMoment.minute()) {
+          minutes.push(m);
+        }
+      }
+      return minutes;
+    },
+  };
+};
+
+export const getEventEndDisabledTime = (current, startsAt, ctx) => {
+  if (!current) {
     return {};
   }
-  const start = dayjs(startsAt);
-  if (!current.isSame(start, 'day')) {
-    return {};
+
+  let minMoment = null;
+  let maxMoment = null;
+
+  if (startsAt) {
+    const start = dayjs(startsAt);
+    if (current.isSame(start, 'day') && start.isAfter(dayjs(0))) {
+      minMoment = start.add(1, 'minute');
+    }
   }
-  if (start.isAfter(dayjs(0))) {
-    return buildDisabledTimeForMin(start.add(1, 'minute'));
+
+  if (ctx?.selectedType === 'BUFFET' && ctx.buffetBreakEnd && current.isSame(ctx.buffetBreakEnd, 'day')) {
+    maxMoment = ctx.buffetBreakEnd;
   }
-  return {};
+
+  if (!minMoment && !maxMoment) return {};
+  if (minMoment && !maxMoment) return buildDisabledTimeForMin(minMoment);
+  return buildDisabledTimeForRange(current, minMoment, maxMoment);
 };
 
 export const getEventScheduleHint = (ctx) => {
@@ -199,6 +303,12 @@ export const getEventScheduleHint = (ctx) => {
     case 'AWARDS':
       return 'Lễ trao giải đặt cùng ngày kết thúc kỳ thi, sau khi vòng Chung kết công bố kết quả (hoặc sau khóa chấm).';
 
+    case 'BUFFET':
+      if (ctx.buffetBreakStart && ctx.buffetBreakEnd) {
+        return `Buffet giải lao phải nằm trong khung nghỉ ${ctx.buffetBreakStart.format(`${DATE_FMT} ${TIME_FMT}`)} – ${ctx.buffetBreakEnd.format(`${DATE_FMT} ${TIME_FMT}`)} (sau Sơ loại, trước Chung kết).`;
+      }
+      return 'Cần có vòng Sơ loại và Chung kết (đã có giờ thi) để chọn khung Buffet giải lao.';
+
     default:
       return 'Chọn ngày và giờ nằm trong khung thời gian kỳ thi.';
   }
@@ -209,90 +319,14 @@ export const getSuggestedEventStart = (ctx) => {
     const base = ctx.requiredKickoffDay.hour(9).minute(0).second(0);
     return base.isBefore(dayjs()) ? dayjs().add(30, 'minute').startOf('minute') : base;
   }
+  if (ctx?.selectedType === 'BUFFET' && ctx.buffetBreakStart) {
+    const base = ctx.buffetBreakStart;
+    return base.isBefore(dayjs()) ? dayjs().add(30, 'minute').startOf('minute') : base;
+  }
   return null;
 };
 
 export const formatMoment = (value, withTime = true) => {
   if (!value) return '';
   return withTime ? dayjs(value).format(`${DATE_FMT} ${TIME_FMT}`) : dayjs(value).format(DATE_FMT);
-};
-
-/** Buffet DatePicker: chỉ cho chọn ngày trong khung sự kiện [startsAt, endsAt]. */
-export const isBuffetDateDisabled = (current, startsAt, endsAt) => {
-  if (!current || !startsAt) return false;
-  const day = current.startOf('day');
-  const startDay = dayjs(startsAt).startOf('day');
-  const endDay = endsAt ? dayjs(endsAt).startOf('day') : startDay;
-  return day.isBefore(startDay, 'day') || day.isAfter(endDay, 'day');
-};
-
-export const getBuffetDisabledTime = (current, startsAt, endsAt, buffetStartsAt, isEnd) => {
-  if (!current || !startsAt) return {};
-  const start = dayjs(startsAt);
-  const end = endsAt ? dayjs(endsAt) : start.endOf('day');
-  let minMoment = null;
-  let maxMoment = null;
-
-  if (current.isSame(start, 'day')) {
-    minMoment = start;
-  }
-  if (isEnd && buffetStartsAt && current.isSame(dayjs(buffetStartsAt), 'day')) {
-    const buffetStart = dayjs(buffetStartsAt);
-    if (!minMoment || buffetStart.isAfter(minMoment)) {
-      minMoment = buffetStart;
-    }
-  }
-  if (current.isSame(end, 'day')) {
-    maxMoment = end;
-  }
-
-  if (!minMoment && !maxMoment) return {};
-
-  return {
-    disabledHours: () => {
-      const hours = [];
-      for (let h = 0; h < 24; h += 1) {
-        if (minMoment && current.isSame(minMoment, 'day') && h < minMoment.hour()) hours.push(h);
-        if (maxMoment && current.isSame(maxMoment, 'day') && h > maxMoment.hour()) hours.push(h);
-      }
-      return hours;
-    },
-    disabledMinutes: (selectedHour) => {
-      const minutes = [];
-      for (let m = 0; m < 60; m += 1) {
-        if (
-          minMoment
-          && current.isSame(minMoment, 'day')
-          && selectedHour === minMoment.hour()
-          && m < minMoment.minute()
-        ) {
-          minutes.push(m);
-        }
-        if (
-          maxMoment
-          && current.isSame(maxMoment, 'day')
-          && selectedHour === maxMoment.hour()
-          && m > maxMoment.minute()
-        ) {
-          minutes.push(m);
-        }
-      }
-      return minutes;
-    },
-  };
-};
-
-export const formatBuffetSubtitle = (event) => {
-  if (!event || event.type !== 'KICKOFF') return null;
-  const loc = event.buffet_location || event.buffetLocation;
-  const start = event.buffet_starts_at || event.buffetStartsAt;
-  const end = event.buffet_ends_at || event.buffetEndsAt;
-  if (!loc && !start && !end) return null;
-  const timePart = start
-    ? `${dayjs(start).format(TIME_FMT)}${end ? `–${dayjs(end).format(TIME_FMT)}` : ''}`
-    : null;
-  if (loc && timePart) return `Buffet: ${loc} · ${timePart}`;
-  if (loc) return `Buffet: ${loc}`;
-  if (timePart) return `Buffet: ${timePart}`;
-  return null;
 };

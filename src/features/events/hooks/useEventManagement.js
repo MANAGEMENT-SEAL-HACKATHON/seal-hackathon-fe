@@ -8,7 +8,18 @@ import { mapEventToFE, mapEventToBE } from '../mappers/eventMapper';
 import { mapHackathonToFE } from '../../hackathons/mappers/hackathonMapper';
 import { getTeamErrorMessage } from '../../../shared/constants/teamErrors';
 import { EVENT_TYPE_LABELS, UNIQUE_EVENT_TYPES } from '../utils/eventTypeRules';
-import { getAwardsMinMoment, buildEventScheduleContext } from '../utils/eventScheduleRules';
+import { getAwardsMinMoment, buildEventScheduleContext, getBuffetBreakBounds } from '../utils/eventScheduleRules';
+
+const mapBuffetMenuToBE = (rows = []) =>
+  (rows || [])
+    .filter((row) => row?.name && String(row.name).trim())
+    .map((row, idx) => ({
+      name: String(row.name).trim(),
+      quantity: Math.max(1, Number(row.quantity) || 1),
+      unit: row.unit ? String(row.unit).trim() : null,
+      note: row.note ? String(row.note).trim() : null,
+      displayOrder: idx,
+    }));
 
 export const useEventManagement = (hackathonId, refreshNotifications, onUpdated) => {
   const [events, setEvents] = useState([]);
@@ -43,6 +54,12 @@ export const useEventManagement = (hackathonId, refreshNotifications, onUpdated)
     fetchData();
   }, [fetchData]);
 
+  const saveBuffetMenuIfNeeded = async (eventId, values) => {
+    if (values.type !== 'BUFFET' || !eventId) return;
+    const items = mapBuffetMenuToBE(values.buffet_menu);
+    await eventService.replaceBuffetMenu(eventId, items);
+  };
+
   const createEvent = async (values, onSuccess) => {
     const eStart = dayjs(values.starts_at);
     const eEnd = values.ends_at ? dayjs(values.ends_at) : null;
@@ -60,7 +77,7 @@ export const useEventManagement = (hackathonId, refreshNotifications, onUpdated)
 
     const dateFormat = 'HH:mm DD/MM/YYYY';
 
-    // --- 1. Mỗi kỳ chỉ 1 Khai mạc / Workshop / Trao giải ---
+    // --- 1. Mỗi kỳ chỉ 1 Khai mạc / Workshop / Trao giải / Buffet ---
     if (UNIQUE_EVENT_TYPES.includes(values.type) && events.some((e) => e.type === values.type)) {
       const label = EVENT_TYPE_LABELS[values.type] || values.type;
       return message.error(`Kỳ thi này đã có ${label}. Mỗi loại chỉ tạo một lần.`);
@@ -103,19 +120,29 @@ export const useEventManagement = (hackathonId, refreshNotifications, onUpdated)
           return message.error(`Sự kiện Khai mạc (Kick-off) bắt buộc phải diễn ra đúng 1 ngày trước ngày thi chính thức của Hackathon (Bắt buộc phải là ngày ${requiredKickoffDate.format('DD/MM/YYYY')}).`);
         }
       }
+    }
 
-      const buffetStart = values.buffet_starts_at ? dayjs(values.buffet_starts_at) : null;
-      const buffetEnd = values.buffet_ends_at ? dayjs(values.buffet_ends_at) : null;
-      if (buffetStart || buffetEnd || values.buffet_location) {
-        if (buffetStart && buffetStart.isBefore(eStart)) {
-          return message.error('Giờ bắt đầu buffet phải trong khung sự kiện Khai mạc.');
-        }
-        if (buffetEnd && eEnd && buffetEnd.isAfter(eEnd)) {
-          return message.error('Giờ kết thúc buffet phải trong khung sự kiện Khai mạc.');
-        }
-        if (buffetStart && buffetEnd && buffetEnd.isBefore(buffetStart)) {
-          return message.error('Giờ kết thúc buffet phải sau giờ bắt đầu buffet.');
-        }
+    // --- 3b. QUY TẮC: BUFFET ---
+    if (values.type === 'BUFFET') {
+      if (!eEnd) {
+        return message.error('Buffet giải lao cần có giờ kết thúc.');
+      }
+      const bounds = getBuffetBreakBounds(rounds);
+      if (!bounds) {
+        return message.error('Cần có vòng Sơ loại và Chung kết (đã có giờ thi) trước khi tạo Buffet.');
+      }
+      if (eStart.isBefore(bounds.breakStart) || eStart.isAfter(bounds.breakEnd)) {
+        return message.error(
+          `Buffet phải nằm trong khung nghỉ ${bounds.breakStart.format(dateFormat)} – ${bounds.breakEnd.format(dateFormat)}.`,
+        );
+      }
+      if (eEnd.isBefore(bounds.breakStart) || eEnd.isAfter(bounds.breakEnd)) {
+        return message.error(
+          `Buffet phải nằm trong khung nghỉ ${bounds.breakStart.format(dateFormat)} – ${bounds.breakEnd.format(dateFormat)}.`,
+        );
+      }
+      if (eEnd.isBefore(eStart)) {
+        return message.error('Giờ kết thúc buffet phải sau giờ bắt đầu.');
       }
     }
 
@@ -144,7 +171,11 @@ export const useEventManagement = (hackathonId, refreshNotifications, onUpdated)
       setIsLoading(true);
       try {
         const payload = mapEventToBE(values);
-        await eventService.create(hackathonId, payload);
+        const created = await eventService.create(hackathonId, payload);
+        const createdId = created?.id;
+        if (values.type === 'BUFFET' && createdId) {
+          await saveBuffetMenuIfNeeded(createdId, values);
+        }
         message.success('Đã tạo sự kiện thành công!');
 
         if (typeof refreshNotifications === 'function') {
@@ -181,6 +212,9 @@ export const useEventManagement = (hackathonId, refreshNotifications, onUpdated)
     try {
       const payload = mapEventToBE(merged);
       await eventService.update(eventId, payload);
+      if (merged.type === 'BUFFET') {
+        await saveBuffetMenuIfNeeded(eventId, merged);
+      }
       message.success('Đã cập nhật sự kiện');
       await fetchData();
       if (typeof onUpdated === 'function') await onUpdated();
@@ -213,7 +247,7 @@ export const useEventManagement = (hackathonId, refreshNotifications, onUpdated)
         await onUpdated();
       }
     } catch (error) {
-      message.error(error.message || 'Lỗi khi xóa sự kiện');
+      message.error(getTeamErrorMessage(error) || error.message || 'Lỗi khi xóa sự kiện');
     } finally {
       setIsLoading(false);
     }

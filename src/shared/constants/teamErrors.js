@@ -45,8 +45,11 @@ export const TEAM_ERROR_MESSAGES = {
     'Chưa thể bốc thăm: đội thi chưa bị khóa. Hãy kết thúc đăng ký (hoặc dùng «Kết thúc đăng ký sớm») để khóa đội trước.',
   JUDGE_FINAL_AT_PHASE1: 'Không thể gán Giám khảo Chung kết ở giai đoạn đầu. Chỉ gán giám khảo Sơ loại theo bảng đấu.',
   EVENT_ORDER_VIOLATION: 'Thứ tự sự kiện không hợp lệ: tạo Khai mạc trước Workshop; trên lịch Workshop phải trước Khai mạc và khác ngày.',
-  EVENT_BUFFET_NOT_KICKOFF: 'Thông tin buffet chỉ áp dụng cho sự kiện Khai mạc.',
-  EVENT_BUFFET_OUT_OF_WINDOW: 'Giờ buffet phải nằm trong khung thời gian sự kiện Khai mạc.',
+  EVENT_BUFFET_OUT_OF_BREAK: 'Buffet phải nằm trong khung nghỉ giữa Sơ loại và Chung kết.',
+  EVENT_BUFFET_DUPLICATE: 'Mỗi kỳ chỉ được tạo một sự kiện Buffet giải lao.',
+  EVENT_BUFFET_ROUNDS_MISSING: 'Cần có vòng Sơ loại và Chung kết (đã có giờ thi) trước khi tạo Buffet.',
+  BUFFET_LOCKED_AFTER_PUBLISH: 'Đã công bố điểm — không thể sửa buffet.',
+  EVENT_BUFFET_OUT_OF_WINDOW: 'Giờ kết thúc buffet phải sau giờ bắt đầu.',
   INVALID_SLIDE_FORMAT: 'Link slide phải trỏ tới file PDF (.pdf).',
 };
 

@@ -1,23 +1,23 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Card, Button, Table, Form, Input, Modal, Select, Tag, Radio, Badge, Calendar, Spin, Popconfirm, DatePicker, Switch, Steps, Alert, Typography, Space, Tooltip } from 'antd';
+import { Card, Button, Table, Form, Input, InputNumber, Modal, Select, Tag, Radio, Badge, Calendar, Spin, Popconfirm, DatePicker, Switch, Steps, Alert, Typography, Space, Tooltip } from 'antd';
 import { Plus, List, Calendar as CalendarIcon, Trash2, Pencil } from 'lucide-react';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useAppContext } from '../../../app/AppContext';
 import { useEventManagement } from '../hooks/useEventManagement';
+import { eventService } from '../services/eventService';
 import {
   buildEventScheduleContext,
-  formatBuffetSubtitle,
-  getBuffetDisabledTime,
   getEventEndDisabledTime,
   getEventScheduleHint,
   getEventStartDisabledTime,
   getSuggestedEventStart,
-  isBuffetDateDisabled,
   isEventEndDateDisabled,
   isEventStartDateDisabled,
+  isPrelimPublished,
 } from '../utils/eventScheduleRules';
 import {
+  EVENT_TYPE_LABELS,
   getCreatableEventTypes,
   getDefaultEventType,
   getEventTypeOptionLabel,
@@ -32,8 +32,9 @@ const EVENTS_TAB_HINT = (
     items={[
       'Trước hết tạo Lễ khai mạc, sau đó mới tạo Workshop',
       'Trên lịch thực tế, Workshop diễn ra trước khai mạc và không cùng ngày',
+      'Buffet giải lao nằm giữa Sơ loại và Chung kết (sau khi đã có cả hai vòng)',
       'Khi chọn loại sự kiện, lịch sẽ tự khóa ngày/giờ không hợp lệ',
-      'Mỗi kỳ chỉ có một Lễ khai mạc, một Workshop và một Lễ trao giải',
+      'Mỗi kỳ chỉ có một Lễ khai mạc, một Workshop, một Buffet và một Lễ trao giải',
     ]}
   />
 );
@@ -43,10 +44,12 @@ const EVENT_TYPE_STYLES = {
   WORKSHOP: { tag: 'blue', bg: '#e6f4ff', border: '#69b1ff' },
   PRESENTATION: { tag: 'green', bg: '#f6ffed', border: '#73d13d' },
   AWARDS: { tag: 'gold', bg: '#fffbe6', border: '#ffc53d' },
+  BUFFET: { tag: 'orange', bg: '#fff7e6', border: '#ffa940' },
   OTHER: { tag: 'default', bg: '#fafafa', border: '#d9d9d9' },
 };
 
 const getEventTypeStyle = (type) => EVENT_TYPE_STYLES[type] || EVENT_TYPE_STYLES.OTHER;
+const BUFFET_LOCK_TIP = 'Đã công bố điểm — không thể sửa buffet';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -55,13 +58,12 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [viewMode, setViewMode] = useState('list');
+  const [menuLoading, setMenuLoading] = useState(false);
   const [form] = Form.useForm();
 
   // "Nghe lén" loại sự kiện người dùng đang chọn để khóa lịch và highlight Timeline
   const selectedType = Form.useWatch('type', form);
   const startsAt = Form.useWatch('starts_at', form);
-  const endsAt = Form.useWatch('ends_at', form);
-  const buffetStartsAt = Form.useWatch('buffet_starts_at', form);
 
   const { events, rounds, currentHackathon, isLoading, createEvent, updateEvent, deleteEvent } = useEventManagement(
     hackathonId,
@@ -69,6 +71,9 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
     onUpdated,
   );
   const [awardsReadiness, setAwardsReadiness] = useState(null);
+
+  const buffetLocked = useMemo(() => isPrelimPublished(rounds), [rounds]);
+  const buffetFieldsDisabled = selectedType === 'BUFFET' && buffetLocked;
 
   useEffect(() => {
     if (!hackathonId || !hasEventType(events, 'AWARDS')) {
@@ -82,20 +87,24 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
     return () => { cancelled = true; };
   }, [hackathonId, events]);
 
-  const creatableEventTypes = useMemo(() => getCreatableEventTypes(events), [events]);
+  const creatableEventTypes = useMemo(
+    () => getCreatableEventTypes(events, rounds),
+    [events, rounds],
+  );
   const isFirstEvent = isFirstEventCreation(events);
 
   const openCreateModal = () => {
     setEditingEvent(null);
     form.resetFields();
     form.setFieldsValue({
-      type: getDefaultEventType(events),
+      type: getDefaultEventType(events, rounds),
       is_public: true,
+      buffet_menu: [{ name: '', quantity: 1, unit: '', note: '' }],
     });
     setIsModalOpen(true);
   };
 
-  const openEditModal = (record) => {
+  const openEditModal = async (record) => {
     setEditingEvent(record);
     form.setFieldsValue({
       title: record.title,
@@ -105,12 +114,34 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
       ends_at: record.ends_at ? dayjs(record.ends_at) : null,
       location: record.location,
       meet_url: record.meet_url,
-      buffet_location: record.buffet_location,
-      buffet_starts_at: record.buffet_starts_at ? dayjs(record.buffet_starts_at) : null,
-      buffet_ends_at: record.buffet_ends_at ? dayjs(record.buffet_ends_at) : null,
       description: record.description,
+      buffet_menu: [{ name: '', quantity: 1, unit: '', note: '' }],
     });
     setIsModalOpen(true);
+
+    if (record.type === 'BUFFET' && record.id) {
+      setMenuLoading(true);
+      try {
+        const menu = await eventService.getBuffetMenu(record.id);
+        const rows = Array.isArray(menu) ? menu : [];
+        form.setFieldsValue({
+          buffet_menu: rows.length
+            ? rows.map((item) => ({
+                name: item.name || '',
+                quantity: item.quantity ?? 1,
+                unit: item.unit || '',
+                note: item.note || '',
+              }))
+            : [{ name: '', quantity: 1, unit: '', note: '' }],
+        });
+      } catch {
+        form.setFieldsValue({
+          buffet_menu: [{ name: '', quantity: 1, unit: '', note: '' }],
+        });
+      } finally {
+        setMenuLoading(false);
+      }
+    }
   };
 
   const scheduleCtx = useMemo(
@@ -125,22 +156,25 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
   );
 
   useEffect(() => {
-    if (!isModalOpen || !selectedType) return;
+    if (!isModalOpen || !selectedType || editingEvent) return;
     const suggested = getSuggestedEventStart(scheduleCtx);
     if (suggested) {
       form.setFieldsValue({ starts_at: suggested });
     }
-  }, [form, isModalOpen, selectedType, scheduleCtx]);
+  }, [form, isModalOpen, selectedType, scheduleCtx, editingEvent]);
 
   useEffect(() => {
-    if (!isModalOpen) return;
+    if (!isModalOpen || editingEvent) return;
     const currentType = form.getFieldValue('type');
     if (!creatableEventTypes.includes(currentType)) {
-      form.setFieldsValue({ type: getDefaultEventType(events) });
+      form.setFieldsValue({ type: getDefaultEventType(events, rounds) });
     }
-  }, [isModalOpen, creatableEventTypes, events, form]);
+  }, [isModalOpen, creatableEventTypes, events, rounds, form, editingEvent]);
 
   const handleFinish = (values) => {
+    if (values.type === 'BUFFET' && buffetLocked) {
+      return;
+    }
     const onDone = () => {
       setIsModalOpen(false);
       setEditingEvent(null);
@@ -156,29 +190,14 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
   const disabledStartDate = (current) => isEventStartDateDisabled(current, scheduleCtx);
   const disabledEndDate = (current) => isEventEndDateDisabled(current, scheduleCtx, startsAt);
   const disabledStartTime = (current) => getEventStartDisabledTime(current, scheduleCtx);
-  const disabledEndTime = (current) => getEventEndDisabledTime(current, startsAt);
-  const disabledBuffetDate = (current) => isBuffetDateDisabled(current, startsAt, endsAt);
-  const disabledBuffetStartTime = (current) =>
-    getBuffetDisabledTime(current, startsAt, endsAt, null, false);
-  const disabledBuffetEndTime = (current) =>
-    getBuffetDisabledTime(current, startsAt, endsAt, buffetStartsAt, true);
+  const disabledEndTime = (current) => getEventEndDisabledTime(current, startsAt, scheduleCtx);
   const scheduleHint = getEventScheduleHint(scheduleCtx);
   const columns = [
     {
       title: 'Tên sự kiện',
       dataIndex: 'title',
       key: 'title',
-      render: (text, record) => {
-        const buffetLine = formatBuffetSubtitle(record);
-        return (
-          <div>
-            <strong>{text}</strong>
-            {buffetLine ? (
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{buffetLine}</div>
-            ) : null}
-          </div>
-        );
-      },
+      render: (text) => <strong>{text}</strong>,
     },
     {
       title: 'Loại',
@@ -186,7 +205,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
       key: 'type',
       render: (type) => {
         const style = getEventTypeStyle(type);
-        return <Tag color={style.tag}>{getEventTypeOptionLabel(type)}</Tag>;
+        return <Tag color={style.tag}>{EVENT_TYPE_LABELS[type] || getEventTypeOptionLabel(type)}</Tag>;
       },
     },
     { title: 'Bắt đầu', dataIndex: 'starts_at', key: 'starts', render: text => dayjs(text).format('YYYY-MM-DD HH:mm') },
@@ -198,7 +217,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
       width: 120,
       render: (_, record) => (
         <Space>
-          <Tooltip title="Sửa sự kiện">
+          <Tooltip title={record.type === 'BUFFET' && buffetLocked ? BUFFET_LOCK_TIP : 'Sửa sự kiện'}>
             <Button type="text" icon={<Pencil size={16} />} onClick={() => openEditModal(record)} />
           </Tooltip>
           <Popconfirm
@@ -207,8 +226,16 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
           onConfirm={() => deleteEvent(record.id)}
           okText="Xóa"
           cancelText="Hủy"
+          disabled={record.type === 'BUFFET' && buffetLocked}
         >
-          <Button type="text" danger icon={<Trash2 size={16} />} />
+          <Tooltip title={record.type === 'BUFFET' && buffetLocked ? BUFFET_LOCK_TIP : undefined}>
+            <Button
+              type="text"
+              danger
+              icon={<Trash2 size={16} />}
+              disabled={record.type === 'BUFFET' && buffetLocked}
+            />
+          </Tooltip>
         </Popconfirm>
         </Space>
       ),
@@ -220,6 +247,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
       case 'KICKOFF': return 'error';
       case 'AWARDS': return 'warning';
       case 'PRESENTATION': return 'success';
+      case 'BUFFET': return 'warning';
       default: return 'processing';
     }
   };
@@ -230,7 +258,6 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {listData.map((item) => {
           const style = getEventTypeStyle(item.type);
-          const buffetLine = formatBuffetSubtitle(item);
           return (
             <li key={item.id} style={{ marginBottom: 4 }}>
               <div
@@ -243,11 +270,6 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
                 }}
               >
                 <Badge status={getBadgeStatus(item.type)} text={item.title} />
-                {buffetLine ? (
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, paddingLeft: 14 }}>
-                    {buffetLine}
-                  </div>
-                ) : null}
               </div>
             </li>
           );
@@ -273,7 +295,8 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
     switch (selectedType) {
       case 'KICKOFF': return 0;
       case 'WORKSHOP': return 1;
-      case 'AWARDS': return 2;
+      case 'BUFFET': return 2;
+      case 'AWARDS': return 3;
       default: return -1;
     }
   };
@@ -339,7 +362,8 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
         onOk={() => form.submit()}
         width={720}
         okText="Lưu"
-        confirmLoading={isLoading}
+        confirmLoading={isLoading || menuLoading}
+        okButtonProps={{ disabled: buffetFieldsDisabled }}
       >
         
         <div style={{ marginBottom: 20, padding: '16px 20px', background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)', borderRadius: 12, border: '1px solid #e2e8f0' }}>
@@ -353,6 +377,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
             items={[
               { title: 'Khai mạc', description: 'Trước ngày thi 1 ngày', status: getStepStatus('KICKOFF') },
               { title: 'Workshop', description: 'Sau đăng ký', status: getStepStatus('WORKSHOP') },
+              { title: 'Buffet', description: 'Giữa SL–CK', status: getStepStatus('BUFFET') },
               { title: 'Trao giải', description: 'Cuối kỳ', status: getStepStatus('AWARDS') },
             ]}
           />
@@ -360,7 +385,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
 
         <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ is_public: true }}>
           <Form.Item name="title" label="Tên sự kiện" rules={[{ required: true, message: 'Nhập tên sự kiện' }]}>
-            <Input placeholder="Ví dụ: Workshop định hướng đề tài" />
+            <Input placeholder="Ví dụ: Workshop định hướng đề tài" disabled={buffetFieldsDisabled} />
           </Form.Item>
           
           {isFirstEvent && !editingEvent && (
@@ -373,9 +398,18 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
           {!isFirstEvent && !editingEvent && (
             <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>
               <InfoCircleOutlined style={{ marginRight: 6, color: '#6366f1' }} />
-              Mỗi kỳ chỉ có một Lễ khai mạc, một Workshop và một Lễ trao giải — loại đã tạo sẽ không hiện lại.
+              Mỗi kỳ chỉ có một Lễ khai mạc, một Workshop, một Buffet và một Lễ trao giải — loại đã tạo sẽ không hiện lại.
               {hasEventType(events, 'KICKOFF') && !hasEventType(events, 'WORKSHOP') && ' Bạn có thể thêm Workshop sau khai mạc.'}
             </Text>
+          )}
+
+          {buffetFieldsDisabled && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message={BUFFET_LOCK_TIP}
+            />
           )}
 
           <div style={{ display: 'flex', gap: 16 }}>
@@ -394,7 +428,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
               style={{ flex: 1 }}
               rules={[{ required: true, message: 'Chọn loại sự kiện' }]}
             >
-              <Select placeholder="Chọn loại" disabled={Boolean(editingEvent)}>
+              <Select placeholder="Chọn loại" disabled={Boolean(editingEvent) || buffetFieldsDisabled}>
                 {(editingEvent ? [editingEvent.type] : creatableEventTypes).map((type) => (
                   <Select.Option key={type} value={type}>
                     {getEventTypeOptionLabel(type, events)}
@@ -403,7 +437,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
               </Select>
             </Form.Item>
             <Form.Item name="is_public" label="Hiển thị công khai" valuePropName="checked" style={{ flex: 1 }}>
-              <Switch />
+              <Switch disabled={buffetFieldsDisabled} />
             </Form.Item>
           </div>
 
@@ -424,6 +458,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
               rules={[{ required: true, message: 'Chọn thời gian bắt đầu' }]}
             >
               <DatePicker
+                disabled={buffetFieldsDisabled}
                 disabledDate={disabledStartDate}
                 disabledTime={disabledStartTime}
                 showTime={{ format: 'HH:mm' }}
@@ -433,10 +468,16 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
               />
             </Form.Item>
             <Form.Item 
-              name="ends_at" label="Kết thúc" style={{ flex: 1 }} dependencies={['starts_at']}
+              name="ends_at"
+              label="Kết thúc"
+              style={{ flex: 1 }}
+              dependencies={['starts_at', 'type']}
               rules={[
                 ({ getFieldValue }) => ({
                   validator(_, value) {
+                    if (getFieldValue('type') === 'BUFFET' && !value) {
+                      return Promise.reject(new Error('Buffet cần giờ kết thúc'));
+                    }
                     const start = getFieldValue('starts_at');
                     if (!value || !start || dayjs(value).isAfter(dayjs(start))) return Promise.resolve();
                     return Promise.reject(new Error('Giờ kết thúc phải sau giờ bắt đầu'));
@@ -445,12 +486,13 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
               ]}
             >
               <DatePicker
+                disabled={buffetFieldsDisabled}
                 disabledDate={disabledEndDate}
                 disabledTime={disabledEndTime}
                 showTime={{ format: 'HH:mm' }}
                 format="DD/MM/YYYY HH:mm"
                 style={{ width: '100%' }}
-                placeholder="Tuỳ chọn"
+                placeholder={selectedType === 'BUFFET' ? 'Bắt buộc' : 'Tuỳ chọn'}
               />
             </Form.Item>
           </div>
@@ -467,7 +509,7 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
               }),
             ]}
           >
-            <Input placeholder="Ví dụ: Phòng A101, tòa Beta" />
+            <Input placeholder="Ví dụ: Phòng A101, tòa Beta" disabled={buffetFieldsDisabled} />
           </Form.Item>
 
           <Form.Item 
@@ -483,86 +525,77 @@ const EventManagementPage = ({ hackathonId, onUpdated }) => {
               }),
             ]}
           >
-            <Input placeholder="https://meet.google.com/..." />
+            <Input placeholder="https://meet.google.com/..." disabled={buffetFieldsDisabled} />
           </Form.Item>
 
-          {selectedType === 'KICKOFF' && (
-            <>
-              <Form.Item name="buffet_location" label="Địa điểm buffet (tuỳ chọn)">
-                <Input placeholder="Ví dụ: Canteen tầng 1, tòa Alpha" />
-              </Form.Item>
-              <div style={{ display: 'flex', gap: 16 }}>
-                <Form.Item
-                  name="buffet_starts_at"
-                  label="Buffet bắt đầu"
-                  style={{ flex: 1 }}
-                  dependencies={['starts_at', 'ends_at']}
-                  rules={[
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        if (!value) return Promise.resolve();
-                        const start = getFieldValue('starts_at');
-                        const end = getFieldValue('ends_at');
-                        if (start && dayjs(value).isBefore(dayjs(start))) {
-                          return Promise.reject(new Error('Buffet phải trong khung sự kiện'));
-                        }
-                        if (end && dayjs(value).isAfter(dayjs(end))) {
-                          return Promise.reject(new Error('Buffet phải trong khung sự kiện'));
-                        }
-                        return Promise.resolve();
-                      },
-                    }),
-                  ]}
-                >
-                  <DatePicker
-                    disabledDate={disabledBuffetDate}
-                    disabledTime={disabledBuffetStartTime}
-                    showTime={{ format: 'HH:mm' }}
-                    format="DD/MM/YYYY HH:mm"
-                    style={{ width: '100%' }}
-                    placeholder="Tuỳ chọn"
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="buffet_ends_at"
-                  label="Buffet kết thúc"
-                  style={{ flex: 1 }}
-                  dependencies={['starts_at', 'ends_at', 'buffet_starts_at']}
-                  rules={[
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        if (!value) return Promise.resolve();
-                        const start = getFieldValue('starts_at');
-                        const end = getFieldValue('ends_at');
-                        const buffetStart = getFieldValue('buffet_starts_at');
-                        if (start && dayjs(value).isBefore(dayjs(start))) {
-                          return Promise.reject(new Error('Buffet phải trong khung sự kiện'));
-                        }
-                        if (end && dayjs(value).isAfter(dayjs(end))) {
-                          return Promise.reject(new Error('Buffet phải trong khung sự kiện'));
-                        }
-                        if (buffetStart && dayjs(value).isBefore(dayjs(buffetStart))) {
-                          return Promise.reject(new Error('Giờ kết thúc buffet phải sau giờ bắt đầu'));
-                        }
-                        return Promise.resolve();
-                      },
-                    }),
-                  ]}
-                >
-                  <DatePicker
-                    disabledDate={disabledBuffetDate}
-                    disabledTime={disabledBuffetEndTime}
-                    showTime={{ format: 'HH:mm' }}
-                    format="DD/MM/YYYY HH:mm"
-                    style={{ width: '100%' }}
-                    placeholder="Tuỳ chọn"
-                  />
-                </Form.Item>
+          {selectedType === 'BUFFET' && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Text strong>Thực đơn buffet</Text>
+                {buffetFieldsDisabled ? (
+                  <Tooltip title={BUFFET_LOCK_TIP}>
+                    <InfoCircleOutlined style={{ color: '#fa8c16' }} />
+                  </Tooltip>
+                ) : null}
               </div>
-            </>
+              {menuLoading ? (
+                <div style={{ textAlign: 'center', padding: 16 }}><Spin /></div>
+              ) : (
+                <Form.List name="buffet_menu">
+                  {(fields, { add, remove }) => (
+                    <>
+                      {fields.map((field) => (
+                        <Space key={field.key} align="start" wrap style={{ display: 'flex', marginBottom: 8 }}>
+                          <Form.Item
+                            {...field}
+                            name={[field.name, 'name']}
+                            rules={[{ required: true, message: 'Tên món' }]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Input placeholder="Tên món" style={{ width: 160 }} disabled={buffetFieldsDisabled} />
+                          </Form.Item>
+                          <Form.Item
+                            {...field}
+                            name={[field.name, 'quantity']}
+                            rules={[{ required: true, message: 'SL' }]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <InputNumber min={1} placeholder="SL" style={{ width: 80 }} disabled={buffetFieldsDisabled} />
+                          </Form.Item>
+                          <Form.Item {...field} name={[field.name, 'unit']} style={{ marginBottom: 0 }}>
+                            <Input placeholder="Đơn vị" style={{ width: 90 }} disabled={buffetFieldsDisabled} />
+                          </Form.Item>
+                          <Form.Item {...field} name={[field.name, 'note']} style={{ marginBottom: 0 }}>
+                            <Input placeholder="Ghi chú" style={{ width: 140 }} disabled={buffetFieldsDisabled} />
+                          </Form.Item>
+                          {!buffetFieldsDisabled && fields.length > 1 ? (
+                            <Button type="text" danger onClick={() => remove(field.name)}>
+                              Xóa
+                            </Button>
+                          ) : null}
+                        </Space>
+                      ))}
+                      {!buffetFieldsDisabled ? (
+                        <Button
+                          type="dashed"
+                          block
+                          icon={<Plus size={14} />}
+                          onClick={() => add({ name: '', quantity: 1, unit: '', note: '' })}
+                        >
+                          Thêm món
+                        </Button>
+                      ) : null}
+                    </>
+                  )}
+                </Form.List>
+              )}
+            </div>
           )}
 
-          <Form.Item name="description" label="Ghi chú thêm"><TextArea rows={3} placeholder="Thông tin bổ sung cho sinh viên (tuỳ chọn)" /></Form.Item>        </Form>
+          <Form.Item name="description" label="Ghi chú thêm">
+            <TextArea rows={3} placeholder="Thông tin bổ sung cho sinh viên (tuỳ chọn)" disabled={buffetFieldsDisabled} />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

@@ -149,6 +149,7 @@ export const ENDPOINTS = {
   },
   EVENTS: {
     DETAIL: (id) => `/api/v1/events/${id}`,
+    BUFFET_MENU: (id) => `/api/v1/events/${id}/buffet-menu`,
   },
   USERS: {
     ME: '/api/v1/users/me',

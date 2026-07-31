@@ -20,5 +20,13 @@ export const eventService = {
   
   delete: async (id) => {
     return axiosClient.delete(ENDPOINTS.EVENTS.DETAIL(id));
-  }
+  },
+
+  getBuffetMenu: async (eventId) => {
+    return axiosClient.get(ENDPOINTS.EVENTS.BUFFET_MENU(eventId));
+  },
+
+  replaceBuffetMenu: async (eventId, items) => {
+    return axiosClient.put(ENDPOINTS.EVENTS.BUFFET_MENU(eventId), items);
+  },
 };
