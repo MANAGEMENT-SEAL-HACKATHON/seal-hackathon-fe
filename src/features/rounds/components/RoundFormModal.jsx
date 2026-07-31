@@ -2,7 +2,6 @@ import { useEffect, useMemo } from 'react';
 import { Modal, Form, Input, InputNumber, Row, Col, Select, DatePicker, Switch, Card, Typography } from 'antd';
 import dayjs from 'dayjs';
 import FormLabelWithInfo from '../../../shared/components/ui/FormLabelWithInfo';
-import { ROUND_TIEBREAK_RULE } from '../../../shared/constants/status';
 import {
   buildRoundScheduleContext,
   getMaxFinalExamMoment,
@@ -25,24 +24,6 @@ import {
 
 const { Option } = Select;
 const { Text } = Typography;
-
-const TIEBREAK_OPTIONS = [
-  {
-    value: ROUND_TIEBREAK_RULE.COORDINATOR_DECISION,
-    label: 'Quyết định Ban tổ chức (mặc định)',
-    title: 'Đồng điểm Top-N cần BTC xét từng case — công bằng trước hội đồng.',
-  },
-  {
-    value: ROUND_TIEBREAK_RULE.SUBMISSION_TIME,
-    label: 'Nộp sớm / Submission Time',
-    title: 'Tự động tách khi timestamp nộp khác nhau; nếu vẫn hòa → escalate BTC.',
-  },
-  {
-    value: ROUND_TIEBREAK_RULE.PENALTY_SCORE,
-    label: 'Điểm phạt (Penalty)',
-    title: 'Chỉ dùng vote/resolve BTC — không phải tiêu chí Điểm phạt trên form chấm.',
-  },
-];
 
 const RoundFormModal = ({
   visible,
@@ -167,6 +148,12 @@ const RoundFormModal = ({
           exam_at: values.exam_at?.format('YYYY-MM-DD HH:mm:ss'),
           submission_open: values.submission_open?.format('YYYY-MM-DD HH:mm:ss'),
           submission_deadline: values.submission_deadline?.format('YYYY-MM-DD HH:mm:ss'),
+          // Backend field kept unused by waterfall FE; preserve existing/default value.
+          tiebreak_rule:
+            values.tiebreak_rule ||
+            initialValues?.tiebreak_rule ||
+            initialValues?.tiebreakRule ||
+            'COORDINATOR_DECISION',
         };
         onFinish(formattedValues);
         form.resetFields();
@@ -452,30 +439,6 @@ const RoundFormModal = ({
               />
             </Form.Item>
 
-            <Form.Item
-              name="tiebreak_rule"
-              label={
-                <FormLabelWithInfo
-                  label="Luật xử lý đồng điểm"
-                  info={
-                    (initialValues?.tiebreak_rule === 'PENALTY_SCORE' ||
-                    initialValues?.tiebreakRule === 'PENALTY_SCORE'
-                      ? 'Round đang dùng PENALTY_SCORE — khuyến nghị đổi sang Quyết định Ban tổ chức. '
-                      : '') +
-                    'Khi đồng điểm tại biên Top-N mỗi bảng trước khi chốt chuyển vòng.'
-                  }
-                />
-              }
-            >
-              <Select>
-                {TIEBREAK_OPTIONS.map((opt) => (
-                  <Option key={opt.value} value={opt.value} title={opt.title}>
-                    {opt.label}
-                  </Option>
-                ))}
-              </Select>
-            </Form.Item>
-
             {advancementMode !== 'estimate' && partitions.length > 0 && (
               <div style={{ marginTop: 8 }}>
                 <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
@@ -491,32 +454,6 @@ const RoundFormModal = ({
               </div>
             )}
           </Card>
-        )}
-
-        {isFinal && (
-          <Form.Item
-            name="tiebreak_rule"
-            label={
-              <FormLabelWithInfo
-                label="Luật xử lý đồng điểm"
-                info={
-                  (initialValues?.tiebreak_rule === 'PENALTY_SCORE' ||
-                  initialValues?.tiebreakRule === 'PENALTY_SCORE'
-                    ? 'Round đang dùng PENALTY_SCORE — khuyến nghị đổi sang Quyết định Ban tổ chức. '
-                    : '') +
-                  'Giải quyết đồng điểm khi xếp hạng Nhất/Nhì/Ba ở Chung kết.'
-                }
-              />
-            }
-          >
-            <Select>
-              {TIEBREAK_OPTIONS.map((opt) => (
-                <Option key={opt.value} value={opt.value} title={opt.title}>
-                  {opt.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
         )}
 
         <Row gutter={24}>

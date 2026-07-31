@@ -1,3 +1,5 @@
+import { formatScore } from "../../../../shared/utils/formatScore";
+
 const firstDefined = (...values) => values.find((value) => value !== undefined && value !== null);
 
 const getItems = (response) => {
@@ -8,18 +10,25 @@ const getItems = (response) => {
   return [];
 };
 
+const toScoreNumber = (...candidates) => {
+  const raw = firstDefined(...candidates, 0);
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+};
+
 export const mapFinalRankings = (response) => {
   const items = getItems(response);
   return items
     .map((item, index) => {
-      const score = Number(firstDefined(item.totalScore, item.total_score, item.score, item.finalScore, item.final_score, 0)) || 0;
+      const score = toScoreNumber(item.totalScore, item.total_score, item.score, item.finalScore, item.final_score);
       return {
         key: String(firstDefined(item.teamId, item.team_id, item.id, index)),
         teamId: firstDefined(item.teamId, item.team_id, item.id),
         teamName: firstDefined(item.teamName, item.team_name, item.name, `Đội ${index + 1}`),
         rank: Number(firstDefined(item.rank, index + 1)),
-        score: score,
+        score,
         totalScore: score,
+        scoreLabel: formatScore(score),
         trackName: firstDefined(item.trackName, item.track_name, item.track, "—"),
       };
     })
@@ -43,7 +52,13 @@ export const mapStudentScoreboard = (response) => ({
         resultLabel = "Dừng bước";
       }
 
-      const score = Number(firstDefined(item.weightedAvgScore, item.weighted_avg_score, item.totalScore, item.total_score, item.score, 0)) || 0;
+      const score = toScoreNumber(
+        item.weightedAvgScore,
+        item.weighted_avg_score,
+        item.totalScore,
+        item.total_score,
+        item.score,
+      );
 
       return {
         key: String(firstDefined(item.teamId, item.team_id, item.id, index)),
@@ -51,7 +66,8 @@ export const mapStudentScoreboard = (response) => ({
         teamName: firstDefined(item.teamName, item.team_name, item.name, `Đội ${index + 1}`),
         rank: Number(firstDefined(item.rankInGroup, item.rank_in_group, item.rank, index + 1)),
         groupLabel: groupText.toLowerCase().startsWith("bảng") ? groupText : `Bảng ${groupText}`,
-        score: score,
+        score,
+        scoreLabel: formatScore(score),
         participationStatus: participationStatus,
         isAdvanced: isAdvanced,
         resultLabel: resultLabel,
@@ -73,14 +89,28 @@ export const mapStudentLeaderboard = (response) => {
     publishedAt: null,
     items: items
       .map((item, index) => {
-        const score = Number(firstDefined(item.totalScore, item.total_score, item.score, 0)) || 0;
+        const score = toScoreNumber(item.totalScore, item.total_score, item.score);
+        const assignedGroup = firstDefined(item.assignedGroup, item.assigned_group, item.group, null);
+        const trackName = firstDefined(item.trackName, item.track_name, null);
+        const groupRaw = firstDefined(assignedGroup, trackName, "Tất cả");
+        const groupText = String(groupRaw);
+        const rankInGroup = firstDefined(item.rankInGroup, item.rank_in_group, null);
+        const totalInGroup = firstDefined(item.totalInGroup, item.total_in_group, null);
         return {
           key: String(firstDefined(item.teamId, item.team_id, item.id, index)),
           teamId: firstDefined(item.teamId, item.team_id, item.id),
           teamName: firstDefined(item.teamName, item.team_name, item.name, `Đội ${index + 1}`),
-          rank: Number(firstDefined(item.rank, index + 1)),
-          groupLabel: "Tất cả",
-          score: score,
+          rank: Number(firstDefined(rankInGroup, item.rank, index + 1)),
+          rankInGroup: rankInGroup != null ? Number(rankInGroup) : null,
+          totalInGroup: totalInGroup != null ? Number(totalInGroup) : null,
+          assignedGroup: assignedGroup != null ? String(assignedGroup) : null,
+          trackId: firstDefined(item.trackId, item.track_id, null),
+          trackName: trackName,
+          groupLabel: groupText.toLowerCase().startsWith("bảng") || groupText === "Tất cả"
+            ? groupText
+            : `Bảng ${groupText}`,
+          score,
+          scoreLabel: formatScore(score),
           isAdvanced: false,
           resultLabel: "Hoàn thành",
           tiebreakRequired: Boolean(firstDefined(item.tiebreakRequired, item.tiebreak_required, false)),

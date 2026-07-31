@@ -1,21 +1,32 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, Empty, Segmented, Skeleton, Space, Table, Tag, Typography, theme, Row, Col, Alert } from "antd";
 import { TrophyOutlined } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
+import { formatScore } from "../../../../shared/utils/formatScore";
 
 const { Text, Title } = Typography;
 
-const PublicScoreboard = ({ scoreboard, isLoading }) => {
+const PublicScoreboard = ({ scoreboard, isLoading, lockToOwnGroup = false }) => {
   const { token } = theme.useToken();
   const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
   const [selectedGroup, setSelectedGroup] = useState("all");
   
   const groups = useMemo(
-    () => [...new Set((scoreboard?.items || []).map((item) => item.groupLabel))],
+    () => [...new Set((scoreboard?.items || []).map((item) => item.groupLabel).filter(Boolean))],
     [scoreboard?.items],
   );
-  const items = selectedGroup === "all"
+  const hideAllOption = lockToOwnGroup || groups.length <= 1;
+
+  useEffect(() => {
+    if (hideAllOption && groups.length > 0) {
+      setSelectedGroup(groups[0]);
+    } else {
+      setSelectedGroup("all");
+    }
+  }, [hideAllOption, groups]);
+
+  const items = selectedGroup === "all" || !selectedGroup
     ? (scoreboard?.items || [])
     : (scoreboard?.items || []).filter((item) => item.groupLabel === selectedGroup);
 
@@ -77,19 +88,25 @@ const PublicScoreboard = ({ scoreboard, isLoading }) => {
           description="Thứ hạng tạm thời — Ban tổ chức đang phân xử các đội đồng điểm."
         />
       )}
-      <Segmented
-        block
-        size="large"
-        options={[{ label: "Tất cả bảng", value: "all" }, ...groups.map((group) => ({ label: group, value: group }))]}
-        value={selectedGroup}
-        onChange={setSelectedGroup}
-        style={{
-          background: isDark ? 'rgba(30, 41, 59, 0.8)' : '#f1f5f9',
-          padding: 6,
-          borderRadius: 16,
-          border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#cbd5e1'}`,
-        }}
-      />
+      {!hideAllOption ? (
+        <Segmented
+          block
+          size="large"
+          options={[{ label: "Tất cả bảng", value: "all" }, ...groups.map((group) => ({ label: group, value: group }))]}
+          value={selectedGroup}
+          onChange={setSelectedGroup}
+          style={{
+            background: isDark ? 'rgba(30, 41, 59, 0.8)' : '#f1f5f9',
+            padding: 6,
+            borderRadius: 16,
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#cbd5e1'}`,
+          }}
+        />
+      ) : groups[0] ? (
+        <Tag color="blue" style={{ fontWeight: 700, padding: '6px 14px', borderRadius: 12, fontSize: 13 }}>
+          {groups[0]}
+        </Tag>
+      ) : null}
 
       {/* PODIUM SHOWCASE FOR THIS ROUND */}
       {items.length >= 1 && (
@@ -122,7 +139,7 @@ const PublicScoreboard = ({ scoreboard, isLoading }) => {
                     {top2.groupLabel || 'Bảng đấu'}
                   </Text>
                   <div style={{ fontSize: 30, fontWeight: 900, color: isDark ? '#cbd5e1' : '#475569' }}>
-                    {(Number(top2.score) || 0).toFixed(2)}
+                    {formatScore(top2.score)}
                   </div>
                   <Text style={{ fontSize: 12, color: token.colorTextSecondary, textTransform: 'uppercase', fontWeight: 700 }}>Điểm Vòng Thi</Text>
                 </Card>
@@ -160,7 +177,7 @@ const PublicScoreboard = ({ scoreboard, isLoading }) => {
                     {top1.groupLabel || 'Bảng đấu'}
                   </Text>
                   <div style={{ fontSize: 38, fontWeight: 900, color: '#d97706', textShadow: '0 2px 10px rgba(217, 119, 6, 0.2)' }}>
-                    {(Number(top1.score) || 0).toFixed(2)}
+                    {formatScore(top1.score)}
                   </div>
                   <Text style={{ fontSize: 13, color: token.colorTextSecondary, textTransform: 'uppercase', fontWeight: 800 }}>Điểm Vòng Thi</Text>
                 </Card>
@@ -196,7 +213,7 @@ const PublicScoreboard = ({ scoreboard, isLoading }) => {
                     {top3.groupLabel || 'Bảng đấu'}
                   </Text>
                   <div style={{ fontSize: 30, fontWeight: 900, color: isDark ? '#fdba74' : '#b45309' }}>
-                    {(Number(top3.score) || 0).toFixed(2)}
+                    {formatScore(top3.score)}
                   </div>
                   <Text style={{ fontSize: 12, color: token.colorTextSecondary, textTransform: 'uppercase', fontWeight: 700 }}>Điểm Vòng Thi</Text>
                 </Card>
@@ -258,13 +275,12 @@ const PublicScoreboard = ({ scoreboard, isLoading }) => {
               dataIndex: "score", 
               align: "right", 
               render: (value, record) => {
-                const num = Number(value) || 0;
                 const rank = record.rank;
                 let pillStyle = { background: '#00529C', color: '#fff', padding: '4px 14px', borderRadius: 14, fontSize: 15, fontWeight: 700 };
                 if (rank === 1) pillStyle = { background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#fff', padding: '6px 18px', borderRadius: 16, fontSize: 17, fontWeight: 900, boxShadow: '0 4px 12px rgba(245, 158, 11, 0.4)' };
                 else if (rank === 2) pillStyle = { background: 'linear-gradient(135deg, #64748b 0%, #475569 100%)', color: '#fff', padding: '5px 16px', borderRadius: 16, fontSize: 16, fontWeight: 800 };
                 else if (rank === 3) pillStyle = { background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', color: '#fff', padding: '5px 16px', borderRadius: 16, fontSize: 16, fontWeight: 800 };
-                return <span style={{ display: 'inline-block', ...pillStyle }}>{num.toFixed(2)}</span>;
+                return <span style={{ display: 'inline-block', ...pillStyle }}>{formatScore(value)}</span>;
               } 
             },
             { 

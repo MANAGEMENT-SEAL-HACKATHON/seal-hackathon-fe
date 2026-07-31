@@ -3,13 +3,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Button, Col, Empty, Input, Row, Select, Skeleton, Space, Tag, Tooltip, Typography } from "antd";
 import { DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
 import { roundResultsService } from "../services/roundResults.service";
+import { formatScore } from "../../../shared/utils/formatScore";
 
 const { Text, Title } = Typography;
 
 const REASON_META = {
-  TOP_N: { color: "green", label: "Top N" },
+  TOP_N: { color: "green" },
   OUT: { color: "default", label: "Loại" },
   DQ: { color: "red", label: "Bị loại kỷ luật" },
+};
+
+const topNLabel = (row) => row?.reasonLabel || (row?.rank != null ? `Top ${row.rank}` : "—");
+
+const reasonDisplay = (item) => {
+  if (item.reasonCode === "TOP_N") return topNLabel(item);
+  const meta = REASON_META[item.reasonCode] || REASON_META.OUT;
+  return item.reasonLabel || meta.label;
 };
 
 const RosterColumn = ({ title, color, items, emptyText }) => (
@@ -31,6 +40,7 @@ const RosterColumn = ({ title, color, items, emptyText }) => (
       <Space direction="vertical" style={{ width: "100%" }} size={8}>
         {items.map((item) => {
           const meta = REASON_META[item.reasonCode] || REASON_META.OUT;
+          const label = reasonDisplay(item);
           return (
             <div
               key={item.teamId}
@@ -51,11 +61,11 @@ const RosterColumn = ({ title, color, items, emptyText }) => (
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {item.trackName || "—"}
                   {item.rank != null ? ` · Hạng ${item.rank}` : ""}
-                  {item.totalScore != null ? ` · ${Number(item.totalScore).toFixed(2)}` : ""}
+                  {item.totalScore != null ? ` · ${formatScore(item.totalScore)}` : ""}
                 </Text>
               </div>
-              <Tooltip title={item.reasonLabel || meta.label}>
-                <Tag color={meta.color}>{item.reasonLabel || meta.label}</Tag>
+              <Tooltip title={label}>
+                <Tag color={meta.color}>{label}</Tag>
               </Tooltip>
             </div>
           );

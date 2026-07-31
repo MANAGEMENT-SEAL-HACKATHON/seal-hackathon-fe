@@ -40,7 +40,7 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
   const {
     rounds, tracks, activeTeams, pendingBuckets, hackathon, isLoading,
     selectedRoundId, setSelectedRoundId, lotteryGate,
-    unlockedActiveTeams, awaitingAutoLock,
+    unlockedActiveTeams, awaitingAutoLock, autoLockTimedOut,
     handleAssignTopic, handleRunAutoLottery, handleChangeTrack
   } = useLotteryManagement(hackathonId, onUpdated);
 
@@ -95,9 +95,9 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
       render: (_, record) => {
         const locked = record.isLocked ?? record.is_locked;
         if (locked) return <Tag color="red">Đã khóa</Tag>;
-        if (closedEarly || !regStillOpen) {
+        if (awaitingAutoLock) {
           return (
-            <Tooltip title="Đăng ký đã đóng — hệ thống đang khóa đội (thường dưới 1 phút). Trang sẽ tự cập nhật.">
+            <Tooltip title="Đăng ký đã đóng — hệ thống đang khóa đội. Trang sẽ tự cập nhật.">
               <Tag color="processing">Đang khóa…</Tag>
             </Tooltip>
           );
@@ -240,11 +240,31 @@ const LotteryManagementPage = ({ hackathonId, onUpdated, onGoToGeneral }) => {
             ) : null}
             {awaitingAutoLock ? (
               <Alert
-                type="info"
+                type={autoLockTimedOut ? 'warning' : 'info'}
                 showIcon
                 style={{ marginBottom: 16, borderRadius: 8 }}
-                message={`Đang khóa ${unlockedActiveTeams.length} đội ACTIVE…`}
-                description="Đăng ký đã đóng. Trang tự làm mới mỗi 5 giây. (Sau bản vá: duyệt đội sẽ khóa ngay — không còn chờ cron ~1 phút.)"
+                message={
+                  autoLockTimedOut
+                    ? `Chưa khóa được ${unlockedActiveTeams.length} đội ACTIVE`
+                    : `Đang khóa ${unlockedActiveTeams.length} đội ACTIVE…`
+                }
+                description={
+                  autoLockTimedOut ? (
+                    <Space direction="vertical" size={8}>
+                      <Text>
+                        Hệ thống chưa khóa đội sau ~60 giây. Hãy dùng «Kết thúc đăng ký sớm» ở tab Cấu hình chung
+                        để khóa ngay và tiếp tục bốc thăm.
+                      </Text>
+                      {onGoToGeneral ? (
+                        <Button size="small" type="primary" onClick={onGoToGeneral}>
+                          Sang Cấu hình chung → Kết thúc đăng ký sớm
+                        </Button>
+                      ) : null}
+                    </Space>
+                  ) : (
+                    'Đăng ký đã đóng. Trang tự làm mới mỗi 5 giây.'
+                  )
+                }
               />
             ) : null}
             {noApprovedTeams ? (

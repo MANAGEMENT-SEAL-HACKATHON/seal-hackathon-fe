@@ -41,7 +41,6 @@ import {
 } from '../services/judgeService';
 import { runDeclineAssignment } from '../../assignments/utils/confirmAssignmentDecline';
 import { resolveUserError } from '../../../shared/errors/resolveUserError';
-import AppealCountdownBar from '../../appeals/components/AppealCountdownBar';
 const { 
   Title, 
   Text 
@@ -226,27 +225,6 @@ const ScoringLobbyPage = () => {
 
   const uniqueHackathons = [...new Set(assignments.map(a => a.hackathonName).filter(Boolean))];
 
-  // Prelim rounds for appeal countdown: final not ACTIVE, has prelim roundId
-  const appealCountdownRoundIds = (() => {
-    const byHackathon = new Map();
-    assignments.forEach((a) => {
-      const hid = a.hackathonId;
-      if (!byHackathon.has(hid)) {
-        byHackathon.set(hid, { prelimRoundId: null, finalActive: false });
-      }
-      const entry = byHackathon.get(hid);
-      if (a.isFinal) {
-        const st = String(a.roundStatus || '').toUpperCase();
-        if (st === 'ACTIVE' || st === 'ONGOING') entry.finalActive = true;
-      } else if (a.roundId) {
-        entry.prelimRoundId = a.roundId;
-      }
-    });
-    return [...byHackathon.values()]
-      .filter((e) => e.prelimRoundId && !e.finalActive)
-      .map((e) => e.prelimRoundId);
-  })();
-
   // Options cho Dropdown
   const hackathonOptions = [
     { 
@@ -410,14 +388,6 @@ const ScoringLobbyPage = () => {
           />
         </Space>
       </div>
-
-      {appealCountdownRoundIds.length > 0 && (
-        <Space direction="vertical" size={12} style={{ width: '100%', marginBottom: 24 }}>
-          {appealCountdownRoundIds.map((rid) => (
-            <AppealCountdownBar key={rid} roundId={rid} readOnly />
-          ))}
-        </Space>
-      )}
 
       {/* KHU VỰC HIỂN THỊ DỮ LIỆU */}
       {loading ? (

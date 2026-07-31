@@ -64,6 +64,21 @@ export const HACKATHON_STATUS_COLORS = {
   INACTIVE: 'default',
 };
 
+/** Giai đoạn đăng ký dẫn xuất (registrationPhase). */
+export const REGISTRATION_PHASE_LABELS = {
+  NOT_YET_OPEN: 'Chờ mở đăng ký',
+  OPEN: 'Đang mở đăng ký',
+  CLOSED_EARLY: 'Đóng sớm',
+  CLOSED: 'Đã đóng đăng ký',
+};
+
+export const REGISTRATION_PHASE_COLORS = {
+  NOT_YET_OPEN: 'processing',
+  OPEN: 'green',
+  CLOSED_EARLY: 'orange',
+  CLOSED: 'default',
+};
+
 export const ROUND_STATUS_LABELS = {
   DRAFT: 'Bản nháp',
   ACTIVE: 'Đang diễn ra',

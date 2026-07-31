@@ -48,6 +48,10 @@ const PrizeListPanel = ({ data, loading, hackathonId, onRefresh, canAward, canRe
   });
 
   const printPath = ROUTES.HACKATHON_PRIZES_PRINT.replace(':hackathonId', String(hackathonId));
+  const certificatesPath = ROUTES.HACKATHON_PRIZES_CERTIFICATES.replace(
+    ':hackathonId',
+    String(hackathonId),
+  );
 
   const openRevoke = (item) => {
     setRevokeModal({
@@ -105,9 +109,22 @@ const PrizeListPanel = ({ data, loading, hackathonId, onRefresh, canAward, canRe
           const prizeType = item.prizeRank ?? item.prize_type ?? item.prize_rank;
           const prizeValue = item.prizeValue ?? item.prize_value;
           const teamName = item.teamName ?? item.team?.team_name ?? item.team?.teamName;
-          return (
-          <List.Item
-            actions={canRevoke && (item.id ?? item.prizeId) ? [
+          const teamId = item.teamId ?? item.team_id ?? item.team?.id;
+          const certUrl = teamId
+            ? `${certificatesPath}?teamId=${teamId}`
+            : certificatesPath;
+          const actions = [];
+          if (teamId || teamName) {
+            actions.push(
+              <Link key="cert" to={certUrl} target="_blank" rel="noreferrer">
+                <Button type="text" icon={<Printer size={16} />} id={`hackathon-prize-cert-${item.id ?? item.prizeId}`}>
+                  In bảng trao giải
+                </Button>
+              </Link>,
+            );
+          }
+          if (canRevoke && (item.id ?? item.prizeId)) {
+            actions.push(
               <Button
                 key="revoke"
                 type="text"
@@ -118,8 +135,10 @@ const PrizeListPanel = ({ data, loading, hackathonId, onRefresh, canAward, canRe
               >
                 Thu hồi
               </Button>,
-            ] : undefined}
-          >
+            );
+          }
+          return (
+          <List.Item actions={actions.length ? actions : undefined}>
             <List.Item.Meta
               avatar={getPrizeIcon(prizeType)}
               title={

@@ -5,7 +5,7 @@ import { ROUTES } from '../../../shared/constants/routes';
 const { Text } = Typography;
 
 /**
- * Checklist vận hành trên màn kết quả sơ loại (công bố, khiếu nại, đồng điểm, chốt chuyển vòng).
+ * Checklist vận hành trên màn kết quả sơ loại (công bố, đồng điểm, chốt chuyển vòng).
  */
 const PreliminaryResultsCoordinatorStepper = ({
   hackathonId,
@@ -14,20 +14,18 @@ const PreliminaryResultsCoordinatorStepper = ({
   isPublished,
   hasAdvanced,
   tiebreakCount = 0,
-  appealPendingCount = 0,
   onTabChange,
   tabsAnchorId = 'gd4-results-tabs',
 }) => {
   if (!roundId || !scoringLocked) return null;
 
-  // Steps: 0 Khóa | 1 BXH | 2 Đồng điểm | 3 Công bố | 4 Khiếu nại | 5 Chốt CK | 6 Cấu hình
+  // Steps: 0 Khóa | 1 Xem trước | 2 Đồng điểm | 3 Công bố | 4 Cấu hình CK
   let current = 0;
   if (scoringLocked) current = 1;
   if (scoringLocked && tiebreakCount > 0 && !isPublished) current = 2;
-  if (isPublished) current = 3;
-  if (isPublished && appealPendingCount > 0) current = 4;
-  if (isPublished && !hasAdvanced && tiebreakCount === 0 && appealPendingCount === 0) current = 5;
-  if (hasAdvanced) current = 6;
+  if (scoringLocked && tiebreakCount === 0 && !isPublished) current = 3;
+  if (isPublished && !hasAdvanced) current = 3;
+  if (hasAdvanced) current = 4;
 
   const resultsUrl = ROUTES.ROUND_RESULTS.replace(':hackathonId', String(hackathonId)).replace(
     ':roundId',
@@ -52,11 +50,11 @@ const PreliminaryResultsCoordinatorStepper = ({
         current={current}
         items={[
           {
-            title: 'Khóa chấm sơ loại',
+            title: 'Khóa chấm',
             description: <Link to={roundsUrl}>Quản lý vòng</Link>,
           },
           {
-            title: 'BXH chính thức',
+            title: 'Xem trước',
             description: (
               <Button
                 type="link"
@@ -84,31 +82,21 @@ const PreliminaryResultsCoordinatorStepper = ({
             ),
           },
           {
-            title: 'Công bố',
-            description: <Text type="secondary">Nút trên phần đầu trang</Text>,
-          },
-          {
-            title: 'Khiếu nại',
+            title: 'Công bố & Chốt',
             description: (
-              <Badge count={appealPendingCount} size="small" offset={[8, 0]}>
-                <Button
-                  type="link"
-                  size="small"
-                  style={{ padding: 0, height: 'auto' }}
-                  disabled={!isPublished}
-                  onClick={() => goToTab('appeals')}
-                >
-                  Xử lý khiếu nại DQ
-                </Button>
-              </Badge>
+              <Text type="secondary">
+                {tiebreakCount > 0 && !isPublished
+                  ? 'Giải quyết đồng điểm trước khi công bố'
+                  : isPublished && !hasAdvanced ? (
+                  <Link to={resultsUrl}>Chốt danh sách vào Chung kết</Link>
+                ) : (
+                  'Nút trên phần đầu trang'
+                )}
+              </Text>
             ),
           },
           {
-            title: 'Chốt Chung kết',
-            description: <Link to={resultsUrl}>Chốt danh sách vào Chung kết</Link>,
-          },
-          {
-            title: 'Cấu hình Chung kết',
+            title: 'Cấu hình CK',
             description: <Link to={finalConfigUrl}>Cấu hình vòng Chung kết</Link>,
           },
         ]}

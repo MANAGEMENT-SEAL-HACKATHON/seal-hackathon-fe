@@ -1,15 +1,15 @@
 /**
- * A2-1 — Bảng điểm riêng của đội: tiêu chí + TB, giám khảo ẩn danh.
+ * A2-1 — Bảng điểm riêng của đội: bố cục dọc theo tiêu chí + nhận xét giám khảo ẩn danh.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Card, Empty, Select, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Card, Empty, Select, Space, Typography } from 'antd';
 import { TrophyOutlined } from '@ant-design/icons';
 import axiosClient from '../../../../shared/api/axiosClient';
 import { teamService } from '../../../../features/teams/services/teamService';
 
 const { Text, Title } = Typography;
 
-const fmt = (v) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(2));
+const fmt = (v) => (v == null || Number.isNaN(Number(v)) ? '0.00' : Number(v).toFixed(2));
 
 const TeamScoreBreakdownCard = ({ teamId, rounds: roundsProp }) => {
   const [rounds, setRounds] = useState(roundsProp || []);
@@ -75,54 +75,30 @@ const TeamScoreBreakdownCard = ({ teamId, rounds: roundsProp }) => {
     };
   }, [teamId, roundId]);
 
-  const columns = useMemo(() => {
+  const criterionBlocks = useMemo(() => {
     if (!data?.criteria?.length) return [];
-    const cols = [
-      {
-        title: 'Giám khảo',
-        dataIndex: 'label',
-        fixed: 'left',
-        width: 120,
-      },
-    ];
-    data.criteria.forEach((c) => {
-      cols.push({
-        title: c.name,
-        dataIndex: `c_${c.criterionId}`,
-        align: 'center',
-        width: 100,
-        render: (v, row) => {
-          if (row.isAvg) return <Text strong>{fmt(v)}</Text>;
-          if (v == null) return <Tag>Chưa chấm</Tag>;
-          return fmt(v);
-        },
-      });
-    });
-    return cols;
-  }, [data]);
-
-  const tableData = useMemo(() => {
-    if (!data?.judges) return [];
     const cellMap = new Map();
     (data.cells || []).forEach((c) => {
-      cellMap.set(`${c.judgeOrdinal}:${c.criterionId}`, c.scoreValue);
+      cellMap.set(`${c.judgeOrdinal}:${c.criterionId}`, c);
     });
     const avgMap = new Map();
     (data.criterionAverages || []).forEach((a) => avgMap.set(a.criterionId, a.average));
+    const judges = data.judges || [];
 
-    const rows = data.judges.map((j) => {
-      const row = { key: j.ordinal, label: j.label };
-      (data.criteria || []).forEach((c) => {
-        row[`c_${c.criterionId}`] = cellMap.get(`${j.ordinal}:${c.criterionId}`) ?? null;
-      });
-      return row;
-    });
-    const avgRow = { key: 'avg', label: 'Trung bình đội', isAvg: true };
-    (data.criteria || []).forEach((c) => {
-      avgRow[`c_${c.criterionId}`] = avgMap.get(c.criterionId) ?? null;
-    });
-    rows.push(avgRow);
-    return rows;
+    return data.criteria.map((c) => ({
+      criterionId: c.criterionId,
+      name: c.name,
+      average: avgMap.get(c.criterionId) ?? null,
+      rows: judges.map((j) => {
+        const cell = cellMap.get(`${j.ordinal}:${c.criterionId}`);
+        return {
+          key: `${c.criterionId}-${j.ordinal}`,
+          label: j.label || `Giám khảo ${j.ordinal}`,
+          scoreValue: cell?.scoreValue ?? null,
+          comment: cell?.comment || null,
+        };
+      }),
+    }));
   }, [data]);
 
   if (!teamId) return null;
@@ -130,6 +106,7 @@ const TeamScoreBreakdownCard = ({ teamId, rounds: roundsProp }) => {
   return (
     <Card
       data-testid="team-score-breakdown-card"
+      loading={loading}
       title={
         <Space>
           <TrophyOutlined style={{ color: '#1677ff' }} />
@@ -175,15 +152,48 @@ const TeamScoreBreakdownCard = ({ teamId, rounds: roundsProp }) => {
           Điểm trung bình đội: {fmt(data.teamAverage)}
         </Title>
       )}
-      <Table
-        size="small"
-        loading={loading}
-        columns={columns}
-        dataSource={tableData}
-        pagination={false}
-        scroll={{ x: true }}
-        locale={{ emptyText: <Empty description="Chưa có điểm để hiển thị" /> }}
-      />
+      {!loading && criterionBlocks.length === 0 && !error ? (
+        <Empty description="Chưa có điểm để hiển thị" />
+      ) : (
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          {criterionBlocks.map((block) => (
+            <Card
+              key={block.criterionId}
+              size="small"
+              title={
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <span>{block.name}</span>
+                  <Text type="secondary" style={{ fontWeight: 400 }}>
+                    TB: {fmt(block.average)}
+                  </Text>
+                </div>
+              }
+            >
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                {block.rows.map((row) => (
+                  <div key={row.key} style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                      <Text strong>{row.label}</Text>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {fmt(row.scoreValue)}
+                      </Text>
+                    </div>
+                    {row.comment ? (
+                      <Text type="secondary" style={{ display: 'block', marginTop: 4, whiteSpace: 'pre-wrap' }}>
+                        {row.comment}
+                      </Text>
+                    ) : (
+                      <Text type="secondary" style={{ display: 'block', marginTop: 4, fontStyle: 'italic' }}>
+                        Không có nhận xét
+                      </Text>
+                    )}
+                  </div>
+                ))}
+              </Space>
+            </Card>
+          ))}
+        </Space>
+      )}
     </Card>
   );
 };

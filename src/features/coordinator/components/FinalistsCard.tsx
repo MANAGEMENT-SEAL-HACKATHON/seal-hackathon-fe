@@ -2,12 +2,18 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Empty, Skeleton, Space, Table, Tag, Typography } from 'antd';
 import { ReloadOutlined, TrophyOutlined } from '@ant-design/icons';
 import { roundResultsService } from '../../rounds/services/roundResults.service';
+import { formatScore } from '../../../shared/utils/formatScore';
 
 const { Text } = Typography;
 
-const REASON_META: Record<string, { color: string; label: string }> = {
-  TOP_N: { color: 'green', label: 'Top N' },
+const REASON_META: Record<string, { color: string }> = {
+  TOP_N: { color: 'green' },
+  OUT: { color: 'default' },
+  DQ: { color: 'red' },
 };
+
+const topNLabel = (row: any) =>
+  row?.reasonLabel || (row?.rank != null ? `Top ${row.rank}` : '—');
 
 type FinalistsCardProps = {
   /** Vòng Sơ loại nguồn — nơi advance-roster chốt danh sách vào CK */
@@ -75,11 +81,15 @@ const FinalistsCard: React.FC<FinalistsCardProps> = ({
       {
         title: 'Lý do vào CK',
         dataIndex: 'reasonCode',
-        width: 130,
+        width: 160,
         render: (code: string, row: any) => {
-          const meta = REASON_META[String(code).toUpperCase()];
+          const upper = String(code || '').toUpperCase();
+          const meta = REASON_META[upper];
+          if (upper === 'TOP_N') {
+            return <Tag color={meta?.color || 'green'}>{topNLabel(row)}</Tag>;
+          }
           if (!meta) return <Tag>{row.reasonLabel || code || '—'}</Tag>;
-          return <Tag color={meta.color}>{meta.label}</Tag>;
+          return <Tag color={meta.color}>{row.reasonLabel || code || '—'}</Tag>;
         },
       },
       {
@@ -89,7 +99,7 @@ const FinalistsCard: React.FC<FinalistsCardProps> = ({
         render: (_: any, row: any) => (
           <Text type="secondary">
             {row.rank != null ? `Hạng ${row.rank}` : '—'}
-            {row.totalScore != null ? ` · ${Number(row.totalScore).toFixed(2)}` : ''}
+            {row.totalScore != null ? ` · ${formatScore(row.totalScore)}` : ''}
           </Text>
         ),
       },

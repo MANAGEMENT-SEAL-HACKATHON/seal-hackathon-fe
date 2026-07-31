@@ -31,7 +31,6 @@ import FormLabelWithInfo from '../../../shared/components/ui/FormLabelWithInfo';
 import SectionHeader, { HintList } from '../../../shared/components/ui/SectionHeader';
 import CompetitionScheduleAdjustModal from '../../rounds/components/CompetitionScheduleAdjustModal';
 import { teamService } from '../../teams/services/teamService';
-import { roundService } from '../../rounds/services/roundService';
 import {
   computeFillPercent,
   fetchRegisteredParticipantCount,
@@ -71,16 +70,6 @@ const MAX_PARTICIPANTS_LOCKED_HINT = (
   />
 );
 
-const APPEAL_WINDOW_HINT = (
-  <HintList
-    items={[
-      'Thời gian đội bị loại (DQ) được gửi khiếu nại sau khi công bố kết quả sơ loại',
-      'Mặc định 30 phút, tối thiểu 10 phút (0 = tắt)',
-      'Sau khi công bố sơ loại, cấu hình này bị khóa',
-    ]}
-  />
-);
-
 const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
@@ -96,13 +85,9 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
   const [pendingTeamCount, setPendingTeamCount] = useState(0);
   const [registeredParticipantCount, setRegisteredParticipantCount] = useState(null);
   const [registrationStatsError, setRegistrationStatsError] = useState(null);
-  const [appealWindowMinutes, setAppealWindowMinutes] = useState(30);
-  const [savingAppealWindow, setSavingAppealWindow] = useState(false);
-  const [prelimPublished, setPrelimPublished] = useState(false);
   const isDraft = hackathon?.status === 'DRAFT';
   const isOngoing = hackathon?.status === 'ONGOING';
   const canEditBanner = isDraft || isOngoing;
-  const canEditAppealWindow = isDraft || (isOngoing && !prelimPublished);
   const registrationEnded = isRegistrationPeriodEnded(hackathon);
   const closedEarly = Boolean(
     hackathon?.registration_closed_early_at ?? hackathon?.registrationClosedEarlyAt,
@@ -128,40 +113,10 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
         max_participants: hackathon.max_participants ?? hackathon.maxParticipants,
         individual_ranking_enabled:
           hackathon.individual_ranking_enabled ?? hackathon.individualRankingEnabled ?? false,
-        appeal_window_minutes:
-          hackathon.appeal_window_minutes ?? hackathon.appealWindowMinutes ?? 30,
       });
-      setAppealWindowMinutes(
-        hackathon.appeal_window_minutes ?? hackathon.appealWindowMinutes ?? 30,
-      );
       setBannerFileList([]);
     }
   }, [hackathon, form]);
-
-  useEffect(() => {
-    if (!hackathon?.id || !isOngoing) {
-      setPrelimPublished(false);
-      return undefined;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const rounds = await roundService.listByHackathon(hackathon.id);
-        const list = Array.isArray(rounds) ? rounds : rounds?.items || [];
-        const published = list.some((r) => {
-          const isFinal = Boolean(r.isFinal ?? r.is_final);
-          const publishedFlag = Boolean(r.isPublished ?? r.is_published);
-          return !isFinal && publishedFlag;
-        });
-        if (!cancelled) setPrelimPublished(published);
-      } catch {
-        if (!cancelled) setPrelimPublished(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [hackathon?.id, isOngoing, hackathon?.status]);
 
   useEffect(() => {
     if (!hackathon?.id) return undefined;
@@ -204,7 +159,6 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
         ...hackathon,
         max_participants: values.max_participants,
         individual_ranking_enabled: values.individual_ranking_enabled,
-        appeal_window_minutes: values.appeal_window_minutes,
       });
       await hackathonService.update(hackathon.id, payload);
       message.success('Đã cập nhật cấu hình chung');
@@ -214,26 +168,6 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
       message.error(error?.message || 'Không thể cập nhật hackathon');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleSaveAppealWindow = async () => {
-    const num = Number(appealWindowMinutes);
-    if (Number.isNaN(num) || (num !== 0 && num < 10)) {
-      message.warning('Thời gian cửa sổ khiếu nại tối thiểu 10 phút (hoặc 0 để tắt).');
-      return;
-    }
-    try {
-      setSavingAppealWindow(true);
-      await hackathonService.updateAppealWindowMinutes(hackathon.id, num);
-      message.success('Đã cập nhật thời gian cửa sổ khiếu nại');
-      onUpdated?.();
-    } catch (error) {
-      message.error(
-        resolveUserError(error, { fallback: 'Không thể cập nhật cửa sổ khiếu nại' }),
-      );
-    } finally {
-      setSavingAppealWindow(false);
     }
   };
 
@@ -453,78 +387,6 @@ const HackathonGeneralConfig = ({ hackathon, onUpdated, onGoToLottery }) => {
                 >
                   <Switch disabled={!isDraft} />
                 </Form.Item>
-                {isDraft ? (
-                  <Form.Item
-                    name="appeal_window_minutes"
-                    label={
-                      <FormLabelWithInfo
-                        label="Thời gian mở khiếu nại sau công bố (phút)"
-                        info={APPEAL_WINDOW_HINT}
-                      />
-                    }
-                    extra={
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        Mặc định 30 phút. Tối thiểu 10 phút (0 = tắt). Lưu cùng cấu hình chung.
-                      </Text>
-                    }
-                    rules={[
-                      { required: true, message: 'Vui lòng nhập thời gian' },
-                      {
-                        validator: (_, value) => {
-                          const num = Number(value);
-                          if (value === '' || value == null || Number.isNaN(num)) {
-                            return Promise.reject(new Error('Nhập số phút hợp lệ'));
-                          }
-                          if (num === 0) return Promise.resolve();
-                          if (num < 10) {
-                            return Promise.reject(
-                              new Error('Tối thiểu 10 phút (hoặc 0 để tắt)'),
-                            );
-                          }
-                          return Promise.resolve();
-                        },
-                      },
-                    ]}
-                  >
-                    <Input type="number" min={0} placeholder="30" />
-                  </Form.Item>
-                ) : (
-                  <Form.Item
-                    label={
-                      <FormLabelWithInfo
-                        label="Thời gian mở khiếu nại sau công bố (phút)"
-                        info={APPEAL_WINDOW_HINT}
-                      />
-                    }
-                    extra={
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {prelimPublished
-                          ? 'Đã công bố sơ loại — cửa sổ khiếu nại đã bị khóa, không chỉnh được nữa.'
-                          : isOngoing
-                            ? 'Sự kiện đang diễn ra — dùng nút «Lưu cửa sổ khiếu nại» (PATCH riêng, không qua cập nhật chung).'
-                            : 'Chỉ xem.'}
-                      </Text>
-                    }
-                  >
-                    <Input
-                      type="number"
-                      min={0}
-                      value={appealWindowMinutes}
-                      disabled={!canEditAppealWindow}
-                      onChange={(e) => setAppealWindowMinutes(e.target.value)}
-                      placeholder="30"
-                    />
-                  </Form.Item>
-                )}
-                {isOngoing && !prelimPublished && (
-                  <Button
-                    onClick={handleSaveAppealWindow}
-                    loading={savingAppealWindow}
-                    style={{ marginBottom: 12 }}
-                  >
-                    Lưu cửa sổ khiếu nại
-                  </Button>
-                )}
                 {isDraft && (
                   <Button type="primary" onClick={handleSave} loading={saving}>
                     Lưu cấu hình

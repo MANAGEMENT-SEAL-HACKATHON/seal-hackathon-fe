@@ -9,6 +9,14 @@ import { roundService } from "../../rounds/services/roundService";
 import { trackService } from "../../tracks/services/trackService";
 import { mapRoundToFE } from "../../rounds/mappers/roundMapper";
 import { mapTrackToFE } from "../../tracks/mappers/trackMapper";
+import { resolveUserError } from "../../../shared/errors/resolveUserError";
+
+const CRITERIA_ERROR_MESSAGES = {
+  TIEBREAKER_PRIORITY_ALREADY_EXISTS:
+    "Chỉ được chọn một tiêu chí phụ phân xử đồng điểm trong cùng bảng/vòng.",
+  TIEBREAKER_PRIORITY_PENALTY_NOT_ALLOWED:
+    "Tiêu chí điểm phạt không được dùng làm tiêu chí phụ phân xử đồng điểm.",
+};
 
 export const useCriteriaManagement = (hackathonId, onUpdated) => {
   const [rounds, setRounds] = useState([]);
@@ -232,7 +240,12 @@ export const useCriteriaManagement = (hackathonId, onUpdated) => {
         await fetchCriteria();
         await notifyHub();
       } catch (error) {
-        message.error("Có lỗi xảy ra");
+        message.error(
+          resolveUserError(error, {
+            domainMap: CRITERIA_ERROR_MESSAGES,
+            fallback: "Có lỗi xảy ra",
+          }),
+        );
       } finally {
         setIsLoading(false);
       }

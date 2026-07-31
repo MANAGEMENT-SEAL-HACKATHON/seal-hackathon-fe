@@ -6,14 +6,14 @@ export { classifyPendingTeams, formatPendingTeamsGateReason };
 export const isRegistrationClosedEarly = (hackathon) =>
   Boolean(hackathon?.registration_closed_early_at ?? hackathon?.registrationClosedEarlyAt);
 
-/** Chưa tới ngày mở đăng ký (registrationStart). */
+/** Chưa tới thời điểm mở đăng ký (registrationStart). */
 export const isRegistrationNotYetOpen = (hackathon) => {
   if (!hackathon) return true;
   if (hackathon.registrationNotYetOpen === true) return true;
   if (hackathon.registrationNotYetOpen === false) return false;
   const regStart = hackathon.registration_start ?? hackathon.registrationStart;
   if (!regStart) return false;
-  return dayjs().startOf('day').isBefore(dayjs(regStart).startOf('day'));
+  return dayjs().isBefore(dayjs(regStart));
 };
 
 /** Giai đoạn đăng ký đã đóng (sớm hoặc quá hạn). */
@@ -22,7 +22,7 @@ export const isRegistrationPeriodEnded = (hackathon) => {
   if (isRegistrationClosedEarly(hackathon)) return true;
   const regEnd = hackathon.registration_end ?? hackathon.registrationEnd;
   if (!regEnd) return false;
-  return dayjs().startOf('day').isAfter(dayjs(regEnd).startOf('day'));
+  return dayjs().isAfter(dayjs(regEnd));
 };
 
 /** Cửa sổ đăng ký đang mở (đã tới start, chưa đóng). */
@@ -51,11 +51,11 @@ export const canStudentRegister = (hackathon, ctx = {}) => {
   return true;
 };
 
-/** Countdown target: start of registrationStart day (local). */
+/** Countdown target: registrationStart datetime (local). */
 export const getRegistrationOpenAt = (hackathon) => {
   const regStart = hackathon?.registration_start ?? hackathon?.registrationStart;
   if (!regStart) return null;
-  return dayjs(regStart).startOf('day').toDate();
+  return dayjs(regStart).toDate();
 };
 
 export const formatCountdownParts = (targetDate) => {
@@ -83,14 +83,14 @@ export const formatCountdownLabel = (parts) => {
 
 /**
  * Coordinator được bốc thăm khi đăng ký đã kết thúc.
- * Kết thúc sớm → ngay; hết hạn tự nhiên → từ ngày sau registrationEnd.
+ * Kết thúc sớm → ngay; hết hạn tự nhiên → ngay sau registrationEnd.
  */
 export const canRunLottery = (hackathon) => {
   if (!hackathon) return false;
   if (isRegistrationClosedEarly(hackathon)) return true;
   const regEnd = hackathon.registration_end ?? hackathon.registrationEnd;
   if (!regEnd) return false;
-  return dayjs().startOf('day').isAfter(dayjs(regEnd).startOf('day'));
+  return dayjs().isAfter(dayjs(regEnd));
 };
 
 /**
@@ -119,7 +119,7 @@ export const getLotteryGateReason = (
   }
 
   if (!canRunLottery(hackathon)) {
-    return 'Khóa đội và bốc thăm chỉ từ ngày hôm sau khi kết thúc đăng ký (hoặc dùng «Kết thúc đăng ký sớm»).';
+    return 'Khóa đội và bốc thăm chỉ sau khi hết hạn đăng ký (hoặc dùng «Kết thúc đăng ký sớm»).';
   }
 
   const pendingBuckets = classifyPendingTeams(pendingTeams);

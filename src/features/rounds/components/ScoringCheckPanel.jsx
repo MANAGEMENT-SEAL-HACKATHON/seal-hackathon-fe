@@ -1,6 +1,6 @@
 // src/features/rounds/components/ScoringCheckPanel.jsx
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Empty, Progress, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { Alert, Button, Empty, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { UnorderedListOutlined } from "@ant-design/icons";
 import ScoreBreakdownDrawer from "./ScoreBreakdownDrawer";
 import { roundResultsService } from "../services/roundResults.service";
@@ -91,13 +91,6 @@ const ScoringCheckPanel = ({ roundId, ranking, isLoading, error }) => {
       })),
     [summary],
   );
-
-  const progressRows = useMemo(() => {
-    const track = (summary?.tracks || []).find((t) =>
-      selectedTrackId === "final" ? t.trackId == null : Number(t.trackId) === Number(selectedTrackId),
-    );
-    return track?.judgeProgress || [];
-  }, [summary, selectedTrackId]);
 
   const matrixColumns = useMemo(() => {
     if (!detail?.judges?.length || !detail?.criteria?.length) return [];
@@ -265,33 +258,6 @@ const ScoringCheckPanel = ({ roundId, ranking, isLoading, error }) => {
             onChange={setSelectedTrackId}
             data-testid="score-audit-track-select"
           />
-        </div>
-        <div style={{ flex: 1, minWidth: 280 }}>
-          <Text type="secondary" style={{ display: "block", marginBottom: 6 }}>
-            Tiến độ chấm theo giám khảo
-          </Text>
-          {progressRows.length === 0 ? (
-            <Text type="secondary">{summaryLoading ? "Đang tải…" : "Chưa có dữ liệu tiến độ"}</Text>
-          ) : (
-            <Space direction="vertical" size={8} style={{ width: "100%" }}>
-              {progressRows.map((j) => (
-                <div key={j.judgeId}>
-                  <Space style={{ width: "100%", justifyContent: "space-between" }}>
-                    <Text>{j.judgeName}</Text>
-                    <Text type="secondary">
-                      {j.scoredCells}/{j.expectedCells} ({j.percent}%)
-                    </Text>
-                  </Space>
-                  <Progress
-                    percent={j.percent}
-                    size="small"
-                    status={j.percent >= 100 ? "success" : j.percent < 50 ? "exception" : "active"}
-                    showInfo={false}
-                  />
-                </div>
-              ))}
-            </Space>
-          )}
         </div>
       </Space>
 

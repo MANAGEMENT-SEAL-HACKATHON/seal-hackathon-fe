@@ -55,6 +55,7 @@ const BENEFITS = [
 ];
 
 const formatDate = (value) => (value ? dayjs(value).format('DD/MM/YYYY') : '—');
+const formatDateTime = (value) => (value ? dayjs(value).format('DD/MM/YYYY HH:mm') : '—');
 const seasonLabel = (season, year) => {
   if (!season && !year) return null;
   return [SEASON_LABELS[season] || season, year].filter(Boolean).join(' ');
@@ -154,7 +155,7 @@ const HackathonRegistrationPanel = ({ hasTeam = false, onRegistrationChange }) =
     return hackathons.filter((item) => {
       if (item.registered || !isRegistrationWindowOpen(item)) return false;
       const end = item.registrationEnd ? dayjs(item.registrationEnd) : null;
-      const diff = end ? end.endOf('day').diff(dayjs(), 'day') : null;
+      const diff = end ? end.diff(dayjs(), 'day') : null;
       return diff !== null && diff >= 0 && diff <= 7;
     }).length;
   }, [hackathons]);
@@ -187,7 +188,7 @@ const HackathonRegistrationPanel = ({ hasTeam = false, onRegistrationChange }) =
 
       const isRegistered = Boolean(item.registered);
       const regEnd = item.registrationEnd ? dayjs(item.registrationEnd) : null;
-      const daysLeft = regEnd ? regEnd.endOf('day').diff(dayjs(), 'day') : null;
+      const daysLeft = regEnd ? regEnd.diff(dayjs(), 'day') : null;
       const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
 
       if (filterTab === 'OPEN') return !isRegistered && isRegistrationWindowOpen(item);
@@ -649,7 +650,7 @@ const HackathonBoothCard = ({
           );
 
   const regEnd = item.registrationEnd ? dayjs(item.registrationEnd) : null;
-  const daysLeft = regEnd ? regEnd.endOf('day').diff(dayjs(), 'day') : null;
+  const daysLeft = regEnd ? regEnd.diff(dayjs(), 'day') : null;
   const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7 && canRegister;
   const label = seasonLabel(item.season, item.year);
 
@@ -766,7 +767,7 @@ const HackathonBoothCard = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 13, color: token.colorTextSecondary }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Calendar size={14} color={isDark ? '#FB923C' : FPT.orange} />
-            <strong>Đăng ký:</strong> {formatDate(item.registrationStart)} → {formatDate(item.registrationEnd)}
+            <strong>Đăng ký:</strong> {formatDateTime(item.registrationStart)} → {formatDateTime(item.registrationEnd)}
           </span>
         </div>
 
@@ -875,7 +876,7 @@ const HackathonBoothCard = ({
                     <Calendar size={13} color={isDark ? '#FB923C' : FPT.orange} /> Đăng Ký
                   </Text>
                   <Text strong style={{ fontSize: 12, color: token.colorTextHeading, display: 'block' }}>
-                    {formatDate(item.registrationStart)} → {formatDate(item.registrationEnd)}
+                    {formatDateTime(item.registrationStart)} → {formatDateTime(item.registrationEnd)}
                   </Text>
                 </div>
 

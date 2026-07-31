@@ -231,7 +231,12 @@ const HackathonListPage = () => {
                         }}
                       />
                       <div style={{ position: "absolute", top: 12, right: 12 }}>
-                        <StatusBadge status={hackathon.status} />
+                        <StatusBadge
+                          status={hackathon.status}
+                          registrationPhase={
+                            hackathon.registration_phase ?? hackathon.registrationPhase
+                          }
+                        />
                       </div>
                     </div>
                   }
@@ -321,11 +326,11 @@ const HackathonListPage = () => {
                         <div style={{ fontSize: 12, color: "#8c8c8c" }}>
                           Reg:{" "}
                           {hackathon.registration_start
-                            ? formatDate(hackathon.registration_start, "DD/MM/YYYY")
+                            ? formatDate(hackathon.registration_start, "DD/MM/YYYY HH:mm")
                             : "N/A"}{" "}
                           -{" "}
                           {hackathon.registration_end
-                            ? formatDate(hackathon.registration_end, "DD/MM/YYYY")
+                            ? formatDate(hackathon.registration_end, "DD/MM/YYYY HH:mm")
                             : "N/A"}
                         </div>
                         {hackathon.max_participants != null && (

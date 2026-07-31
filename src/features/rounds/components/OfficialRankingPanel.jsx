@@ -3,10 +3,11 @@ import { useMemo, useState } from "react";
 import { Alert, Button, Card, Empty, Segmented, Space, Table, Tag, Typography } from "antd";
 import { TrophyOutlined, UnorderedListOutlined } from "@ant-design/icons";
 import ScoreBreakdownDrawer from "./ScoreBreakdownDrawer";
+import { formatScore } from "../../../shared/utils/formatScore";
 
 const { Text } = Typography;
 
-const score = (value) => Number(value || 0).toFixed(2);
+const score = (value) => formatScore(value);
 
 const OfficialRankingPanel = ({
   ranking,
@@ -79,6 +80,11 @@ const OfficialRankingPanel = ({
           <Tag bordered={false} style={{ margin: 0, fontSize: 12 }}>
             {item.groupLabel}
           </Tag>
+          {item.tiebreakReasonLabel ? (
+            <Tag color="blue" style={{ margin: 0, fontSize: 11 }}>
+              {item.tiebreakReasonLabel}
+            </Tag>
+          ) : null}
         </Space>
       ),
     },

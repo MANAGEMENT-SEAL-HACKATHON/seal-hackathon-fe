@@ -14,6 +14,7 @@ import { motion } from 'framer-motion';
 import { getStudentTeamErrorMessage } from '../constants/studentTeam.constants';
 import { teamService } from '../../../../features/teams/services/teamService';
 import { studentResultsService } from '../../results/services/studentResults.service';
+import { formatScore } from '../../../../shared/utils/formatScore';
 
 const { Text, Title } = Typography;
 
@@ -56,7 +57,6 @@ const TeamOverviewCard = ({ team, onConfirmFormation, actionLoading = false }) =
         const board = await studentResultsService.getRoundLeaderboard(prelimRoundId);
         if (cancelled) return;
         const items = board?.items || [];
-        const totalTeams = items.length;
         let mine = items.find((item) => Number(item.teamId) === Number(team.id));
         if (!mine && items.length) {
           const sorted = [...items].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
@@ -66,15 +66,16 @@ const TeamOverviewCard = ({ team, onConfirmFormation, actionLoading = false }) =
           }
         }
         if (mine) {
+          const totalTeams = mine.totalInGroup || items.length;
           setIsPublished(true);
           setTeamResult({
-            score: mine.score ?? mine.totalScore,
-            rank: mine.rank,
+            score: formatScore(mine.score ?? mine.totalScore),
+            rank: mine.rank ?? mine.rankInGroup,
             totalTeams,
           });
         } else {
           // Leaderboard mở (published) nhưng đội chưa có dòng — vẫn đánh dấu published cho banner chờ chốt
-          setIsPublished(totalTeams > 0 || Boolean(board));
+          setIsPublished(items.length > 0 || Boolean(board));
           setTeamResult(null);
         }
       } catch {

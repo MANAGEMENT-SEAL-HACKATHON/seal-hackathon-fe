@@ -40,6 +40,7 @@ import StudentSubmissionPage from '../student/features/submission/pages/StudentS
 import ScoringLobbyPage from '../features/judging/pages/ScoringLobbyPage';
 import HackathonResultsPage from '../features/hackathons/pages/HackathonResultsPage';
 import PrizePrintPage from '../features/hackathons/pages/PrizePrintPage';
+import PrizeCertificatePrintPage from '../features/hackathons/pages/PrizeCertificatePrintPage';
 import PreliminaryResultsPage from '../features/rounds/pages/PreliminaryResultsPage';
 import StudentRoundLeaderboardPage from '../student/features/results/pages/StudentRoundLeaderboardPage';
 import StudentResultsIndexPage from '../student/features/results/pages/StudentResultsIndexPage';
@@ -235,6 +236,14 @@ const AppRouter = () => {
         element={
           <ProtectedRoute allowedRoles={['COORDINATOR']}>
             <PrizePrintPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={ROUTES.HACKATHON_PRIZES_CERTIFICATES}
+        element={
+          <ProtectedRoute allowedRoles={['COORDINATOR']}>
+            <PrizeCertificatePrintPage />
           </ProtectedRoute>
         }
       />

@@ -1,14 +1,15 @@
 import React, { useState } from "react";
-import { Alert, Card, Empty, Space, Table, Tag, Typography, Button, Modal, List, Input, message, Tooltip } from "antd";
+import { Alert, Badge, Card, Empty, Space, Table, Tag, Typography, Button, Modal, List, Input, message, Tooltip } from "antd";
 import {
   WarningOutlined,
   ExclamationCircleOutlined,
   CheckCircleOutlined,
-  SyncOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
   EditOutlined,
+  LockOutlined,
 } from "@ant-design/icons";
+import { formatScore } from "../../../shared/utils/formatScore";
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -72,7 +73,9 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
     );
   }
 
+  const manualItems = items.filter((item) => item.requiresManualReorder);
   const openResolveModal = (item) => {
+    if (!item.requiresManualReorder) return;
     setSelectedTiebreak(item);
     setOrderedTeams([...item.teams]);
     setResolveNote("");
@@ -106,92 +109,141 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
     }
   };
 
+  const buildColumns = (item, { locked = false } = {}) => {
+    const isSubmissionTime =
+      item.rule === "SUBMISSION_TIME" || item.resolvedTier === "SUBMISSION_TIME";
+    const showPriority =
+      item.teams?.some((t) => t.priorityCriterionScore != null) ||
+      item.resolvedTier === "PRIORITY_CRITERION";
+
+    const columns = [
+      {
+        title: "Đội",
+        dataIndex: "teamName",
+        render: (name, record) => (
+          <Space direction="vertical" size={2}>
+            <Text strong style={{ fontSize: 14 }}>
+              {name}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.groupLabel}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        title: "Điểm gốc",
+        dataIndex: "weightedAvgScore",
+        align: "right",
+        render: (value) => (
+          <span style={{ fontFamily: "monospace", fontSize: 16, fontWeight: 600, color: "#2563eb" }}>
+            {formatScore(value)}
+          </span>
+        ),
+      },
+    ];
+
+    if (showPriority) {
+      columns.push({
+        title: "Điểm tiêu chí phụ",
+        dataIndex: "priorityCriterionScore",
+        align: "right",
+        render: (value) => (
+          <span style={{ fontFamily: "monospace", fontSize: 15, fontWeight: 600 }}>
+            {value == null ? "—" : formatScore(value)}
+          </span>
+        ),
+      });
+    }
+
+    columns.push(
+      {
+        title: "Điểm trừ phân xử",
+        dataIndex: "penaltyScore",
+        align: "right",
+        render: (value) => {
+          const num = Number(value);
+          return (
+            <span
+              style={{
+                fontFamily: "monospace",
+                fontSize: 16,
+                fontWeight: 600,
+                color: num > 0 ? "#dc2626" : "#94a3b8",
+              }}
+            >
+              {num > 0 ? `-${formatScore(num)}` : "0.00"}
+            </span>
+          );
+        },
+      },
+      {
+        title: (
+          <Tooltip title="Nộp đúng hạn được ưu tiên hơn nộp trễ dù thời điểm nộp sớm hơn">
+            <span style={{ fontWeight: isSubmissionTime ? 800 : 500 }}>Thời điểm nộp bài</span>
+          </Tooltip>
+        ),
+        dataIndex: "submittedAt",
+        render: (value) => (
+          <span style={{ fontWeight: isSubmissionTime ? 700 : 400, fontFamily: isSubmissionTime ? "monospace" : undefined }}>
+            {formatSubmittedAt(value)}
+          </span>
+        ),
+      },
+      {
+        title: <span style={{ fontWeight: isSubmissionTime ? 800 : 500 }}>Trạng thái nộp</span>,
+        dataIndex: "submissionStatus",
+        render: (value) => (
+          <Tag color={isSubmissionTime ? "processing" : "default"} style={{ fontWeight: isSubmissionTime ? 700 : 400 }}>
+            {submissionStatusLabels[value] || value || "—"}
+          </Tag>
+        ),
+      },
+    );
+
+    if (locked) {
+      columns.unshift({
+        title: "#",
+        key: "order",
+        width: 56,
+        align: "center",
+        render: (_, __, index) => (
+          <Badge count={index + 1} style={{ backgroundColor: "#52c41a" }} />
+        ),
+      });
+    }
+
+    return columns;
+  };
+
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
-      <Alert
-        showIcon
-        type="error"
-        message={`${items.length} trường hợp đồng điểm cần giải quyết trước khi chốt chuyển vòng — thứ hạng hiện tại chỉ là tạm thời.`}
-        description="Nếu luật tự động không phân định được hoặc luật yêu cầu quyết định Ban tổ chức — cần sắp xếp lại thứ hạng thủ công."
-      />
+      {manualItems.length > 0 ? (
+        <Alert
+          showIcon
+          type="error"
+          message={`${manualItems.length} trường hợp đồng điểm cần giải quyết trước khi chốt chuyển vòng — thứ hạng hiện tại chỉ là tạm thời.`}
+          description="Nếu luật tự động không phân định được hoặc luật yêu cầu quyết định Ban tổ chức — cần sắp xếp lại thứ hạng thủ công."
+        />
+      ) : (
+        <Alert
+          showIcon
+          type="success"
+          message="Các trường hợp đồng điểm đã được hệ thống phân định tự động (waterfall)."
+          description="Không cần sắp xếp thủ công — thứ hạng gợi ý đã khóa theo luật tiêu chí phụ / thời điểm nộp."
+        />
+      )}
 
       {items.map((item) => {
-        const isSubmissionTime = item.rule === "SUBMISSION_TIME";
-        const columns = [
-          {
-            title: "Đội",
-            dataIndex: "teamName",
-            render: (name, record) => (
-              <Space direction="vertical" size={2}>
-                <Text strong style={{ fontSize: 14 }}>
-                  {name}
-                </Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {record.groupLabel}
-                </Text>
-              </Space>
-            ),
-          },
-          {
-            title: "Điểm gốc",
-            dataIndex: "weightedAvgScore",
-            align: "right",
-            render: (value) => (
-              <span style={{ fontFamily: "monospace", fontSize: 16, fontWeight: 600, color: "#2563eb" }}>
-                {Number(value).toFixed(2)}
-              </span>
-            ),
-          },
-          {
-            title: "Điểm trừ phân xử",
-            dataIndex: "penaltyScore",
-            align: "right",
-            render: (value) => {
-              const num = Number(value);
-              return (
-                <span
-                  style={{
-                    fontFamily: "monospace",
-                    fontSize: 16,
-                    fontWeight: 600,
-                    color: num > 0 ? "#dc2626" : "#94a3b8",
-                  }}
-                >
-                  {num > 0 ? `-${num.toFixed(2)}` : "0.00"}
-                </span>
-              );
-            },
-          },
-          {
-            title: (
-              <Tooltip title="Nộp đúng hạn được ưu tiên hơn nộp trễ dù thời điểm nộp sớm hơn">
-                <span style={{ fontWeight: isSubmissionTime ? 800 : 500 }}>Thời điểm nộp bài</span>
-              </Tooltip>
-            ),
-            dataIndex: "submittedAt",
-            render: (value) => (
-              <span style={{ fontWeight: isSubmissionTime ? 700 : 400, fontFamily: isSubmissionTime ? "monospace" : undefined }}>
-                {formatSubmittedAt(value)}
-              </span>
-            ),
-          },
-          {
-            title: <span style={{ fontWeight: isSubmissionTime ? 800 : 500 }}>Trạng thái nộp</span>,
-            dataIndex: "submissionStatus",
-            render: (value) => (
-              <Tag color={isSubmissionTime ? "processing" : "default"} style={{ fontWeight: isSubmissionTime ? 700 : 400 }}>
-                {submissionStatusLabels[value] || value || "—"}
-              </Tag>
-            ),
-          },
-        ];
+        const needsManual = Boolean(item.requiresManualReorder);
+        const columns = buildColumns(item, { locked: !needsManual });
 
         return (
           <Card
             key={item.key}
             title={
               <Space>
-                <WarningOutlined style={{ color: "#faad14" }} />
+                <WarningOutlined style={{ color: needsManual ? "#faad14" : "#52c41a" }} />
                 <Text strong style={{ fontSize: 16 }}>
                   Bảng {item.groupLabel}
                 </Text>
@@ -199,7 +251,7 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
             }
             extra={
               <Space>
-                {item.escalationRequired || item.requiresManualReorder ? (
+                {needsManual ? (
                   <>
                     <Tag color="error" icon={<ExclamationCircleOutlined />} style={{ fontWeight: 600 }}>
                       {item.reason === "DEEP_TIE"
@@ -215,8 +267,8 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
                     Đã xử lý
                   </Tag>
                 ) : (
-                  <Tag color="processing" icon={<SyncOutlined spin />} style={{ fontWeight: 600 }}>
-                    Đang xử lý
+                  <Tag color="success" icon={<LockOutlined />} style={{ fontWeight: 600 }}>
+                    Tự phân định
                   </Tag>
                 )}
               </Space>
@@ -224,25 +276,49 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
             styles={{ header: { borderBottom: "1px solid #f0f0f0", padding: "16px 24px" }, body: { padding: "16px 24px" } }}
             style={{
               borderRadius: 12,
-              border: item.escalationRequired || item.requiresManualReorder ? "1px solid #ffccc7" : "1px solid #f0f0f0",
+              border: needsManual ? "1px solid #ffccc7" : "1px solid #b7eb8f",
             }}
           >
             <Space direction="vertical" size={14} style={{ width: "100%" }}>
+              {!needsManual && (
+                <Alert
+                  showIcon
+                  type="info"
+                  message={
+                    <Space wrap>
+                      <Badge status="success" text="Thứ hạng đã khóa (waterfall)" />
+                      {item.resolvedReasonLabel && (
+                        <Tag color="blue">{item.resolvedReasonLabel}</Tag>
+                      )}
+                    </Space>
+                  }
+                  description={
+                    item.resolvedTier
+                      ? `Tầng phân định: ${item.resolvedTier}`
+                      : "Hệ thống đã sắp xếp theo thứ tự gợi ý — không thể kéo thả."
+                  }
+                />
+              )}
               <Space wrap style={{ marginBottom: 4, padding: "10px 16px", borderRadius: 8, width: "100%", background: "var(--ant-color-bg-container-disabled)" }}>
                 <Tag color="blue" bordered={false} style={{ fontWeight: 500 }}>
                   Lý do: {ruleLabels[item.rule] || item.rule}
                 </Tag>
-                {item.reason && (
+                {item.resolvedReasonLabel && (
+                  <Tag color="cyan" bordered={false}>
+                    {item.resolvedReasonLabel}
+                  </Tag>
+                )}
+                {item.reason && !item.resolvedReasonLabel && (
                   <Tag color="orange" bordered={false}>
                     {reasonLabels[item.reason] || item.reason}
                   </Tag>
                 )}
                 <Text type="secondary">
-                  Điểm ranh giới: <Text strong>{Number(item.cutoffScore).toFixed(2)}</Text>
+                  Điểm ranh giới: <Text strong>{formatScore(item.cutoffScore)}</Text>
                 </Text>
               </Space>
               <Title level={5} style={{ margin: 0, fontSize: 15 }}>
-                Các đội đang đồng điểm
+                {needsManual ? "Các đội đang đồng điểm" : "Thứ tự đã phân định (khóa)"}
               </Title>
               <Table rowKey="teamId" size="middle" pagination={false} dataSource={item.teams} columns={columns} />
             </Space>
@@ -334,7 +410,12 @@ const TiebreakPanel = ({ items, error, isResolving, onResolve }) => {
                 }
                 description={
                   <Text>
-                    Điểm gốc: <strong style={{ color: "#2563eb" }}>{Number(team.weightedAvgScore).toFixed(2)}</strong>
+                    Điểm gốc: <strong style={{ color: "#2563eb" }}>{formatScore(team.weightedAvgScore)}</strong>
+                    {team.priorityCriterionScore != null && (
+                      <>
+                        {" · "}Tiêu chí phụ: <strong>{formatScore(team.priorityCriterionScore)}</strong>
+                      </>
+                    )}
                   </Text>
                 }
               />

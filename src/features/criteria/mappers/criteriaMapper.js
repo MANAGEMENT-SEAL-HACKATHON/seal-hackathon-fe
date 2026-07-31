@@ -12,6 +12,9 @@ export const mapCriterionToFE = (beData) => {
     description: beData.description,
     rubric_url: beData.rubricUrl,
     display_order: beData.displayOrder == null || beData.displayOrder < 1 ? 1 : beData.displayOrder,
+    is_tiebreaker_priority: Boolean(
+      beData.isTiebreakerPriority ?? beData.is_tiebreaker_priority ?? false,
+    ),
   };
 };
 
@@ -25,6 +28,7 @@ export const mapCriterionToBE = (feData) => {
     description: feData.description?.trim(),
     rubricUrl: feData.rubric_url?.trim() || null,
     displayOrder: feData.display_order ? Number(feData.display_order) : 1,
+    isTiebreakerPriority: Boolean(feData.is_tiebreaker_priority),
   };
   if (feData.id) {
     payload.id = feData.id;

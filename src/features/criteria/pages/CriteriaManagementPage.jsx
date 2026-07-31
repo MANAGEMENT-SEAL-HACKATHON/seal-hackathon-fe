@@ -104,7 +104,14 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
       title: "Tên tiêu chí",
       dataIndex: "name",
       key: "name",
-      render: (t) => <strong>{t}</strong>,
+      render: (t, r) => (
+        <Space size={8} wrap>
+          <strong>{t}</strong>
+          {r.is_tiebreaker_priority && (
+            <Tag color="purple">Phân xử đồng điểm</Tag>
+          )}
+        </Space>
+      ),
     },
     {
       title: "Loại",

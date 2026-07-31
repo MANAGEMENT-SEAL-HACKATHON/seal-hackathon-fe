@@ -43,6 +43,7 @@ export const ROUTES = {
   COORDINATOR_ANALYTICS: '/coordinator/analytics',
   COORDINATOR_FINAL_CONFIG: '/coordinator/final-config',
   HACKATHON_PRIZES_PRINT: '/hackathons/:hackathonId/prizes/print',
+  HACKATHON_PRIZES_CERTIFICATES: '/hackathons/:hackathonId/prizes/certificates',
   PUBLIC_HALL_OF_FAME: '/hall-of-fame',
   PUBLIC_ARTICLE: '/news/:slug',
 };

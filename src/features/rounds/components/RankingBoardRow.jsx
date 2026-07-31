@@ -1,5 +1,6 @@
 // src/features/rounds/ranking/components/RankingBoardRow.jsx
 import { Button, Space, Tag, Tooltip, Typography, theme } from "antd";
+import { UnorderedListOutlined } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import { Ban } from "lucide-react";
 import RankingMovementTag from "./RankingMovementTag";
@@ -13,6 +14,7 @@ const RankingBoardRow = ({
   canEliminate,
   eliminatingTeamId,
   onEliminate,
+  onOpenBreakdown,
 }) => {
   const { token } = theme.useToken();
   const tone = getRowTone(item, movement, token);
@@ -38,17 +40,26 @@ const RankingBoardRow = ({
         boxShadow: token.boxShadowTertiary,
         display: "grid",
         gap: 14,
-        gridTemplateColumns: "64px minmax(180px, 1.6fr) 110px minmax(140px, 0.9fr) minmax(150px, 1fr) 104px",
+        gridTemplateColumns: "64px minmax(180px, 1.6fr) 110px minmax(140px, 0.9fr) minmax(150px, 1fr) 200px",
         minHeight: 70,
         padding: "10px 14px",
       }}
     >
-      <Text
-        strong
-        style={{ color: getRankColor(item.rank, token), fontSize: 18 }}
-      >
-        #{item.rank || "-"}
-      </Text>
+      <div>
+        <Text
+          strong
+          style={{ color: getRankColor(item.rank, token), fontSize: 18 }}
+        >
+          #{item.rank || "-"}
+        </Text>
+        {item.tiebreakReasonLabel && (
+          <div>
+            <Tag color="blue" style={{ marginTop: 4, maxWidth: 120, whiteSpace: "normal", fontSize: 10 }}>
+              {item.tiebreakReasonLabel}
+            </Tag>
+          </div>
+        )}
+      </div>
 
       <Text strong delete={item.isEliminated} ellipsis={{ tooltip: item.teamName }} style={{ fontSize: 15 }}>
         {item.teamName}
@@ -74,19 +85,33 @@ const RankingBoardRow = ({
         {!item.isScoringIncomplete && !item.tiebreakRequired && !item.isEliminated && <Text type="secondary">-</Text>}
       </Space>
 
-      <Tooltip title={item.isEliminated ? "Đội đã bị loại" : "Loại đội vi phạm"}>
-        <Button
-          type="text"
-          danger
-          size="small"
-          icon={<Ban size={14} />}
-          disabled={!canEliminate || item.isEliminated}
-          loading={eliminatingTeamId === item.teamId}
-          onClick={() => onEliminate(item)}
-        >
-          Loại đội
-        </Button>
-      </Tooltip>
+      <Space direction="vertical" size={2} style={{ width: "100%" }}>
+        <Tooltip title={item.submissionId ? "Xem điểm thành phần" : "Đội chưa nộp bài"}>
+          <Button
+            type="link"
+            size="small"
+            icon={<UnorderedListOutlined />}
+            disabled={!item.submissionId || !onOpenBreakdown}
+            onClick={() => onOpenBreakdown?.(item)}
+            style={{ padding: 0, height: "auto" }}
+          >
+            Chi tiết điểm
+          </Button>
+        </Tooltip>
+        <Tooltip title={item.isEliminated ? "Đội đã bị loại" : "Loại đội vi phạm"}>
+          <Button
+            type="text"
+            danger
+            size="small"
+            icon={<Ban size={14} />}
+            disabled={!canEliminate || item.isEliminated}
+            loading={eliminatingTeamId === item.teamId}
+            onClick={() => onEliminate(item)}
+          >
+            Loại đội
+          </Button>
+        </Tooltip>
+      </Space>
     </motion.div>
   );
 };

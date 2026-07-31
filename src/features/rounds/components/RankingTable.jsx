@@ -14,6 +14,7 @@ const RankingTable = ({
   canEliminate = true,
   eliminatingTeamId,
   onEliminate,
+  onOpenBreakdown,
   showGroupDividers = false,
 }) => {
   const { token } = theme.useToken();
@@ -47,7 +48,7 @@ const RankingTable = ({
             background: token.colorFillQuaternary,
             display: "grid",
             gap: 14,
-            gridTemplateColumns: "64px minmax(180px, 1.6fr) 110px minmax(140px, 0.9fr) minmax(150px, 1fr) 104px",
+            gridTemplateColumns: "64px minmax(180px, 1.6fr) 110px minmax(140px, 0.9fr) minmax(150px, 1fr) 200px",
             marginBottom: 10,
             padding: "10px 14px",
             borderRadius: token.borderRadius,
@@ -89,6 +90,7 @@ const RankingTable = ({
                     canEliminate={canEliminate}
                     eliminatingTeamId={eliminatingTeamId}
                     onEliminate={onEliminate}
+                    onOpenBreakdown={onOpenBreakdown}
                   />
                 </div>
               );

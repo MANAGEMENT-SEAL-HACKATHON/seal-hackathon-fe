@@ -6,7 +6,6 @@ import { roundService } from "../services/roundService";
 import { mapRoundToFE } from "../mappers/roundMapper";
 import { enrichTiebreakItems } from "../mappers/roundResults.mapper";
 import { resolveProgressionError } from "../constants/progressionErrors";
-import { appealWindowService } from "../../appeals/services/appealWindow.service";
 
 const emptyRanking = { items: [], topNAdvance: 0, isPublished: false, roundName: "Vòng Sơ loại" };
 
@@ -20,18 +19,16 @@ export const useRoundResults = (roundId) => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [isResolvingTiebreak, setIsResolvingTiebreak] = useState(false);
-  const [appealWindow, setAppealWindow] = useState(null);
 
   const fetchResults = useCallback(
     async ({ silent = false } = {}) => {
       if (!roundId) return;
       silent ? setIsRefreshing(true) : setIsLoading(true);
 
-      const [rankingResult, tiebreakResult, roundResult, appealResult] = await Promise.allSettled([
+      const [rankingResult, tiebreakResult, roundResult] = await Promise.allSettled([
         roundResultsService.getRanking(roundId),
         roundResultsService.getTiebreak(roundId),
         roundService.getById(roundId),
-        appealWindowService.getStatus(roundId),
       ]);
 
       const nextErrors = {};
@@ -62,12 +59,6 @@ export const useRoundResults = (roundId) => {
       if (roundResult.status === "fulfilled") {
         setRound(mapRoundToFE(roundResult.value));
       } else nextErrors.round = roundResult.reason;
-
-      if (appealResult.status === "fulfilled") {
-        setAppealWindow(appealResult.value);
-      } else {
-        setAppealWindow(null);
-      }
 
       setErrors(nextErrors);
       setIsLoading(false);
@@ -161,19 +152,20 @@ export const useRoundResults = (roundId) => {
     };
   }, [round, ranking.items, advancePreview.advancedTeamIdSet]);
 
-  const canPublish = useMemo(
-    () => scoringLocked && !isPublished && !errors.ranking && ranking.items.length > 0,
-    [scoringLocked, isPublished, errors.ranking, ranking.items.length],
-  );
-
   const hasUnresolvedTiebreak = useMemo(
-    () => tiebreaks.some((item) => !item.resolved),
+    () => tiebreaks.some((item) => item.requiresManualReorder && !item.resolved),
     [tiebreaks],
   );
 
-  const appealPendingCount = Number(appealWindow?.pendingCount || 0);
-  const appealUnderReviewCount = Number(appealWindow?.underReviewCount || 0);
-  const hasOpenAppeals = appealPendingCount + appealUnderReviewCount > 0;
+  const canPublish = useMemo(
+    () =>
+      scoringLocked &&
+      !isPublished &&
+      !hasUnresolvedTiebreak &&
+      !errors.ranking &&
+      ranking.items.length > 0,
+    [scoringLocked, isPublished, hasUnresolvedTiebreak, errors.ranking, ranking.items.length],
+  );
 
   const canAdvance = useMemo(
     () =>
@@ -181,7 +173,6 @@ export const useRoundResults = (roundId) => {
       isPublished &&
       !hasAdvanced &&
       !hasUnresolvedTiebreak &&
-      !hasOpenAppeals &&
       !errors.ranking &&
       ranking.items.length > 0,
     [
@@ -189,7 +180,6 @@ export const useRoundResults = (roundId) => {
       isPublished,
       hasAdvanced,
       hasUnresolvedTiebreak,
-      hasOpenAppeals,
       errors.ranking,
       ranking.items.length,
     ],
@@ -198,10 +188,11 @@ export const useRoundResults = (roundId) => {
   const publishDisabledReason = useMemo(() => {
     if (!scoringLocked) return "Cần khóa chấm điểm trước.";
     if (isPublished) return "Kết quả đã được công bố. Bấm «Chốt chuyển vòng» để xác nhận đội vào Chung kết.";
+    if (hasUnresolvedTiebreak) return "Còn đội đồng điểm chưa phân xử — giải quyết Tiebreak trước khi công bố.";
     if (errors.ranking) return "Chưa tải được bảng xếp hạng.";
     if (ranking.items.length === 0) return "Chưa có dữ liệu xếp hạng.";
     return "";
-  }, [scoringLocked, isPublished, errors.ranking, ranking.items.length]);
+  }, [scoringLocked, isPublished, hasUnresolvedTiebreak, errors.ranking, ranking.items.length]);
 
   const advanceDisabledReason = useMemo(() => {
     if (!scoringLocked) return "Cần khóa chấm điểm trước.";
@@ -210,9 +201,6 @@ export const useRoundResults = (roundId) => {
     if (hasUnresolvedTiebreak) {
       return "Có các đội đồng điểm tại ranh giới đi tiếp. Vui lòng phân xử đồng điểm.";
     }
-    if (hasOpenAppeals) {
-      return `Còn ${appealPendingCount} đơn chờ duyệt và ${appealUnderReviewCount} đơn đang xét — chuyển sang tab Khiếu nại để xử lý.`;
-    }
     if (errors.ranking) return "Chưa tải được bảng xếp hạng.";
     return "";
   }, [
@@ -220,13 +208,10 @@ export const useRoundResults = (roundId) => {
     isPublished,
     hasAdvanced,
     hasUnresolvedTiebreak,
-    hasOpenAppeals,
-    appealPendingCount,
-    appealUnderReviewCount,
     errors.ranking,
   ]);
 
-  const publishRound = async (body) => {
+  const publishRound = async () => {
     if (!roundId || isPublishing) return false;
     if (!canPublish) {
       message.info(publishDisabledReason || "Không thể công bố kết quả lúc này.");
@@ -234,7 +219,7 @@ export const useRoundResults = (roundId) => {
     }
     setIsPublishing(true);
     try {
-      await roundResultsService.publishRound(roundId, body);
+      await roundResultsService.publishRound(roundId);
       message.success("Đã công bố kết quả sơ loại.");
       await fetchResults({ silent: true });
       return true;
@@ -294,11 +279,6 @@ export const useRoundResults = (roundId) => {
     publishDisabledReason,
     advanceDisabledReason,
     isResolvingTiebreak,
-    appealWindow,
-    appealPendingCount,
-    appealUnderReviewCount,
-    hasOpenAppeals,
-    setAppealWindow,
     buildAdvancePayload,
     fetchResults,
     publishRound,

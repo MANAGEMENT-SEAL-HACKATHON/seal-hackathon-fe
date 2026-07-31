@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Modal, Form, Input, InputNumber, Select, Tag } from "antd";
+import { Modal, Form, Input, InputNumber, Select, Tag, Checkbox } from "antd";
 import { CRITERIA_TYPE_OPTIONS, CRITERIA_TYPES, formatCriteriaTypeLabel } from "../constants/criteria.constants";
 
 const { TextArea } = Input;
@@ -19,6 +19,12 @@ export const CriteriaFormModal = ({
       initialValues ? form.setFieldsValue(initialValues) : form.resetFields();
     }
   }, [visible, initialValues, form]);
+
+  useEffect(() => {
+    if (selectedType === CRITERIA_TYPES.PENALTY) {
+      form.setFieldValue("is_tiebreaker_priority", false);
+    }
+  }, [selectedType, form]);
 
   const preventNegative = (e) => {
     if (e.key === "-" || e.key === "e") e.preventDefault();
@@ -51,6 +57,7 @@ export const CriteriaFormModal = ({
           type: "TECHNICAL",
           weight: 0.1,
           max_score: 10,
+          is_tiebreaker_priority: false,
           ...initialValues,
         }}
       >
@@ -129,6 +136,15 @@ export const CriteriaFormModal = ({
           rules={[{ type: "url", message: "URL không hợp lệ", warningOnly: true }]}
         >
           <Input size="large" placeholder="https://..." />
+        </Form.Item>
+        <Form.Item
+          name="is_tiebreaker_priority"
+          valuePropName="checked"
+          style={{ marginBottom: 0 }}
+        >
+          <Checkbox disabled={selectedType === CRITERIA_TYPES.PENALTY}>
+            Dùng làm tiêu chí phụ phân xử đồng điểm
+          </Checkbox>
         </Form.Item>
       </Form>
     </Modal>

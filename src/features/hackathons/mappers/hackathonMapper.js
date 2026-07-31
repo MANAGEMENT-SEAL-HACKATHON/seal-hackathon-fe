@@ -28,15 +28,20 @@ export const mapHackathonToFE = (beData) => {
     individual_ranking_enabled: beData.individualRankingEnabled,
     banner_url: beData.bannerUrl,
     max_participants: beData.maxParticipants,
-    appeal_window_minutes: beData.appealWindowMinutes ?? beData.appeal_window_minutes ?? 30,
     cloned_from_hackathon_id: beData.clonedFromHackathonId,
     cloned_from_hackathon_name: beData.clonedFromHackathonName,
     cloned_at: beData.clonedAt,
+    registration_phase: beData.registrationPhase ?? beData.registration_phase,
   };
 };
 
 export const mapHackathonToBE = (feData) => {
   if (!feData) return null;
+  const toDateTime = (value) => {
+    if (!value) return null;
+    const d = dayjs(value);
+    return d.isValid() ? d.format('YYYY-MM-DDTHH:mm:ss') : null;
+  };
   return {
     name: feData.name,
     slug: feData.slug,
@@ -44,15 +49,11 @@ export const mapHackathonToBE = (feData) => {
     year: feData.year ? parseInt(feData.year) : null,
     description: feData.description,
     rules: feData.rules,
-    registrationStart: feData.registration_start ? dayjs(feData.registration_start).format('YYYY-MM-DD') : null,
-    registrationEnd: feData.registration_end ? dayjs(feData.registration_end).format('YYYY-MM-DD') : null,
+    registrationStart: toDateTime(feData.registration_start),
+    registrationEnd: toDateTime(feData.registration_end),
     eventStart: feData.event_start ? dayjs(feData.event_start).format('YYYY-MM-DD') : null,
     eventEnd: feData.event_end ? dayjs(feData.event_end).format('YYYY-MM-DD') : null,
     individualRankingEnabled: feData.individual_ranking_enabled,
     maxParticipants: feData.max_participants ? parseInt(feData.max_participants, 10) : null,
-    appealWindowMinutes:
-      feData.appeal_window_minutes != null && feData.appeal_window_minutes !== ''
-        ? parseInt(feData.appeal_window_minutes, 10)
-        : undefined,
   };
 };

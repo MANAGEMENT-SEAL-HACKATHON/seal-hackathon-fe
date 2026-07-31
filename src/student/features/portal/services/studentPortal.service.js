@@ -23,31 +23,6 @@ export const studentPortalService = {
     return unwrapList(res);
   },
 
-  uploadAppealEvidence: async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    return axiosClient.post(ENDPOINTS.STUDENT_PORTAL.APPEAL_EVIDENCE, formData);
-  },
-
-  createAppeal: async ({ teamId, roundId, reason, evidenceUrl, evidences }) => {
-    const body = {
-      teamId: Number(teamId),
-      roundId: Number(roundId),
-      reason,
-    };
-    if (Array.isArray(evidences) && evidences.length > 0) {
-      body.evidences = evidences;
-    } else if (evidenceUrl) {
-      body.evidenceUrl = evidenceUrl;
-    }
-    return axiosClient.post(ENDPOINTS.STUDENT_PORTAL.APPEALS, body);
-  },
-
-  listMyAppeals: async () => {
-    const res = await axiosClient.get(ENDPOINTS.STUDENT_PORTAL.APPEALS);
-    return unwrapList(res);
-  },
-
   selectFallTrack: async (trackId) => {
     return axiosClient.post(ENDPOINTS.STUDENT_PORTAL.TRACK_SELECT(trackId), {});
   },

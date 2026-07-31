@@ -35,7 +35,6 @@ export const ENDPOINTS = {
     // query assumeCloseRegToday=true khi preview trong modal đóng ĐK sớm
 
     CLONE: (id) => `/api/v1/hackathons/${id}/clone`,
-    APPEAL_WINDOW_MINUTES: (id) => `/api/v1/hackathons/${id}/appeal-window-minutes`,
     KIT_ITEMS: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kit-items`,
     KIT_BUNDLES: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kit-bundles`,
     KIT_RECIPIENTS: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/recipients`,
@@ -89,8 +88,6 @@ export const ENDPOINTS = {
   STUDENT_PORTAL: {
     CREATE_TEAM: '/api/v1/me/teams',
     HISTORY: '/api/v1/me/history',
-    APPEALS: '/api/v1/me/appeals',
-    APPEAL_EVIDENCE: '/api/v1/me/appeals/evidence',
     ANNUAL_AWARDS: '/api/v1/me/annual-awards',
     TRACK_SELECT: (trackId) => `/api/v1/me/tracks/${trackId}/select`,
     SELECTABLE_TRACKS: (hackathonId) => `/api/v1/me/hackathons/${hackathonId}/selectable-tracks`,
@@ -119,19 +116,7 @@ export const ENDPOINTS = {
     PROBLEM_STATEMENT: (id) => `/api/v1/rounds/${id}/problem-statement`,
     SCORING_PROGRESS: (id) => `/api/v1/rounds/${id}/scoring-progress`,
     PUBLISH: (id) => `/api/v1/rounds/${id}/publish`,
-    PUBLISH_PREFLIGHT: (id) => `/api/v1/rounds/${id}/publish/preflight`,
     ADVANCE: (id) => `/api/v1/rounds/${id}/advance`,
-    APPEAL_WINDOW: (id) => `/api/v1/rounds/${id}/appeal-window`,
-    APPEAL_WINDOW_CLOSE: (id) => `/api/v1/rounds/${id}/appeal-window/close`,
-    APPEALS: (id) => `/api/v1/rounds/${id}/appeals`,
-    REPUBLISH: (id) => `/api/v1/rounds/${id}/republish`,
-    APPEAL_DELAY_PREVIEW: (id) => `/api/v1/rounds/${id}/appeal-delay/preview`,
-    APPEAL_DELAY: (id) => `/api/v1/rounds/${id}/appeal-delay`,
-  },
-  APPEALS: {
-    DETAIL: (id) => `/api/v1/appeals/${id}`,
-    CLAIM: (id) => `/api/v1/appeals/${id}/claim`,
-    REVIEW: (id) => `/api/v1/appeals/${id}/review`,
   },
   TRACKS: {
     BASE: '/api/v1/tracks',

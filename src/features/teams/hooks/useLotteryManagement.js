@@ -71,15 +71,30 @@ export const useLotteryManagement = (hackathonId, onUpdated) => {
   );
 
   const registrationEnded = Boolean(hackathon && isRegistrationPeriodEnded(hackathon));
-  const awaitingAutoLock = registrationEnded && unlockedActiveTeams.length > 0;
+  const awaitingAutoLock = Boolean(hackathon) && registrationEnded && unlockedActiveTeams.length > 0;
+
+  const [awaitingSince, setAwaitingSince] = useState(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (awaitingAutoLock) {
+      setAwaitingSince((prev) => prev ?? Date.now());
+    } else {
+      setAwaitingSince(null);
+    }
+  }, [awaitingAutoLock]);
 
   useEffect(() => {
     if (!awaitingAutoLock) return undefined;
     const timer = setInterval(() => {
+      setNowTick(Date.now());
       fetchLotteryData({ silent: true });
     }, 5000);
     return () => clearInterval(timer);
   }, [awaitingAutoLock, fetchLotteryData]);
+
+  const autoLockTimedOut =
+    awaitingAutoLock && awaitingSince != null && nowTick - awaitingSince >= 60_000;
 
   const selectedRound = useMemo(
     () => rounds.find((r) => r.id === selectedRoundId) ?? null,
@@ -180,6 +195,7 @@ export const useLotteryManagement = (hackathonId, onUpdated) => {
     pendingBuckets,
     unlockedActiveTeams,
     awaitingAutoLock,
+    autoLockTimedOut,
     hackathon,
     isLoading,
     selectedRoundId,

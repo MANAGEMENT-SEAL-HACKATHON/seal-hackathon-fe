@@ -1,8 +1,10 @@
-import { Tag } from 'antd';
+import { Space, Tag } from 'antd';
 import LiveRecordIndicator from './LiveRecordIndicator';
 import {
   HACKATHON_STATUS_COLORS,
   HACKATHON_STATUS_LABELS,
+  REGISTRATION_PHASE_COLORS,
+  REGISTRATION_PHASE_LABELS,
   labelOf,
 } from '../../constants/labels';
 import './LiveRecordIndicator.css';
@@ -18,8 +20,11 @@ const HACKATHON_KEYS = new Set([
   'INACTIVE',
 ]);
 
-const StatusBadge = ({ status }) => {
+const StatusBadge = ({ status, registrationPhase }) => {
   const key = String(status || '').toUpperCase();
+  const phaseKey = registrationPhase
+    ? String(registrationPhase).toUpperCase()
+    : null;
 
   const getStatusConfig = (statusKey) => {
     if (HACKATHON_KEYS.has(statusKey) && HACKATHON_STATUS_COLORS[statusKey]) {
@@ -50,20 +55,32 @@ const StatusBadge = ({ status }) => {
   };
 
   const { color, text, bold, live } = getStatusConfig(key);
+  const showPhase = phaseKey && REGISTRATION_PHASE_LABELS[phaseKey];
 
   return (
-    <Tag
-      color={color}
-      style={{
-        fontWeight: bold ? 700 : undefined,
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-      }}
-    >
-      {live ? <LiveRecordIndicator size={8} /> : null}
-      {text}
-    </Tag>
+    <Space size={4} wrap>
+      <Tag
+        color={color}
+        style={{
+          fontWeight: bold ? 700 : undefined,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          margin: 0,
+        }}
+      >
+        {live ? <LiveRecordIndicator size={8} /> : null}
+        {text}
+      </Tag>
+      {showPhase ? (
+        <Tag
+          color={REGISTRATION_PHASE_COLORS[phaseKey] || 'default'}
+          style={{ margin: 0, fontWeight: 600 }}
+        >
+          {labelOf(REGISTRATION_PHASE_LABELS, phaseKey, phaseKey)}
+        </Tag>
+      ) : null}
+    </Space>
   );
 };
 

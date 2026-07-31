@@ -29,4 +29,29 @@
   .print-signatures {
     break-inside: avoid;
   }
+
+  .print-certificate {
+    box-shadow: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .print-certificate:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+}
+
+@media print {
+  @page print-certificate-landscape {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+
+  .print-certificate {
+    page: print-certificate-landscape;
+  }
 }

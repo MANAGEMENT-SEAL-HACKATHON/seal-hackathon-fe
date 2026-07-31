@@ -41,6 +41,8 @@ export const PRELIMINARY_SUBMISSION_ERROR_MESSAGES = {
     'Đội thi chưa được phân bảng trong vòng này. Hãy hoàn tất kết thúc đăng ký, khóa đội và bốc thăm trước.',
   ROUND_NOT_SCORING_LOCKED: 'Vòng thi chưa chốt điểm — chưa thể xem điểm.',
   SUBMISSION_ALREADY_CLOSED: 'Vòng thi đã khóa sổ, không thể nộp bài hay chỉnh sửa điểm.',
+  SUBMISSION_LOCKED_AFTER_SHUFFLE:
+    'Đã quay số thuyết trình — không còn cho nộp / duyệt bài muộn.',
 };
 
 export const extractPreliminarySubmissionErrorCode = (error) =>

@@ -10,6 +10,28 @@ const fieldHint = (text) => (
   <Text type="secondary" style={{ fontSize: 12 }}>{text}</Text>
 );
 
+const range = (start, end) => {
+  const result = [];
+  for (let i = start; i < end; i += 1) result.push(i);
+  return result;
+};
+
+/** Cùng ngày: end sớm nhất = start + 1 phút. */
+const getRegEndDisabledTime = (current, regStart) => {
+  if (!current || !regStart) return {};
+  const start = dayjs(regStart);
+  if (!current.isSame(start, 'day')) return {};
+  const minEnd = start.add(1, 'minute');
+  return {
+    disabledHours: () => range(0, minEnd.hour()),
+    disabledMinutes: (selectedHour) => {
+      if (selectedHour < minEnd.hour()) return range(0, 60);
+      if (selectedHour === minEnd.hour()) return range(0, minEnd.minute());
+      return [];
+    },
+  };
+};
+
 const currentYear = new Date().getFullYear();
 const buildYearOptions = (extraYear) => {
   const years = new Set([currentYear - 1, currentYear, currentYear + 1, currentYear + 2]);
@@ -19,6 +41,7 @@ const buildYearOptions = (extraYear) => {
 
 const HackathonForm = ({ form, onFinish, initialValues }) => {
   const yearOptions = buildYearOptions(initialValues?.year);
+  const registrationStart = Form.useWatch('registration_start', form);
   return (
     <Form
       form={form}
@@ -27,7 +50,6 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
       initialValues={{
         year: new Date().getFullYear(),
         individual_ranking_enabled: false,
-        appeal_window_minutes: 30,
         ...initialValues,
         registration_start: initialValues?.registration_start ? dayjs(initialValues.registration_start) : null,
         registration_end: initialValues?.registration_end ? dayjs(initialValues.registration_end) : null,
@@ -143,30 +165,6 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
       </Form.Item>
 
       <Form.Item
-        name="appeal_window_minutes"
-        label="Thời gian mở khiếu nại sau công bố (phút)"
-        extra={fieldHint('Mặc định 30 phút. Tối thiểu 10 phút (0 = tắt cửa sổ khiếu nại).')}
-        rules={[
-          { required: true, message: 'Vui lòng nhập thời gian cửa sổ khiếu nại' },
-          {
-            validator: (_, value) => {
-              const num = Number(value);
-              if (value === '' || value == null || Number.isNaN(num)) {
-                return Promise.reject(new Error('Nhập số phút hợp lệ'));
-              }
-              if (num === 0) return Promise.resolve();
-              if (num < 10) {
-                return Promise.reject(new Error('Tối thiểu 10 phút (hoặc 0 để tắt)'));
-              }
-              return Promise.resolve();
-            },
-          },
-        ]}
-      >
-        <Input type="number" min={0} placeholder="30" />
-      </Form.Item>
-
-      <Form.Item
         label="Ảnh Banner"
         extra={fieldHint('Upload ảnh JPG/PNG/WebP (tối đa 5MB). Ảnh hiển thị trên trang cấu hình sự kiện.')}
         name="banner_file"
@@ -184,9 +182,10 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
             extra={fieldHint('Cổng mở khi bạn bấm Mở đăng ký.')}
             rules={[{ required: true, message: 'Vui lòng chọn ngày bắt đầu đăng ký' }]}
           >
-            <DatePicker 
-              showTime 
-              style={{ width: '100%' }} 
+            <DatePicker
+              showTime={{ format: 'HH:mm' }}
+              format="DD/MM/YYYY HH:mm"
+              style={{ width: '100%' }}
               disabledDate={(current) => current && current < dayjs().startOf('day')}
             />
           </Form.Item>
@@ -195,28 +194,34 @@ const HackathonForm = ({ form, onFinish, initialValues }) => {
           <Form.Item
             name="registration_end"
             label="Kết thúc Đăng ký"
-            extra={fieldHint('Hết hạn đăng ký — sau đó khóa đội và bốc thăm.')}
+            extra={fieldHint('Hết hạn đăng ký — sau đó khóa đội và bốc thăm. Cùng ngày thì sớm nhất = giờ mở + 1 phút.')}
             dependencies={['registration_start']}
             rules={[
-              { required: true, message: 'Vui lòng chọn ngày kết thúc đăng ký' },
+              { required: true, message: 'Vui lòng chọn thời điểm kết thúc đăng ký' },
               ({ getFieldValue }) => ({
                 validator(_, value) {
                   const start = getFieldValue('registration_start');
-                  if (!value || !start || dayjs(value).isAfter(dayjs(start)) || dayjs(value).isSame(dayjs(start))) {
-                    return Promise.resolve();
+                  if (!value || !start) return Promise.resolve();
+                  const minEnd = dayjs(start).add(1, 'minute');
+                  if (dayjs(value).isBefore(minEnd)) {
+                    return Promise.reject(new Error('Kết thúc đăng ký phải sau giờ mở ít nhất 1 phút'));
                   }
-                  return Promise.reject(new Error('Ngày kết thúc đăng ký phải sau hoặc bằng ngày bắt đầu'));
+                  return Promise.resolve();
                 },
               }),
             ]}
           >
-            <DatePicker 
-              showTime 
-              style={{ width: '100%' }} 
+            <DatePicker
+              showTime={{ format: 'HH:mm' }}
+              format="DD/MM/YYYY HH:mm"
+              style={{ width: '100%' }}
               disabledDate={(current) => {
-                const regStart = form.getFieldValue('registration_start');
-                return current && (current < dayjs().startOf('day') || (regStart && current < dayjs(regStart).startOf('day')));
+                if (!current) return false;
+                if (current < dayjs().startOf('day')) return true;
+                if (registrationStart && current.isBefore(dayjs(registrationStart).startOf('day'))) return true;
+                return false;
               }}
+              disabledTime={(current) => getRegEndDisabledTime(current, registrationStart)}
             />
           </Form.Item>
         </Col>

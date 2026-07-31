@@ -8,6 +8,7 @@ import { useEliminateTeam } from "../../teams/hooks/useEliminateTeam";
 import { roundService } from "../../rounds/services/roundService";
 import RankingPreviewPanel from "../components/RankingPreviewPanel";
 import RankingRealtimeToolbar from "../components/RankingRealtimeToolbar";
+import ScoreBreakdownDrawer from "../components/ScoreBreakdownDrawer";
 import { useRankMovement } from "../hooks/useRankMovement";
 import { useRoundRankingPreview } from "../hooks/useRoundRankingPreview";
 
@@ -20,6 +21,7 @@ const RoundRankingPreviewPage = ({
   const navigate = useNavigate();
   const roundId = roundIdProp || params.roundId || params.id;
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [breakdownTarget, setBreakdownTarget] = useState(null);
   const [roundAccess, setRoundAccess] = useState({ roundId: null, canEliminate: false });
   const canEliminate =
     canEliminateProp ??
@@ -171,10 +173,19 @@ const RoundRankingPreviewPage = ({
         isLoading={isLoading}
         movements={movements}
         onEliminate={setSelectedTeam}
+        onOpenBreakdown={setBreakdownTarget}
         onGroupChange={setSelectedGroup}
         selectedGroup={selectedGroup}
         summary={summary}
         visibleItems={visibleItems}
+      />
+
+      <ScoreBreakdownDrawer
+        open={Boolean(breakdownTarget?.submissionId)}
+        onClose={() => setBreakdownTarget(null)}
+        roundId={roundId}
+        submissionId={breakdownTarget?.submissionId}
+        teamName={breakdownTarget?.teamName}
       />
 
       <EliminateTeamModal

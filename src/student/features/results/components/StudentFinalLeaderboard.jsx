@@ -1,6 +1,7 @@
 import { Table, Typography, Tag, Card, Empty, theme, Space, Row, Col } from 'antd';
 import { Medal, Layers, Crown } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { formatScore } from '../../../../shared/utils/formatScore';
 
 const { Text, Title } = Typography;
 
@@ -155,7 +156,7 @@ const StudentFinalLeaderboard = ({ data, loading }) => {
           };
         }
 
-        return <span style={{ display: 'inline-block', ...pillStyle }}>{num.toFixed(2)}</span>;
+        return <span style={{ display: 'inline-block', ...pillStyle }}>{formatScore(num)}</span>;
       },
     },
   ];
@@ -205,7 +206,7 @@ const StudentFinalLeaderboard = ({ data, loading }) => {
                     {top2.trackName || 'Track'}
                   </Text>
                   <div style={{ fontSize: 30, fontWeight: 900, color: isDark ? '#cbd5e1' : '#475569' }}>
-                    {(Number(top2.score !== undefined ? top2.score : top2.totalScore) || 0).toFixed(2)}
+                    {formatScore(top2.score !== undefined ? top2.score : top2.totalScore)}
                   </div>
                   <Text style={{ fontSize: 12, color: token.colorTextSecondary, textTransform: 'uppercase', fontWeight: 700 }}>Điểm Chung Cuộc</Text>
                 </Card>
@@ -273,7 +274,7 @@ const StudentFinalLeaderboard = ({ data, loading }) => {
                     {top1.trackName || 'Track'}
                   </Text>
                   <div style={{ fontSize: 38, fontWeight: 900, color: '#d97706', textShadow: '0 2px 10px rgba(217, 119, 6, 0.2)' }}>
-                    {(Number(top1.score !== undefined ? top1.score : top1.totalScore) || 0).toFixed(2)}
+                    {formatScore(top1.score !== undefined ? top1.score : top1.totalScore)}
                   </div>
                   <Text style={{ fontSize: 13, color: token.colorTextSecondary, textTransform: 'uppercase', fontWeight: 800 }}>Điểm Chung Cuộc</Text>
                 </Card>
@@ -321,7 +322,7 @@ const StudentFinalLeaderboard = ({ data, loading }) => {
                     {top3.trackName || 'Track'}
                   </Text>
                   <div style={{ fontSize: 30, fontWeight: 900, color: isDark ? '#fdba74' : '#b45309' }}>
-                    {(Number(top3.score !== undefined ? top3.score : top3.totalScore) || 0).toFixed(2)}
+                    {formatScore(top3.score !== undefined ? top3.score : top3.totalScore)}
                   </div>
                   <Text style={{ fontSize: 12, color: token.colorTextSecondary, textTransform: 'uppercase', fontWeight: 700 }}>Điểm Chung Cuộc</Text>
                 </Card>

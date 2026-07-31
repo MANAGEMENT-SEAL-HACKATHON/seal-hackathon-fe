@@ -13,6 +13,7 @@ const RankingPreviewPanel = ({
   isLoading,
   movements,
   onEliminate,
+  onOpenBreakdown,
   onGroupChange,
   selectedGroup,
   summary,
@@ -79,6 +80,7 @@ const RankingPreviewPanel = ({
           canEliminate={canEliminate}
           eliminatingTeamId={eliminatingTeamId}
           onEliminate={onEliminate}
+          onOpenBreakdown={onOpenBreakdown}
           showGroupDividers={selectedGroup === "all"}
         />
       </Space>
