@@ -42,10 +42,10 @@ const ApprovalSummary = ({ title, description, metrics }) => {
       <div
         style={{
           display: "grid",
-          gap: 10,
+          gap: 12,
           gridTemplateColumns: isMobile
-            ? "repeat(3, minmax(0, 1fr))"
-            : "repeat(3, 124px)",
+            ? `repeat(${metrics.length === 4 ? 2 : 3}, minmax(0, 1fr))`
+            : `repeat(${metrics.length}, 140px)`,
         }}
       >
         {metrics.map((metric, index) => (
@@ -76,7 +76,15 @@ const ApprovalSummary = ({ title, description, metrics }) => {
               {metric.value}
             </div>
             {/* Nền ô số liệu luôn sáng — cố định màu chữ slate cho dark mode */}
-            <div style={{ color: "#475569", fontSize: 13, marginTop: 8, fontWeight: 500 }}>
+            <div
+              style={{
+                color: "#475569",
+                fontSize: metric.label.length > 15 ? 11 : 13,
+                marginTop: 8,
+                fontWeight: 500,
+                lineHeight: 1.25,
+              }}
+            >
               {metric.label}
             </div>
           </motion.div>

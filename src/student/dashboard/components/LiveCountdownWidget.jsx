@@ -16,16 +16,37 @@ const FPT = {
 const getHackathonName = (hackathon, selectedTeam) =>
   hackathon?.name || hackathon?.hackathonName || selectedTeam?.hackathonName || 'Hackathon hiện tại';
 
-const getTargetDate = (data) =>
-  data?.submissionDeadline ||
-  data?.submission_deadline ||
-  data?.registrationEnd ||
-  data?.registration_end ||
-  data?.eventEnd ||
-  data?.event_end ||
-  data?.endDate;
+const getTargetDate = (data, activeRound) => {
+  if (activeRound) {
+    const roundDeadline = activeRound.submission_deadline || activeRound.submissionDeadline;
+    if (roundDeadline) {
+      const distance = new Date(roundDeadline).getTime() - Date.now();
+      if (distance > 0) {
+        return roundDeadline;
+      }
+    }
+  }
+  return (
+    data?.submissionDeadline ||
+    data?.submission_deadline ||
+    data?.registrationEnd ||
+    data?.registration_end ||
+    data?.eventEnd ||
+    data?.event_end ||
+    data?.endDate
+  );
+};
 
-const getTargetLabel = (data) => {
+const getTargetLabel = (data, activeRound) => {
+  if (activeRound) {
+    const roundDeadline = activeRound.submission_deadline || activeRound.submissionDeadline;
+    if (roundDeadline) {
+      const distance = new Date(roundDeadline).getTime() - Date.now();
+      if (distance > 0) {
+        return `Hạn nộp ${activeRound.name || activeRound.roundName || 'bài thi'}`;
+      }
+    }
+  }
   if (data?.submissionDeadline || data?.submission_deadline) return 'Hạn nộp bài thi';
   if (data?.registrationEnd || data?.registration_end) return 'Đóng đăng ký';
   return 'Kết thúc sự kiện';
@@ -45,11 +66,11 @@ const getTimeLeft = (targetDate) => {
   };
 };
 
-const LiveCountdownWidget = ({ hackathon, selectedTeam }) => {
+const LiveCountdownWidget = ({ hackathon, activeRound, selectedTeam }) => {
   const { token } = theme.useToken();
   const [nowTick, setNowTick] = useState(0);
-  const targetDate = getTargetDate(hackathon);
-  const targetLabel = getTargetLabel(hackathon);
+  const targetDate = getTargetDate(hackathon, activeRound);
+  const targetLabel = getTargetLabel(hackathon, activeRound);
   const timeLeft = useMemo(() => getTimeLeft(targetDate, nowTick), [targetDate, nowTick]);
 
   useEffect(() => {

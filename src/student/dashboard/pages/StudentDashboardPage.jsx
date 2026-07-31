@@ -52,6 +52,7 @@ const StudentDashboardPage = () => {
   const {
     user,
     activeHackathon,
+    activeRound,
     selectedTeam,
     nextAction,
     upcomingDeadlines,
@@ -362,7 +363,7 @@ const StudentDashboardPage = () => {
         }}
       >
         <TeamOverviewWidget user={user} selectedTeam={selectedTeam} isLoading={isTeamLoading} />
-        <LiveCountdownWidget hackathon={activeHackathon} selectedTeam={selectedTeam} />
+        <LiveCountdownWidget hackathon={activeHackathon} activeRound={activeRound} selectedTeam={selectedTeam} />
       </div>
 
       {/* ─── Tournament Roadmap / Team Journey (if in team) ─── */}

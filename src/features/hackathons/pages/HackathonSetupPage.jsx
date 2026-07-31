@@ -452,7 +452,7 @@ const HackathonSetupPage = () => {
         subtitle={
           hackathon.status === 'DRAFT'
             ? 'Hoàn tất cấu hình rồi bấm «Xác nhận Kích hoạt» để mở đăng ký'
-            : `Sự kiện: ${hackathon.name} — ${hackathon.status || ''}`
+            : undefined
         }
         extra={
           hackathon.status === 'DRAFT' ? (
