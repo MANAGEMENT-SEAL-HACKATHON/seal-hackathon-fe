@@ -66,6 +66,9 @@ export const SHARED_ERROR_MESSAGES = {
     'Dời hạn đăng ký xung đột với lịch Workshop / Khai mạc / Sơ loại — cần điều chỉnh lịch thi.',
   KIT_OUT_OF_STOCK: 'Hết tồn kho cho món/size này — không thể phát thêm.',
   KIT_ALREADY_ISSUED: 'Sinh viên đã nhận món kit này rồi.',
+  KIT_BUNDLE_EMPTY: 'Combo kit phải có ít nhất một món.',
+  KIT_ITEM_IN_BUNDLE: 'Không thể xóa món đang nằm trong combo kit — gỡ khỏi combo trước.',
+  KIT_ITEM_NAME_REQUIRED: 'Món loại Khác cần tên cụ thể (không dùng "khác"/"other").',
   TRACK_CLOSED: 'Bảng đấu đã đóng — không thể chuyển đội vào bảng này.',
   TEAM_NOT_ACTIVE: 'Đội thi chưa được duyệt / chưa ở trạng thái sẵn sàng.',
   ASSIGNMENT_DECLINE_TOO_LATE:

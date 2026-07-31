@@ -12,16 +12,22 @@ import {
   Typography,
   theme,
 } from 'antd';
-import { Check, RotateCcw, Search } from 'lucide-react';
+import { Check, PackageCheck, RotateCcw, Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import CoordinatorHero from '../../../shared/components/ui/CoordinatorHero';
 import { useHackathonScopeOptional } from '../../hackathons/context/HackathonScopeContext';
-import { kitService, SHIRT_SIZES } from '../services/kitService';
+import { kitService, SHIRT_FITS, SHIRT_SIZES } from '../services/kitService';
 import { resolveKitError } from '../utils/kitErrors';
 
 const { Text } = Typography;
 const { useBreakpoint } = Grid;
+
+const FIT_LABELS = {
+  UNISEX: 'Unisex',
+  MALE: 'Nam',
+  FEMALE: 'Nữ',
+};
 
 const KitDistributionPage = () => {
   const screens = useBreakpoint();
@@ -35,6 +41,7 @@ const KitDistributionPage = () => {
   const [query, setQuery] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [sizeOverrides, setSizeOverrides] = useState({});
+  const [fitOverrides, setFitOverrides] = useState({});
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(query.trim()), 200);
@@ -42,7 +49,6 @@ const KitDistributionPage = () => {
   }, [query]);
 
   useEffect(() => {
-    // Re-focus search when switching hackathon
     const id = setTimeout(() => {
       try {
         document.querySelector('.kit-desk-search input')?.focus();
@@ -59,22 +65,76 @@ const KitDistributionPage = () => {
     enabled: Boolean(hackathonId),
   });
 
+  const { data: bundles = [] } = useQuery({
+    queryKey: ['kitBundles', hackathonId],
+    queryFn: () => kitService.listBundles(hackathonId),
+    enabled: Boolean(hackathonId),
+  });
+
   const { data: recipients = [], isLoading, isFetching } = useQuery({
     queryKey: ['kitRecipients', hackathonId, debouncedQ],
     queryFn: () => kitService.listRecipients(hackathonId, debouncedQ || undefined),
     enabled: Boolean(hackathonId),
   });
 
+  const defaultBundle = useMemo(
+    () => (bundles || []).find((b) => b.isDefault) || (bundles || [])[0] || null,
+    [bundles],
+  );
+
   const invalidateDesk = () => {
     queryClient.invalidateQueries({ queryKey: ['kitRecipients', hackathonId] });
     queryClient.invalidateQueries({ queryKey: ['kitItems', hackathonId] });
+    queryClient.invalidateQueries({ queryKey: ['kitBundles', hackathonId] });
+  };
+
+  const resolveSizeFit = (row) => {
+    const size = sizeOverrides[row.userId] || row.preferredShirtSize || undefined;
+    const fit = fitOverrides[row.userId] || row.preferredShirtFit || 'UNISEX';
+    return { size, fit };
   };
 
   const issueMutation = useMutation({
-    mutationFn: ({ userId, kitItemId, size }) =>
-      kitService.issue(hackathonId, { userId, kitItemId, size: size || undefined }),
+    mutationFn: ({ userId, kitItemId, size, fit }) =>
+      kitService.issue(hackathonId, {
+        userId,
+        kitItemId,
+        size: size || undefined,
+        fit: fit || undefined,
+      }),
     onSuccess: (res) => {
       toast.success('Đã phát kit');
+      const warnings = res?.warnings || res?.data?.warnings;
+      if (Array.isArray(warnings)) {
+        warnings.forEach((w) => {
+          if (w?.message) toast(w.message, { icon: '⚠️' });
+        });
+      }
+      invalidateDesk();
+    },
+    onError: (err) => toast.error(resolveKitError(err)),
+  });
+
+  const issueBundleMutation = useMutation({
+    mutationFn: ({ userId, bundleId, size, fit }) =>
+      kitService.issueBundle(hackathonId, {
+        userId,
+        bundleId,
+        size: size || undefined,
+        fit: fit || undefined,
+      }),
+    onSuccess: (res) => {
+      const issued = res?.issued || [];
+      const skipped = res?.skipped || [];
+      const issuedNames = issued.map((a) => a.kitItemName || `#${a.kitItemId}`).join(', ');
+      const skippedNames = skipped.map((a) => a.kitItemName || `#${a.kitItemId}`).join(', ');
+      toast.success(
+        `Combo: phát ${issued.length} món${issuedNames ? ` (${issuedNames})` : ''}`
+          + (skipped.length
+            ? `; bỏ qua ${skipped.length} món đã có${skippedNames ? ` (${skippedNames})` : ''}`
+            : ''),
+        { duration: 5000 },
+      );
       const warnings = res?.warnings || res?.data?.warnings;
       if (Array.isArray(warnings)) {
         warnings.forEach((w) => {
@@ -100,9 +160,11 @@ const KitDistributionPage = () => {
     (items || []).forEach((item) => {
       (item.stocks || []).forEach((stock) => {
         const rem = stock.remaining ?? Math.max(0, (stock.quantityTotal || 0) - (stock.quantityIssued || 0));
+        const fitPart = item.type === 'SHIRT' && stock.fit ? ` · ${FIT_LABELS[stock.fit] || stock.fit}` : '';
+        const sizePart = item.hasSize ? ` · ${stock.size || '?'}` : '';
         counters.push({
-          key: `${item.id}-${stock.size || 'none'}`,
-          label: item.hasSize ? `${item.name} · ${stock.size || '?'}` : item.name,
+          key: `${item.id}-${stock.fit || 'none'}-${stock.size || 'none'}`,
+          label: `${item.name}${fitPart}${sizePart}`,
           remaining: rem,
         });
       });
@@ -171,81 +233,121 @@ const KitDistributionPage = () => {
       render: (v) => <Text>{v}</Text>,
     },
     {
-      title: 'Size áo',
-      width: 160,
+      title: 'Size / Dáng',
+      width: 220,
       render: (_, row) => {
-        const override = sizeOverrides[row.userId];
-        const size = override || row.preferredShirtSize;
-        if (!size) {
-          return (
-            <Space>
-              <Tag color="warning">Chưa khai</Tag>
-              <Select
-                size="small"
-                placeholder="Size"
-                style={{ width: 80 }}
-                options={SHIRT_SIZES.map((s) => ({ value: s, label: s }))}
-                onChange={(v) => setSizeOverrides((prev) => ({ ...prev, [row.userId]: v }))}
-              />
-            </Space>
-          );
-        }
-        return <Tag color="blue">{size}</Tag>;
+        const size = sizeOverrides[row.userId] || row.preferredShirtSize;
+        return (
+          <Space wrap size={4}>
+            {size ? (
+              <Tag color="blue">{size}</Tag>
+            ) : (
+              <Tag color="warning">Chưa size</Tag>
+            )}
+            <Select
+              size="small"
+              placeholder="Size"
+              style={{ width: 72 }}
+              value={sizeOverrides[row.userId] || row.preferredShirtSize || undefined}
+              options={SHIRT_SIZES.map((s) => ({ value: s, label: s }))}
+              onChange={(v) => setSizeOverrides((prev) => ({ ...prev, [row.userId]: v }))}
+            />
+            <Select
+              size="small"
+              placeholder="Dáng"
+              style={{ width: 96 }}
+              value={fitOverrides[row.userId] || row.preferredShirtFit || 'UNISEX'}
+              options={SHIRT_FITS.map((f) => ({ value: f, label: FIT_LABELS[f] || f }))}
+              onChange={(v) => setFitOverrides((prev) => ({ ...prev, [row.userId]: v }))}
+            />
+          </Space>
+        );
       },
     },
     {
       title: 'Phát kit',
-      render: (_, row) => (
-        <Space wrap size="middle">
-          {(items || []).map((item) => {
-            const alloc = (row.allocations || []).find(
-              (a) => a.kitItemId === item.id && a.status === 'ISSUED',
-            );
-            if (alloc) {
-              return (
-                <Space key={item.id} size={4}>
-                  <Button size="large" disabled style={{ minWidth: 120, height: 48, fontWeight: 700 }}>
-                    ✓ {item.name}
-                  </Button>
-                  <Button
-                    size="large"
-                    danger
-                    icon={<RotateCcw size={16} />}
-                    onClick={() => confirmRevoke(alloc)}
-                    style={{ height: 48 }}
-                  >
-                    Thu hồi
-                  </Button>
-                </Space>
-              );
-            }
-            const sizeForIssue = item.hasSize
-              ? (sizeOverrides[row.userId] || row.preferredShirtSize || undefined)
-              : undefined;
-            const missingSize = item.hasSize && !sizeForIssue;
-            return (
+      render: (_, row) => {
+        const { size, fit } = resolveSizeFit(row);
+        const shirtItems = (items || []).filter((i) => i.type === 'SHIRT' || i.hasSize);
+        const missingSize = shirtItems.some((item) => {
+          const already = (row.allocations || []).some(
+            (a) => a.kitItemId === item.id && a.status === 'ISSUED',
+          );
+          return !already && !size;
+        });
+        const busy = issueMutation.isPending || issueBundleMutation.isPending;
+
+        return (
+          <Space wrap size="middle">
+            {defaultBundle && (
               <Button
-                key={item.id}
                 type="primary"
                 size="large"
-                icon={<Check size={18} />}
-                disabled={missingSize || issueMutation.isPending}
-                loading={issueMutation.isPending}
+                icon={<PackageCheck size={18} />}
+                disabled={missingSize || busy}
+                loading={issueBundleMutation.isPending}
                 onClick={() =>
-                  issueMutation.mutate({
+                  issueBundleMutation.mutate({
                     userId: row.userId,
-                    kitItemId: item.id,
-                    size: sizeForIssue,
+                    bundleId: defaultBundle.id,
+                    size,
+                    fit,
                   })
                 }
                 style={{ minWidth: 140, height: 48, fontWeight: 700, fontSize: 15 }}
               >
-                {item.name}
+                Phát combo
               </Button>
-            );
-          })}
-        </Space>
-      ),
+            )}
+            {(items || []).map((item) => {
+              const alloc = (row.allocations || []).find(
+                (a) => a.kitItemId === item.id && a.status === 'ISSUED',
+              );
+              if (alloc) {
+                return (
+                  <Space key={item.id} size={4}>
+                    <Button size="large" disabled style={{ minWidth: 120, height: 48, fontWeight: 700 }}>
+                      ✓ {item.name}
+                    </Button>
+                    <Button
+                      size="large"
+                      danger
+                      icon={<RotateCcw size={16} />}
+                      onClick={() => confirmRevoke(alloc)}
+                      style={{ height: 48 }}
+                    >
+                      Thu hồi
+                    </Button>
+                  </Space>
+                );
+              }
+              const sizeForIssue = item.hasSize ? size : undefined;
+              const fitForIssue = item.type === 'SHIRT' ? fit : undefined;
+              const itemMissingSize = item.hasSize && !sizeForIssue;
+              return (
+                <Button
+                  key={item.id}
+                  size="large"
+                  icon={<Check size={18} />}
+                  disabled={itemMissingSize || busy}
+                  loading={issueMutation.isPending}
+                  onClick={() =>
+                    issueMutation.mutate({
+                      userId: row.userId,
+                      kitItemId: item.id,
+                      size: sizeForIssue,
+                      fit: fitForIssue,
+                    })
+                  }
+                  style={{ minWidth: 140, height: 48, fontWeight: 700, fontSize: 15 }}
+                >
+                  {item.name}
+                </Button>
+              );
+            })}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -254,8 +356,17 @@ const KitDistributionPage = () => {
       <div style={shellStyle}>
         <CoordinatorHero
           title="Quầy phát kit"
-          subtitle={hackathonName ? `Phát nhanh cho ${hackathonName}` : 'Tìm sinh viên → tick phát → đếm tồn kho realtime'}
+          subtitle={hackathonName ? `Phát nhanh cho ${hackathonName}` : 'Tìm sinh viên → phát combo / món lẻ → đếm tồn kho realtime'}
         />
+
+        {!defaultBundle && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="Chưa có combo mặc định — khai báo ở tab Vật phẩm & Kit, hoặc phát từng món."
+          />
+        )}
 
         <div
           style={{

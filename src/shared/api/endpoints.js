@@ -37,13 +37,16 @@ export const ENDPOINTS = {
     CLONE: (id) => `/api/v1/hackathons/${id}/clone`,
     APPEAL_WINDOW_MINUTES: (id) => `/api/v1/hackathons/${id}/appeal-window-minutes`,
     KIT_ITEMS: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kit-items`,
+    KIT_BUNDLES: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kit-bundles`,
     KIT_RECIPIENTS: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/recipients`,
     KIT_ISSUE: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/issue`,
+    KIT_ISSUE_BUNDLE: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/issue-bundle`,
     KIT_RECONCILIATION: (hackathonId) => `/api/v1/hackathons/${hackathonId}/kits/reconciliation`,
   },
   KITS: {
     ITEM_DETAIL: (id) => `/api/v1/kit-items/${id}`,
     ITEM_STOCK: (id) => `/api/v1/kit-items/${id}/stock`,
+    BUNDLE_DETAIL: (id) => `/api/v1/kit-bundles/${id}`,
     ALLOCATION_REVOKE: (id) => `/api/v1/kit-allocations/${id}/revoke`,
   },
   ME_KITS: {
