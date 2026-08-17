@@ -180,7 +180,7 @@ const FinalRoundConfigPage: React.FC<FinalRoundConfigPageProps> = ({
     } catch (error: any) {
       const code = error?.code || error?.response?.data?.error?.code;
       if (code === 'JUDGE_NOT_ASSIGNED') {
-        message.error('Chưa gán giám khảo khách mời cho vòng Chung kết (hoặc mọi giám khảo đã từ chối). Vui lòng mở mục Nhân sự để gán lại.');
+        message.error('Chưa gán giám khảo khách mời cho vòng Chung kết. Vui lòng mở mục Nhân sự để gán.');
       } else if (code === 'RESULT_NOT_PUBLISHED') {
         message.error('Cần công bố kết quả và hoàn thành chuyển tiếp đội thi từ vòng Sơ loại trước.');
       } else {

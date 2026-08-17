@@ -27,9 +27,8 @@ const matchesHackathon = (item, targetHackathonId) =>
 const RoundScoreboardSection = ({ roundId, isFinalRound = false }) => {
   const { token } = theme.useToken();
   const isDark = token.colorBgContainer !== '#ffffff' && token.colorBgContainer !== '#fff';
-  // Prelim: student me-leaderboard (track-scoped). Final: public scoreboard.
-  const source = isFinalRound ? "public" : "student";
-  const { scoreboard, isLoading, error } = useStudentRoundResults(roundId, source);
+  // Always use student endpoint — visible from PENDING_CONFIRM for final rounds
+  const { scoreboard, isLoading, error } = useStudentRoundResults(roundId, "student");
   
   const errCode = error?.code || error?.response?.data?.code;
   const errStatus = error?.status || error?.response?.status;
@@ -64,7 +63,7 @@ const RoundScoreboardSection = ({ roundId, isFinalRound = false }) => {
         <PublicScoreboard
           scoreboard={scoreboard}
           isLoading={isLoading}
-          lockToOwnGroup={!isFinalRound || source === "student"}
+          lockToOwnGroup={!isFinalRound}
         />
       )}
     </div>

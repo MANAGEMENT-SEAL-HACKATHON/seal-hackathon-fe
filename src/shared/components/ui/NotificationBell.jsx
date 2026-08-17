@@ -40,10 +40,6 @@ const getNotifConfig = (type, token, darkMode) => {
     return { icon: <Gavel size={16} color={token.colorWarning} />, bg: BG_AMBER(darkMode) };
   }
 
-  if (t === 'JUDGE_DECLINED' || t === 'MENTOR_DECLINED') {
-    return { icon: <AlertTriangle size={16} color={token.colorError} />, bg: BG_AMBER(darkMode) };
-  }
-
   // Bài nộp: xác nhận đã nộp / nhắc hạn nộp
   if (t === 'SUBMISSION_RECEIVED') {
     return { icon: <FileCheck size={16} color={token.colorSuccess} />, bg: BG_GREEN(darkMode) };

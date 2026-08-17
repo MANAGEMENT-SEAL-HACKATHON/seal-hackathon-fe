@@ -40,16 +40,4 @@ export const mentorPortalService = {
     const res = await axiosClient.get(ENDPOINTS.MENTOR_PORTAL.TRACK_ASSIGNMENTS);
     return unwrapList(res);
   },
-
-  declineTrackAssignment: async (assignmentId, reason) =>
-    axiosClient.patch(`/api/v1/me/mentor/assignments/${assignmentId}/decline`, { reason }),
-
-  acceptTrackAssignment: async (assignmentId) =>
-    axiosClient.patch(`/api/v1/me/mentor/assignments/${assignmentId}/accept`),
-
-  declineTeamAssignment: async (assignmentId, reason) =>
-    axiosClient.patch(`/api/v1/me/mentor/team-assignments/${assignmentId}/decline`, { reason }),
-
-  acceptTeamAssignment: async (assignmentId) =>
-    axiosClient.patch(`/api/v1/me/mentor/team-assignments/${assignmentId}/accept`),
 };

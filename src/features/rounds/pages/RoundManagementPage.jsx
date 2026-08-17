@@ -65,6 +65,7 @@ const buildActivateCtx = (round, tracks, teams, counts = {}) => {
     tracks: roundTracks,
     teamsByTrack,
     criteriaCountByTrack: counts.criteriaCountByTrack || {},
+    criteriaByTrack: counts.criteriaByTrack || {},
     judgeCountByTrack: counts.judgeCountByTrack || {},
   };
 };
@@ -123,6 +124,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
   const [advancementTracks, setAdvancementTracks] = useState([]);
   const [activateCounts, setActivateCounts] = useState({
     criteriaCountByTrack: {},
+    criteriaByTrack: {},
     judgeCountByTrack: {},
   });
   const navigate = useNavigate();
@@ -145,6 +147,7 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
 
       // Track list DTO không có criteriaCount/judgeCount — nạp riêng để gate FE khớp seed/BE
       const criteriaCountByTrack = {};
+      const criteriaByTrack = {};
       const judgeCountByTrack = {};
       await Promise.all(
         tracks.map(async (track) => {
@@ -159,14 +162,15 @@ const RoundManagementPage = ({ hackathonId, hackathon, onHackathonSync }) => {
             ? judgesRes
             : judgesRes?.items || judgesRes?.content || [];
           criteriaCountByTrack[tid] = criteriaList.length;
+          criteriaByTrack[tid] = criteriaList;
           judgeCountByTrack[tid] = judges.length;
         }),
       );
-      setActivateCounts({ criteriaCountByTrack, judgeCountByTrack });
+      setActivateCounts({ criteriaCountByTrack, criteriaByTrack, judgeCountByTrack });
     } catch {
       setAdvancementTeams([]);
       setAdvancementTracks([]);
-      setActivateCounts({ criteriaCountByTrack: {}, judgeCountByTrack: {} });
+      setActivateCounts({ criteriaCountByTrack: {}, criteriaByTrack: {}, judgeCountByTrack: {} });
     }
   };
 

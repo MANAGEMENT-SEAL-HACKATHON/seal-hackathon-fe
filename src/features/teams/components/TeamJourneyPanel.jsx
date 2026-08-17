@@ -17,6 +17,15 @@ const FPT = {
 
 const getStatusBadge = (status) => {
   const norm = String(status || '').toUpperCase();
+  if (norm.includes('COMPLETED') || norm.includes('FINISHED')) {
+    return {
+      color: 'default',
+      icon: <CheckCircle2 size={14} />,
+      label: '✅ ĐÃ KẾT THÚC',
+      bg: 'linear-gradient(135deg, rgba(100, 116, 139, 0.12) 0%, rgba(71, 85, 105, 0.08) 100%)',
+      border: '#64748B',
+    };
+  }
   if (norm.includes('ADVANCED') || norm.includes('FINAL')) {
     return {
       color: 'gold',
@@ -42,6 +51,15 @@ const getStatusBadge = (status) => {
       label: '🟢 ĐANG THI ĐẤU',
       bg: 'linear-gradient(135deg, rgba(70, 183, 73, 0.15) 0%, rgba(46, 139, 87, 0.1) 100%)',
       border: FPT.green,
+    };
+  }
+  if (norm.includes('UPCOMING') || norm.includes('PENDING')) {
+    return {
+      color: 'processing',
+      icon: <Clock size={14} />,
+      label: '⏳ SẮP DIỄN RA',
+      bg: 'linear-gradient(135deg, rgba(0, 82, 156, 0.12) 0%, rgba(30, 115, 190, 0.08) 100%)',
+      border: FPT.blueLight,
     };
   }
   return {
@@ -160,7 +178,9 @@ const TeamJourneyPanel = ({ teamId, teamName }) => {
           {steps.map((step, idx) => {
             const roundTitle = step.roundName ?? step.round_name ?? `Vòng ${step.roundId}`;
             const trackName = step.trackName ?? step.track_name ?? '—';
-            const statusBadge = getStatusBadge(step.participationStatus ?? step.participation_status);
+            const statusBadge = getStatusBadge(
+              step.displayStatus ?? step.display_status ?? step.participationStatus ?? step.participation_status,
+            );
 
             return (
               <div

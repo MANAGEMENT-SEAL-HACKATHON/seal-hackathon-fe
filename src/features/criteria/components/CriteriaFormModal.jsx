@@ -1,18 +1,30 @@
-import { useEffect } from "react";
-import { Modal, Form, Input, InputNumber, Select, Tag, Checkbox } from "antd";
+import { useEffect, useMemo } from "react";
+import { Modal, Form, Input, InputNumber, Select, Tag, Checkbox, Typography } from "antd";
 import { CRITERIA_TYPE_OPTIONS, CRITERIA_TYPES, formatCriteriaTypeLabel } from "../constants/criteria.constants";
 
 const { TextArea } = Input;
+const { Text } = Typography;
 
 export const CriteriaFormModal = ({
   visible,
   title,
   initialValues,
+  existingCriteria = [],
+  editingId,
   onCancel,
   onFinish,
 }) => {
   const [form] = Form.useForm();
   const selectedType = Form.useWatch("type", form);
+  const wantsTiebreaker = Form.useWatch("is_tiebreaker_priority", form);
+
+  const existingTiebreaker = useMemo(
+    () =>
+      existingCriteria.find(
+        (c) => c.is_tiebreaker_priority && c.id !== editingId,
+      ),
+    [existingCriteria, editingId],
+  );
 
   useEffect(() => {
     if (visible) {
@@ -146,6 +158,11 @@ export const CriteriaFormModal = ({
             Dùng làm tiêu chí phụ phân xử đồng điểm
           </Checkbox>
         </Form.Item>
+        {wantsTiebreaker && existingTiebreaker && (
+          <Text type="secondary" style={{ display: "block", marginTop: 8 }}>
+            Sẽ thay thế tiêu chí phụ hiện tại: «{existingTiebreaker.name}»
+          </Text>
+        )}
       </Form>
     </Modal>
   );

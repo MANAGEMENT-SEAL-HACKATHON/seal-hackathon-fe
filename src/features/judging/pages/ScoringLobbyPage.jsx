@@ -39,8 +39,6 @@ import {
 import { 
   judgeService 
 } from '../services/judgeService';
-import { runDeclineAssignment } from '../../assignments/utils/confirmAssignmentDecline';
-import { resolveUserError } from '../../../shared/errors/resolveUserError';
 const { 
   Title, 
   Text 
@@ -108,9 +106,6 @@ const ScoringLobbyPage = () => {
         const rStatus = item.roundStatus || item.round_status || item.status || 'ACTIVE';
 
         const cStatus = item.completionStatus || item.completion_status || 'NOT_STARTED';
-        const responseStatus = String(
-          item.responseStatus || item.response_status || 'ACCEPTED',
-        ).toUpperCase();
 
         const total = item.totalTeams ?? item.total_teams ?? 0;
         const scored = item.scoredTeams ?? item.scored_teams ?? 0;
@@ -140,8 +135,6 @@ const ScoringLobbyPage = () => {
           roundName: item.roundName || item.round_name || (isFinalFlag ? 'Vòng Chung Kết' : 'Vòng Sơ Loại'),
           roundStatus: rStatus,
           completionStatus: cStatus,
-          responseStatus,
-          declineReason: item.declineReason || item.decline_reason || null,
           progress: calcProgress,
           totalTeams: total,
           scoredTeams: scored,
@@ -624,11 +617,10 @@ const ScoringLobbyPage = () => {
                           || (item.scoredTeams === item.totalTeams && item.totalTeams > 0) 
                           || item.completionStatus === 'COMPLETED';
                         
-                        const isDeclined = String(item.responseStatus || '').toUpperCase() === 'DECLINED';
                         const isLockedCard = isEventLockedCard || isRoundLockedCard;
                         
                         // Quyết định xem form có bị read-only không
-                        const isReadOnly = isLockedCard || isScoringFinishedCard || isDeclined; 
+                        const isReadOnly = isLockedCard || isScoringFinishedCard; 
 
                         return (
                           <Col 
@@ -639,18 +631,15 @@ const ScoringLobbyPage = () => {
                             key={item.id}
                           >
                             <Card 
-                              hoverable={!isDeclined}
+                              hoverable
                               style={{ 
                                 borderRadius: 16, 
-                                border: isDeclined
-                                  ? '1px solid #fecaca'
-                                  : (isReadOnly ? '1px solid #e2e8f0' : '1px solid #bae0ff'), 
+                                border: isReadOnly ? '1px solid #e2e8f0' : '1px solid #bae0ff', 
                                 height: '100%', 
                                 display: 'flex', 
                                 flexDirection: 'column', 
-                                cursor: isDeclined ? 'default' : 'pointer',
+                                cursor: 'pointer',
                                 background: '#ffffff',
-                                opacity: isDeclined ? 0.92 : 1,
                               }}
                               styles={{ 
                                 body: { 
@@ -662,7 +651,6 @@ const ScoringLobbyPage = () => {
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (isDeclined) return;
                                 
                                 navigate(`/judging/${item.id}/scoring`, { 
                                   state: { 
@@ -711,11 +699,7 @@ const ScoringLobbyPage = () => {
                                   )}
                                 </div>
                                 <div>
-                                  {isDeclined ? (
-                                    <Tag color="error" style={{ borderRadius: 4, margin: 0 }}>
-                                      ĐÃ TỪ CHỐI
-                                    </Tag>
-                                  ) : isLockedCard ? (
+                                  {isLockedCard ? (
                                     <Tag 
                                       color="default" 
                                       style={{ 
@@ -839,7 +823,6 @@ const ScoringLobbyPage = () => {
                                 <Button 
                                   type={isReadOnly ? 'default' : 'primary'} 
                                   block 
-                                  disabled={isDeclined}
                                   icon={
                                     isReadOnly 
                                       ? <HistoryOutlined /> 
@@ -855,50 +838,8 @@ const ScoringLobbyPage = () => {
                                     background: isReadOnly ? '#f8fafc' : undefined
                                   }}
                                 >
-                                  {isDeclined
-                                    ? 'Đã từ chối tham gia'
-                                    : (isReadOnly ? 'Xem Lịch Sử Chấm Thi' : 'Vào phòng chấm thi')}
+                                  {isReadOnly ? 'Xem Lịch Sử Chấm Thi' : 'Vào phòng chấm thi'}
                                 </Button>
-                                {!isLockedCard && !isScoringFinishedCard && !isDeclined && (
-                                  <Button
-                                    type="link"
-                                    danger
-                                    block
-                                    style={{ marginTop: 4 }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      runDeclineAssignment(
-                                        (reason) => judgeService.declineAssignment(item.id, reason),
-                                        { onSuccess: reloadAssignments },
-                                      );
-                                    }}
-                                  >
-                                    Từ chối tham gia
-                                  </Button>
-                                )}
-                                {isDeclined && (
-                                  <Button
-                                    type="link"
-                                    block
-                                    style={{ marginTop: 4 }}
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      try {
-                                        await judgeService.acceptAssignment(item.id);
-                                        message.success('Đã chấp nhận lại phân công');
-                                        await reloadAssignments();
-                                      } catch (error) {
-                                        message.error(
-                                          resolveUserError(error, {
-                                            fallback: 'Không thể chấp nhận lại phân công.',
-                                          }),
-                                        );
-                                      }
-                                    }}
-                                  >
-                                    Rút lại từ chối
-                                  </Button>
-                                )}
                               </div>
                             </Card>
                           </Col>

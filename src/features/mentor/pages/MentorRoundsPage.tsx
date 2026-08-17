@@ -1,32 +1,24 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Tag, message } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import { personBApi } from '../../../api/personB.api';
 import { mentorPortalService } from '../services/mentorPortal.service';
-import { runDeclineAssignment } from '../../assignments/utils/confirmAssignmentDecline';
-import { resolveUserError } from '../../../shared/errors/resolveUserError';
 
 const MentorRoundsPage: React.FC = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
-  const { data: rounds = [], isLoading, error, refetch: refetchRounds } = useQuery<any[]>({
+  const { data: rounds = [], isLoading, error } = useQuery<any[]>({
     queryKey: ['mentorRounds'],
     queryFn: () => personBApi.getMentorRounds(),
     retry: false,
   });
 
-  const { data: trackAssignments = [], isLoading: tracksLoading, refetch: refetchTracks } = useQuery<any[]>({
+  const { data: trackAssignments = [], isLoading: tracksLoading } = useQuery<any[]>({
     queryKey: ['mentorTrackAssignments'],
     queryFn: () => mentorPortalService.getTrackAssignments(),
     enabled: !isLoading && !error && rounds.length === 0,
     retry: false,
   });
-
-  const refresh = async () => {
-    await Promise.all([refetchRounds(), refetchTracks(), queryClient.invalidateQueries({ queryKey: ['mentorRounds'] })]);
-  };
 
   const getStatusBadge = (status: string) => {
     if (status === 'ACTIVE') {
@@ -44,8 +36,6 @@ const MentorRoundsPage: React.FC = () => {
     if (lowerName.includes('bán kết') || lowerName.includes('round b')) return '🏆';
     return '👑';
   };
-
-  const isDeclinedStatus = (status?: string) => String(status || '').toUpperCase() === 'DECLINED';
 
   return (
     <div style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
@@ -168,62 +158,23 @@ const MentorRoundsPage: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {trackAssignments.map((item: any) => {
                 const assignmentId = item.assignmentId ?? item.assignment_id;
-                const declined = isDeclinedStatus(item.responseStatus || item.response_status);
                 return (
                   <div
                     key={assignmentId ?? item.trackId ?? item.track_id}
                     style={{
                       padding: '12px 16px',
                       borderRadius: 10,
-                      background: declined ? '#FEF2F2' : '#F9FAFB',
-                      border: `1px solid ${declined ? '#FECACA' : '#E5E7EB'}`,
+                      background: '#F9FAFB',
+                      border: '1px solid #E5E7EB',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       gap: 12,
                     }}
                   >
-                    <div>
-                      <span style={{ fontWeight: 600, color: '#111827' }}>
-                        {item.trackName ?? item.track_name ?? `Hạng mục #${item.trackId ?? item.track_id}`}
-                      </span>
-                      {declined && (
-                        <Tag color="error" style={{ marginLeft: 8 }}>ĐÃ TỪ CHỐI</Tag>
-                      )}
-                    </div>
-                    {assignmentId != null && (
-                      declined ? (
-                        <Button
-                          type="link"
-                          size="small"
-                          onClick={async () => {
-                            try {
-                              await mentorPortalService.acceptTrackAssignment(assignmentId);
-                              message.success('Đã chấp nhận lại phân công');
-                              await refresh();
-                            } catch (err) {
-                              message.error(resolveUserError(err, { fallback: 'Không thể chấp nhận lại.' }));
-                            }
-                          }}
-                        >
-                          Rút lại từ chối
-                        </Button>
-                      ) : (
-                        <Button
-                          type="link"
-                          danger
-                          size="small"
-                          onClick={() =>
-                            runDeclineAssignment(
-                              (reason) => mentorPortalService.declineTrackAssignment(assignmentId, reason),
-                              { onSuccess: refresh },
-                            )
-                          }
-                        >
-                          Từ chối tham gia
-                        </Button>
-                      )
-                    )}
+                    <span style={{ fontWeight: 600, color: '#111827' }}>
+                      {item.trackName ?? item.track_name ?? `Hạng mục #${item.trackId ?? item.track_id}`}
+                    </span>
                   </div>
                 );
               })}
@@ -246,20 +197,11 @@ const MentorRoundsPage: React.FC = () => {
           {rounds.map((round: any) => {
             const badge = getStatusBadge(round.status);
             const teams = round.teams || [];
-            const canDeclineRound = round.status === 'UPCOMING' || round.status === 'upcoming';
-            const activeTeamAssignments = teams.filter(
-              (t: any) => !isDeclinedStatus(t.responseStatus || t.response_status),
-            );
-            const declinedTeams = teams.filter(
-              (t: any) => isDeclinedStatus(t.responseStatus || t.response_status),
-            );
-            const allDeclined = teams.length > 0 && activeTeamAssignments.length === 0;
 
             return (
               <div
                 key={round.round_id ?? round.roundId}
                 className="round-card-item"
-                style={allDeclined ? { borderColor: '#FECACA', background: '#FFFBFB' } : undefined}
               >
                 <div style={{
                   width: '48px',
@@ -286,10 +228,10 @@ const MentorRoundsPage: React.FC = () => {
                       fontSize: '11px',
                       fontWeight: 700,
                       textTransform: 'uppercase',
-                      background: allDeclined ? '#FEE2E2' : badge.bg,
-                      color: allDeclined ? '#B91C1C' : badge.color
+                      background: badge.bg,
+                      color: badge.color
                     }}>
-                      {allDeclined ? 'ĐÃ TỪ CHỐI' : badge.text}
+                      {badge.text}
                     </span>
                   </div>
 
@@ -316,79 +258,25 @@ const MentorRoundsPage: React.FC = () => {
                     {round.team_count ?? round.teamCount ?? teams.length} đội
                   </span>
 
-                  {!allDeclined && (
-                    <button
-                      onClick={() => navigate(`/mentor/support?roundId=${round.roundId ?? round.round_id}`)}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '7px 14px',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: '8px',
-                        background: 'white',
-                        fontSize: '13px',
-                        fontWeight: 500,
-                        color: '#374151',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      Chi tiết vòng thi →
-                    </button>
-                  )}
-
-                  {canDeclineRound && activeTeamAssignments.length > 0 && (
-                    <Button
-                      type="link"
-                      danger
-                      size="small"
-                      onClick={() => {
-                        const first = activeTeamAssignments[0];
-                        const assignmentId = first.assignmentId ?? first.assignment_id;
-                        if (assignmentId == null) {
-                          message.warning('Không tìm thấy mã phân công để từ chối.');
-                          return;
-                        }
-                        runDeclineAssignment(
-                          async (reason) => {
-                            for (const t of activeTeamAssignments) {
-                              const id = t.assignmentId ?? t.assignment_id;
-                              if (id != null) {
-                                await mentorPortalService.declineTeamAssignment(id, reason);
-                              }
-                            }
-                          },
-                          { onSuccess: refresh },
-                        );
-                      }}
-                    >
-                      Từ chối tham gia
-                    </Button>
-                  )}
-
-                  {declinedTeams.length > 0 && (
-                    <Button
-                      type="link"
-                      size="small"
-                      onClick={async () => {
-                        try {
-                          for (const t of declinedTeams) {
-                            const id = t.assignmentId ?? t.assignment_id;
-                            if (id != null) {
-                              await mentorPortalService.acceptTeamAssignment(id);
-                            }
-                          }
-                          message.success('Đã chấp nhận lại phân công');
-                          await refresh();
-                        } catch (err) {
-                          message.error(resolveUserError(err, { fallback: 'Không thể chấp nhận lại.' }));
-                        }
-                      }}
-                    >
-                      Rút lại từ chối
-                    </Button>
-                  )}
+                  <button
+                    onClick={() => navigate(`/mentor/support?roundId=${round.roundId ?? round.round_id}`)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      border: '1px solid #E5E7EB',
+                      borderRadius: '8px',
+                      background: 'white',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: '#374151',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Chi tiết vòng thi →
+                  </button>
                 </div>
               </div>
             );

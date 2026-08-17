@@ -5,6 +5,7 @@ import {
   Card,
   Empty,
   Input,
+  Modal,
   Select,
   Space,
   Tag,
@@ -52,20 +53,34 @@ const ShowcaseEditorPanel = ({ hackathonId }) => {
       ]);
       setArticles(Array.isArray(list) ? list : []);
       setHof(Array.isArray(hofList) ? hofList : []);
-      if (selectedId) {
-        const found = (list || []).find((a) => a.id === selectedId);
-        if (found) setDraft(found);
-      }
+      // Do not overwrite draft here — preserves unsaved blocks after cover upload / list refresh
     } catch (err) {
       message.error(err?.message || 'Không tải được bài viết');
     } finally {
       setLoading(false);
     }
-  }, [hackathonId, selectedId]);
+  }, [hackathonId]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Sync selected article metadata (status) from list without wiping local blocks
+  useEffect(() => {
+    if (!selectedId || !articles.length) return;
+    const found = articles.find((a) => a.id === selectedId);
+    if (!found) return;
+    setDraft((prev) => {
+      if (!prev || prev.id !== selectedId) return prev;
+      return {
+        ...prev,
+        status: found.status ?? prev.status,
+        publishedAt: found.publishedAt ?? prev.publishedAt,
+        coverUrl: prev.coverUrl || found.coverUrl,
+        coverImageKey: prev.coverImageKey || found.coverImageKey,
+      };
+    });
+  }, [articles, selectedId]);
 
   const selectArticle = (article) => {
     setSelectedId(article.id);
@@ -151,27 +166,46 @@ const ShowcaseEditorPanel = ({ hackathonId }) => {
 
   const handleSave = async () => {
     if (!draft?.id) return;
-    setSaving(true);
-    try {
-      const updated = await showcaseService.updateArticle(draft.id, {
-        slug: draft.slug,
-        title: draft.title,
-        summary: draft.summary,
-        blocks: (draft.blocks || []).map((b, i) => ({
-          type: b.type,
-          sortOrder: i,
-          text: b.text,
-          imageKey: b.imageKey || null,
-        })),
+
+    const doSave = async () => {
+      setSaving(true);
+      try {
+        const updated = await showcaseService.updateArticle(draft.id, {
+          slug: draft.slug,
+          title: draft.title,
+          summary: draft.summary,
+          blocks: (draft.blocks || []).map((b, i) => ({
+            type: b.type,
+            sortOrder: i,
+            text: b.text,
+            imageKey: b.imageKey || null,
+          })),
+        });
+        setDraft(updated);
+        message.success('Đã lưu bài viết');
+        await refresh();
+      } catch (err) {
+        message.error(err?.message || 'Lưu thất bại');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    const serverArticle = articles.find((a) => a.id === draft.id);
+    const serverHadBlocks = Array.isArray(serverArticle?.blocks) && serverArticle.blocks.length > 0;
+    const draftBlocksEmpty = !draft.blocks || draft.blocks.length === 0;
+    if (draftBlocksEmpty && serverHadBlocks) {
+      Modal.confirm({
+        title: 'Xóa toàn bộ nội dung?',
+        content: 'Bài viết trên máy chủ đang có khối nội dung. Lưu với danh sách trống sẽ xóa hết. Bạn chắc chắn?',
+        okText: 'Vẫn lưu (xóa nội dung)',
+        okButtonProps: { danger: true },
+        cancelText: 'Hủy',
+        onOk: doSave,
       });
-      setDraft(updated);
-      message.success('Đã lưu bài viết');
-      await refresh();
-    } catch (err) {
-      message.error(err?.message || 'Lưu thất bại');
-    } finally {
-      setSaving(false);
+      return;
     }
+    await doSave();
   };
 
   const handlePublishToggle = async () => {
@@ -196,7 +230,11 @@ const ShowcaseEditorPanel = ({ hackathonId }) => {
     if (!draft?.id) return false;
     try {
       const updated = await showcaseService.uploadCover(draft.id, file);
-      setDraft(updated);
+      setDraft((prev) => ({
+        ...prev,
+        coverUrl: updated.coverUrl ?? updated.cover_url ?? prev?.coverUrl,
+        coverImageKey: updated.coverImageKey ?? updated.cover_image_key ?? prev?.coverImageKey,
+      }));
       message.success('Đã cập nhật ảnh bìa');
     } catch (err) {
       message.error(err?.message || 'Upload ảnh bìa thất bại');
@@ -231,12 +269,42 @@ const ShowcaseEditorPanel = ({ hackathonId }) => {
         {hof.length === 0 ? (
           <Empty description="Chưa có bản ghi — sẽ tạo khi chốt sổ (hoặc backfill)" />
         ) : (
-          hof.map((e) => (
-            <div key={e.id}>
-              <Text strong>{e.teamName}</Text>
-              <Text type="secondary"> — {e.memberNames || '—'}</Text>
-            </div>
-          ))
+          hof.map((e) => {
+            const cover = e.coverUrl || e.cover_url;
+            const hasArticle = Boolean(e.articleSlug || e.article_slug);
+            return (
+              <div key={e.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
+                <div
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 10,
+                    flexShrink: 0,
+                    background: cover
+                      ? `center / cover no-repeat url(${absoluteApiUrl(cover)})`
+                      : 'linear-gradient(135deg, #1677ff, #F37021)',
+                  }}
+                />
+                <div>
+                  <Text strong>{e.teamName}</Text>
+                  <Text type="secondary"> — {e.memberNames || '—'}</Text>
+                  {e.prizeName ? (
+                    <div>
+                      <Text style={{ color: '#1677ff', fontWeight: 600 }}>
+                        {e.prizeName}
+                        {e.prizeValue ? ` · ${e.prizeValue}` : ''}
+                      </Text>
+                    </div>
+                  ) : null}
+                  {!hasArticle ? (
+                    <Text type="warning" style={{ display: 'block', fontSize: 12 }}>
+                      Chưa có bài viết vinh danh cho mùa này — hãy soạn và xuất bản bên dưới.
+                    </Text>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })
         )}
         <div style={{ marginTop: 12 }}>
           <Link to={ROUTES.PUBLIC_HALL_OF_FAME} target="_blank">

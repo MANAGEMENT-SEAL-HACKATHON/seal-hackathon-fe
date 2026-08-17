@@ -10,6 +10,8 @@ import {
   Typography,
   Input,
   Select,
+  Radio,
+  Tooltip,
 } from "antd";
 import {
   Plus,
@@ -88,6 +90,26 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
     );
   }, [currentCriteria, searchText, filterType]);
 
+  const selectedTiebreakerId = useMemo(
+    () => currentCriteria.find((c) => c.is_tiebreaker_priority)?.id ?? null,
+    [currentCriteria],
+  );
+
+  const handleTiebreakerChange = async (criterion, checked) => {
+    if (!checked) return;
+    await handleSaveCriteria(
+      { ...criterion, is_tiebreaker_priority: true },
+      criterion.id,
+    );
+  };
+
+  const handleClearTiebreaker = async (criterion) => {
+    await handleSaveCriteria(
+      { ...criterion, is_tiebreaker_priority: false },
+      criterion.id,
+    );
+  };
+
   const columns = [
     {
       title: "STT",
@@ -151,6 +173,41 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
       key: "max_score",
       width: 120,
       align: "right",
+    },
+    {
+      title: "Tiêu chí phụ",
+      key: "tiebreaker",
+      width: 150,
+      align: "center",
+      render: (_, record) => {
+        const isPenalty = record.type === CRITERIA_TYPES.PENALTY;
+        const isSelected = selectedTiebreakerId === record.id;
+        if (isPenalty) {
+          return (
+            <Tooltip title="Tiêu chí điểm phạt không thể dùng làm tiêu chí phụ">
+              <Radio disabled />
+            </Tooltip>
+          );
+        }
+        return (
+          <Space direction="vertical" size={4} align="center">
+            <Radio
+              checked={isSelected}
+              onChange={() => handleTiebreakerChange(record, true)}
+            />
+            {isSelected && (
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: 0, height: "auto", fontSize: 11 }}
+                onClick={() => handleClearTiebreaker(record)}
+              >
+                Bỏ chọn
+              </Button>
+            )}
+          </Space>
+        );
+      },
     },
     {
       title: "Thao tác",
@@ -250,6 +307,15 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
         </Card>
       ) : (
         <Card style={{ borderRadius: 16 }}>
+          {currentCriteria.length > 0 && !selectedTiebreakerId && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Chưa chọn tiêu chí phụ phân xử đồng điểm"
+              description="Chọn một tiêu chí ở cột «Tiêu chí phụ» (thường là «Chất lượng giải pháp»)."
+            />
+          )}
           {currentCriteria.length > 0 && (
             <Alert
               type={isWeightValid ? "success" : "error"}
@@ -306,6 +372,8 @@ const CriteriaManagementPage = ({ hackathonId, onUpdated }) => {
               0,
             ) || 0) + 1,
         }}
+        existingCriteria={currentCriteria}
+        editingId={editingCriteria?.id}
         onCancel={() => setIsModalVisible(false)}
         onFinish={(v) => {
           handleSaveCriteria(v, editingCriteria?.id);

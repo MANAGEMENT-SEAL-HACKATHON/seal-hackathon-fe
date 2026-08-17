@@ -1,15 +1,16 @@
 /**
  * Single gate for round activation (FE mirror of BE RoundActivationServiceImpl).
- * @returns {{ ok: boolean, reasons: string[] }}
+ * @returns {{ ok: boolean, reasons: string[], warnings: string[] }}
  */
 export const canActivateRound = (round, ctx = {}) => {
   const reasons = [];
+  const warnings = [];
   if (!round) {
-    return { ok: false, reasons: ['Không tìm thấy vòng thi'] };
+    return { ok: false, reasons: ['Không tìm thấy vòng thi'], warnings };
   }
 
   if (round.is_active || round.isActive) {
-    return { ok: false, reasons: ['Vòng thi đã được kích hoạt'] };
+    return { ok: false, reasons: ['Vòng thi đã được kích hoạt'], warnings };
   }
 
   const tracks = (ctx.tracks || []).filter(
@@ -24,8 +25,9 @@ export const canActivateRound = (round, ctx = {}) => {
 
   const teamsByTrack = ctx.teamsByTrack || {};
   const criteriaByTrack = ctx.criteriaCountByTrack || {};
+  const criteriaDetailByTrack = ctx.criteriaByTrack || {};
   const judgesByTrack = ctx.judgeCountByTrack || {};
-  const declinedJudgeGaps = ctx.declinedJudgeGaps || [];
+  const tracksMissingTiebreaker = ctx.tracksMissingTiebreaker || [];
 
   for (const track of tracks) {
     const trackId = track.id;
@@ -43,11 +45,21 @@ export const canActivateRound = (round, ctx = {}) => {
     if (!teamCount) {
       reasons.push(`Bảng «${track.name}» chưa có đội tham gia`);
     }
+
+    const trackCriteria = criteriaDetailByTrack[trackId];
+    if (Array.isArray(trackCriteria) && trackCriteria.length > 0) {
+      const hasTiebreaker = trackCriteria.some(
+        (c) => c.is_tiebreaker_priority || c.isTiebreakerPriority,
+      );
+      if (!hasTiebreaker) {
+        warnings.push(`Bảng «${track.name}» chưa chọn tiêu chí phụ phân xử đồng điểm`);
+      }
+    }
   }
 
-  for (const gap of declinedJudgeGaps) {
+  for (const gap of tracksMissingTiebreaker) {
     const name = gap?.trackName || gap?.track_name || gap?.name || 'bảng';
-    reasons.push(`Bảng «${name}» thiếu giám khảo do từ chối phân công — cần gán lại`);
+    warnings.push(`Bảng «${name}» chưa chọn tiêu chí phụ phân xử đồng điểm`);
   }
 
   if (!round.is_final && !round.isFinal) {
@@ -59,11 +71,14 @@ export const canActivateRound = (round, ctx = {}) => {
     }
   }
 
-  return { ok: reasons.length === 0, reasons };
+  return { ok: reasons.length === 0, reasons, warnings };
 };
 
 export const getActivateRoundTooltip = (round, ctx) => {
-  const { ok, reasons } = canActivateRound(round, ctx);
-  if (ok) return 'Kích hoạt vòng thi';
-  return reasons.join(' · ');
+  const { ok, reasons, warnings } = canActivateRound(round, ctx);
+  if (ok && warnings.length === 0) return 'Kích hoạt vòng thi';
+  const parts = [];
+  if (!ok) parts.push(reasons.join(' · '));
+  if (warnings.length) parts.push(warnings.join(' · '));
+  return parts.join(' · ') || 'Kích hoạt vòng thi';
 };

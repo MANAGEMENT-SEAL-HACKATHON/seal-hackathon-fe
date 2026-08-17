@@ -49,6 +49,33 @@ const tracks = [
 }
 
 {
+  const { ok, reasons, warnings } = canActivateRound(prelim, {
+    tracks,
+    teamsByTrack: { 10: 2, 11: 2 },
+    criteriaCountByTrack: { 10: 5, 11: 5 },
+    judgeCountByTrack: { 10: 1, 11: 1 },
+    tracksMissingTiebreaker: [{ trackName: 'Track 2' }],
+  });
+  assert.equal(ok, true, `tiebreaker warning must not block: ${reasons.join('; ')}`);
+  assert.ok(warnings.some((w) => w.includes('tiêu chí phụ')));
+}
+
+{
+  const { ok, warnings } = canActivateRound(prelim, {
+    tracks,
+    teamsByTrack: { 10: 2, 11: 2 },
+    criteriaCountByTrack: { 10: 5, 11: 5 },
+    judgeCountByTrack: { 10: 1, 11: 1 },
+    criteriaByTrack: {
+      10: [{ name: 'A', is_tiebreaker_priority: false }],
+      11: [{ name: 'B', is_tiebreaker_priority: true }],
+    },
+  });
+  assert.equal(ok, true);
+  assert.ok(warnings.some((w) => w.includes('Track 1')));
+}
+
+{
   // Already active — no early-start / START_NOW allowance
   const active = { id: 1, is_final: false, is_active: true };
   const { ok, reasons } = canActivateRound(active, {
